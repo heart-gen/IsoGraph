@@ -38,6 +38,19 @@ conda env create -f environment.yml
 conda activate isograph
 ```
 
+The environment file installs the project in editable mode with dev dependencies.
+
+## Quickstart
+
+Install and validate a fresh checkout:
+
+```bash
+conda env create -f environment.yml
+conda activate isograph
+isograph --help
+pytest -q tests/test_synthetic.py
+```
+
 The package is intended to work on Python `3.11` through `3.14`. The conda
 environment file pins `3.11` as the canonical local development runtime, while
 CI should validate the wider supported range.

@@ -79,17 +79,17 @@ malformed inputs.
 
 - [x] Fresh environment install succeeds.
 - [x] CLI imports and `--help` works.
-- [ ] `fit.yaml`, `benchmark.yaml`, and `compare.yaml` all validate.
-- [ ] Invalid configs fail with clear messages.
-- [ ] Synthetic fixtures cover invariants and edge cases.
+- [x] `fit.yaml`, `benchmark.yaml`, and `compare.yaml` all validate.
+- [x] Invalid configs fail with clear messages.
+- [x] Synthetic fixtures cover invariants and edge cases.
 - [ ] A frozen `realmini_v1` fixture catches schema, metadata, sample-order, and artifact issues.
 - [ ] End-to-end CLI smoke tests pass on both `tiny_v1` and `realmini_v1`.
 - [ ] Expected artifacts are written and validated for both fixture types.
 - [ ] Deterministic snapshot comparison passes against `stage0_realmini_baseline_v1_seed0000`.
 - [x] `pytest` passes locally.
 - [x] GitHub Actions passes on supported Python versions.
-- [ ] `environment.yml` creates a fresh working conda environment from scratch.
-- [ ] `README.md` includes the quickstart install + smoke-test commands.
+- [x] `environment.yml` creates a fresh working conda environment from scratch.
+- [x] `README.md` includes the quickstart install + smoke-test commands.
 
 ### Recommended Commands
 
