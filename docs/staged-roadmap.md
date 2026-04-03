@@ -70,7 +70,7 @@ malformed inputs.
 - CLI commands: `freeze-real`, `benchmark`, `fit`, `compare`, `export`.
 - Hydra configs and Pydantic validation.
 - Synthetic fixture generators for `tiny_v1` and `medium_v1`.
-- Pure-Python freeze pipeline for `realmini_v1`.
+- Pure-Python freeze pipeline for `realmini_v1`, with PSI as the only splicing feature type and a repo-local real-data cache.
 - Artifact manifest and tracking utilities.
 - Conda environment and CI workflow.
 - Unit, property, regression, and smoke tests.
@@ -82,7 +82,7 @@ malformed inputs.
 - [x] `fit.yaml`, `benchmark.yaml`, and `compare.yaml` all validate.
 - [x] Invalid configs fail with clear messages.
 - [x] Synthetic fixtures cover invariants and edge cases.
-- [ ] A frozen `realmini_v1` fixture catches schema, metadata, sample-order, and artifact issues.
+- [ ] A frozen `realmini_v1` fixture catches schema, metadata, sample-order, and artifact issues using gene, transcript, and PSI assays only.
 - [ ] End-to-end CLI smoke tests pass on both `tiny_v1` and `realmini_v1`.
 - [ ] Expected artifacts are written and validated for both fixture types.
 - [ ] Deterministic snapshot comparison passes against `stage0_realmini_baseline_v1_seed0000`.
@@ -119,7 +119,7 @@ pytest -q
 - Fresh conda environment builds successfully.
 - Config validation catches malformed manifests and mismatched matrix/table shapes.
 - Synthetic fixtures cover invariants and edge cases successfully.
-- `realmini_v1` freeze succeeds and validates.
+- `realmini_v1` freeze succeeds and validates with PSI-only splicing artifacts.
 - End-to-end CLI smoke tests pass on `tiny_v1` and `realmini_v1`.
 - Deterministic compare against `stage0_realmini_baseline_v1_seed0000` passes.
 - CI passes on all supported Python versions (`3.11`, `3.12`, `3.13`, and `3.14`).
@@ -128,6 +128,8 @@ pytest -q
 
 - Synthetic fixture coverage plus a frozen real-data mini fixture is sufficient before Stage 1.
 - A full `core_v1` benchmark run is not required to complete Stage 0.
+- `realmini_v1` intentionally excludes junctions; PSI is the canonical Stage-0 splicing representation.
+- The real-data freeze path should use a repo-local cache for filtered samples, projected gene counts, partitioned transcript counts, and frozen mini fixtures so later Stage-0 smoke runs do not rescan remote sources.
 
 ---
 

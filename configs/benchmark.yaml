@@ -16,6 +16,7 @@ real_data:
   ancestry_tsv: /projects/b1213/users/kynon/projects/ancestry-aging-adrd-risk/inputs/brainseq/global_ancestry/_m/structure.out_ancestry_proportion_raceDemo_compare
   output_name: real_caudate_aa_v1
   gene_panel_size: 256
+  cache_root: benchmarks/cache/real_data
   allowed_diagnoses:
     - Control
     - SCZD

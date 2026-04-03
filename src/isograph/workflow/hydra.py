@@ -7,18 +7,7 @@ from pathlib import Path
 from types import UnionType
 from typing import Any, TypeVar, get_args, get_origin, get_type_hints
 
-from isograph.workflow.config import BenchmarkCommandConfig, CompareCommandConfig, FitCommandConfig
-
 T = TypeVar("T")
-
-
-def register_configs() -> None:
-    from hydra.core.config_store import ConfigStore
-
-    cs = ConfigStore.instance()
-    cs.store(name="benchmark_schema", node=BenchmarkCommandConfig)
-    cs.store(name="fit_schema", node=FitCommandConfig)
-    cs.store(name="compare_schema", node=CompareCommandConfig)
 
 
 def _convert_value(value: Any, target_type: Any) -> Any:
@@ -29,6 +18,21 @@ def _convert_value(value: Any, target_type: Any) -> Any:
             return None
         if len(non_none) == 1:
             return _convert_value(value, non_none[0])
+    if target_type is float and value is not None:
+        return float(value)
+    if target_type is int and value is not None:
+        return int(value)
+    if target_type is bool and value is not None:
+        if isinstance(value, bool):
+            return value
+        lowered = str(value).strip().lower()
+        if lowered in {"1", "true", "yes", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "off"}:
+            return False
+        raise ValueError(f"Cannot coerce {value!r} to bool")
+    if target_type is str and value is not None:
+        return str(value)
     if target_type is Path and value is not None:
         return Path(value)
     if origin is list and value is not None:
@@ -52,7 +56,6 @@ def load_config(config_name: str, overrides: list[str]) -> Any:
     from hydra import compose, initialize_config_dir
     from omegaconf import OmegaConf
 
-    register_configs()
     config_dir = (Path(__file__).resolve().parents[3] / "configs").resolve()
     with initialize_config_dir(version_base=None, config_dir=str(config_dir)):
         cfg = compose(config_name=config_name, overrides=overrides)

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
 
 
 @dataclass
@@ -36,11 +35,12 @@ class RealDataFreezeConfig:
     output_name: str = "real_caudate_aa_v1"
     gene_panel_size: int = 256
     allowed_diagnoses: list[str] = field(default_factory=lambda: ["Control", "SCZD"])
+    cache_root: Path = Path("benchmarks/cache/real_data")
 
 
 @dataclass
 class BenchmarkCommandConfig:
-    command: Literal["benchmark"] = "benchmark"
+    command: str = "benchmark"
     dataset_suite: str = "core_v1"
     benchmark_root: Path = Path("benchmarks")
     artifacts_root: Path = Path("artifacts")
@@ -54,7 +54,7 @@ class BenchmarkCommandConfig:
 
 @dataclass
 class FitCommandConfig:
-    command: Literal["fit"] = "fit"
+    command: str = "fit"
     benchmark_root: Path = Path("benchmarks")
     artifacts_root: Path = Path("artifacts")
     dataset_path: Path | None = None
@@ -66,7 +66,7 @@ class FitCommandConfig:
 
 @dataclass
 class CompareCommandConfig:
-    command: Literal["compare"] = "compare"
+    command: str = "compare"
     left_report: Path | None = None
     right_report: Path | None = None
     output_path: Path = Path("artifacts/reports/comparison.json")

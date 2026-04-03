@@ -77,6 +77,12 @@ Each command accepts Hydra-style overrides after `--`, for example:
 isograph benchmark -- dataset_suite=core_v1 model.alpha=0.12
 ```
 
+`freeze-real` uses a repo-local cache by default at
+`benchmarks/cache/real_data`. The first population pass may need to read the
+upstream BrainSeq sources, but later Stage 0 smoke runs should reuse the local
+cached sample selection, projected gene counts, partitioned transcript-count
+cache, and frozen `realmini` fixture.
+
 ## Status
 
 Implementation progress is tracked in [docs/staged-roadmap.md](docs/staged-roadmap.md).
