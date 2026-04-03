@@ -34,6 +34,20 @@ Only mark a stage `complete` after:
 - CI workflow and dedicated conda environment.
 - Unit and property-based tests around invariants.
 
+### Roadmap
+
+- [x] Fresh environment install succeeds
+- [x] CLI imports and `--help` works
+- [ ] `fit.yaml`, `benchmark.yaml`, and `compare.yaml` all validate
+- [ ] Invalid configs fail with clear messages
+- [ ] Synthetic fixture coverage exercises invariants and edge cases
+- [ ] One frozen real-data mini fixture catches schema, metadata, sample-order, and artifact problems
+- [ ] End-to-end CLI smoke tests pass on both the synthetic fixture and the frozen real-data mini fixture
+- [ ] Expected artifacts are written and validated for both fixture types
+- [ ] Deterministic snapshot comparison passes against `snapshots/stage0_realmini_baseline_v1_seed0000`
+- [x] `pytest` passes locally
+- [ ] GitHub Actions passes on supported Python versions (`3.11` to `3.14`)
+
 ### Commands
 
 ```bash
@@ -41,6 +55,26 @@ isograph freeze-real
 isograph benchmark
 pytest
 ```
+
+### Stage 0 Fixtures
+
+- Synthetic fixtures are sufficient for invariant and edge-case coverage before Stage 1; a full `core_v1` benchmark run is not required to unlock Stage 1.
+- A frozen real-data mini fixture must exist specifically to catch schema, metadata, sample-order, and artifact-regression failures before larger benchmark runs.
+
+### Deterministic Snapshot
+
+- Named target: `stage0_realmini_baseline_v1_seed0000`
+- Reference directory: `snapshots/stage0_realmini_baseline_v1_seed0000`
+- Candidate directory: `artifacts/current_run`
+- Comparison command: `isograph compare`
+- Snapshot names must encode only the load-bearing fields:
+  `stage`, `fixture` (`tiny`, `realmini`, `core_v1`), `backend` (`baseline`, `latent`, `graph`, `vae`), `version`, and `seed`
+- Required snapshot contents:
+  - `manifest.json`
+  - `metrics.json`
+  - `module_summary.tsv`
+  - `switch_features.parquet`
+  - `run_config.yaml`
 
 ### Expected Artifacts
 
@@ -53,8 +87,11 @@ pytest
 
 - Environment builds in a fresh conda env, and CI validates Python `3.11` through `3.14`.
 - Validation catches malformed manifests and mismatched matrix/table shapes.
-- Synthetic datasets and the real-data subset freeze successfully.
-- CI passes on Python `3.11` and `3.12`.
+- Synthetic fixtures cover invariants and edge cases successfully.
+- The frozen real-data mini fixture is generated and validated successfully.
+- End-to-end CLI smoke tests pass on the synthetic and real-data mini fixtures.
+- Deterministic comparison against `snapshots/stage0_realmini_baseline_v1_seed0000` passes.
+- CI passes on Python `3.11`, `3.12`, `3.13`, and `3.14`.
 
 ## Stage 1
 
