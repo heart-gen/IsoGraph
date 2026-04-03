@@ -1,0 +1,34 @@
+defaults:
+  - _self_
+
+command: benchmark
+dataset_suite: core_v1
+benchmark_root: benchmarks
+artifacts_root: artifacts
+dataset_root: benchmarks/datasets
+report_root: artifacts/reports
+tracking_uri: null
+seed: 7
+real_data:
+  counts_root: /projects/b1213/resources/processed-data/text-files/counts/caudate
+  annotations_root: /projects/b1213/resources/processed-data/r-variables/caudate/_m
+  phenotype_tsv: /projects/b1213/users/kynon/projects/ancestry-aging-adrd-risk/inputs/brainseq/phenotypes/_m/phenotypes.tsv
+  ancestry_tsv: /projects/b1213/users/kynon/projects/ancestry-aging-adrd-risk/inputs/brainseq/global_ancestry/_m/structure.out_ancestry_proportion_raceDemo_compare
+  output_name: real_caudate_aa_v1
+  gene_panel_size: 256
+  allowed_diagnoses:
+    - Control
+    - SCZD
+model:
+  name: baseline_network
+  alpha: 0.12
+  min_module_size: 3
+  max_modules: 64
+  residualize_covariates:
+    - RIN
+    - PMI
+    - mito_mapping_rate
+    - percent_assigned
+  trait_columns:
+    - Dx
+    - Age

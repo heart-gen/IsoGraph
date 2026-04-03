@@ -1,0 +1,23 @@
+defaults:
+  - _self_
+
+command: fit
+benchmark_root: benchmarks
+artifacts_root: artifacts
+dataset_path: null
+output_dir: artifacts/fits/manual
+tracking_uri: null
+seed: 7
+model:
+  name: baseline_network
+  alpha: 0.12
+  min_module_size: 3
+  max_modules: 64
+  residualize_covariates:
+    - RIN
+    - PMI
+    - mito_mapping_rate
+    - percent_assigned
+  trait_columns:
+    - Dx
+    - Age

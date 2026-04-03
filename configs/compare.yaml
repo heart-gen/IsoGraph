@@ -1,0 +1,7 @@
+defaults:
+  - _self_
+
+command: compare
+left_report: null
+right_report: null
+output_path: artifacts/reports/comparison.json
