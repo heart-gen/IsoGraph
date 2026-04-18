@@ -1,0 +1,56 @@
+{
+  "backend": "latent",
+  "calibration_by_fixture": [
+    {
+      "converged": true,
+      "fixture": "toy_v1",
+      "mean_log_likelihood": 69.91619636983076,
+      "mean_noise_variance": 8.514752832290695e-05,
+      "n_components_selected_by": "cv",
+      "n_components_used": 2,
+      "n_iter": 16,
+      "reconstruction_rmse": 0.008952003105866023
+    },
+    {
+      "converged": true,
+      "fixture": "medium_v1",
+      "mean_log_likelihood": 1203.725805964823,
+      "mean_noise_variance": 0.00012990895462811652,
+      "n_components_selected_by": "cv",
+      "n_components_used": 8,
+      "n_iter": 12,
+      "reconstruction_rmse": 0.011298947244255333
+    },
+    {
+      "converged": true,
+      "fixture": "realistic_v1",
+      "mean_log_likelihood": -54.90627885669462,
+      "mean_noise_variance": 0.13705656436377175,
+      "n_components_selected_by": "cv",
+      "n_components_used": 5,
+      "n_iter": 7,
+      "reconstruction_rmse": 0.36272081708201054
+    },
+    {
+      "converged": true,
+      "fixture": "realistic_unequal_v1",
+      "mean_log_likelihood": -59.95615870731747,
+      "mean_noise_variance": 0.13631675131003537,
+      "n_components_selected_by": "cv",
+      "n_components_used": 5,
+      "n_iter": 8,
+      "reconstruction_rmse": 0.36196500450974906
+    },
+    {
+      "converged": true,
+      "fixture": "real_caudate_aa_v1",
+      "mean_log_likelihood": -425.87662656732107,
+      "mean_noise_variance": 3.7488924654299107,
+      "n_components_selected_by": "cv",
+      "n_components_used": 6,
+      "n_iter": 13,
+      "reconstruction_rmse": 1.916056737470586
+    }
+  ],
+  "stage": "stage2_latent"
+}

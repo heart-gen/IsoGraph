@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pandas as pd
 
@@ -13,6 +13,7 @@ class FitArtifacts:
     edge_table: pd.DataFrame
     trait_table: pd.DataFrame
     feature_scores: pd.DataFrame
+    calibration: dict | None = None
 
 
 class NetworkModel:
