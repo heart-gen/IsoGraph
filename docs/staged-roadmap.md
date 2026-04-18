@@ -6,7 +6,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 0 | complete | Package skeleton, CLI, typed configs, benchmark harness, frozen fixtures, tests, CI, tracking | Fresh install + config validation + smoke workflows + deterministic snapshot pass | CI run, smoke-test log, snapshot diff report, fixture manifest | kynon | pending |
 | 1 | complete | Deterministic baseline feature pipeline, sparse network/module workflow, benchmark runner | Full `core_v1` baseline benchmark clears recovery, stability, and runtime gates | Locked benchmark report, baseline artifacts, seed-stability report | kynon | 98ef297 |
-| 2 | blocked | Probabilistic gene-aware latent model | Beats or matches Stage 1 on required scenarios and remains calibrated/stable | Comparative benchmark report vs Stage 1, calibration report, ablation report | kynon | pending |
+| 2 | complete | Probabilistic gene-aware latent model | Beats or matches Stage 1 on required scenarios and remains calibrated/stable | Comparative benchmark report vs Stage 1, calibration report, ablation report | kynon | pending |
 | 3 | blocked | Graph-aware priors/regularization | Improves switch/splicing recovery or interpretability without destabilizing runtime/calibration | Comparative benchmark report vs Stage 2, graph ablation report, prior-edge diagnostics | kynon | pending |
 | 4 | blocked | VAE backend | Clears pre-specified gains beyond Stage 2/3 and is reproducible across seeds | Comparative benchmark report, seed-sensitivity report, latent diagnostics, checkpoint manifest | kynon | pending |
 
@@ -221,16 +221,24 @@ and uncertainty while preserving calibration, interpretability, and operational 
 
 ### Recommended Checklist
 
-- [ ] Latent backend runs on `tiny_v1`, `medium_v1`, and `core_v1`.
-- [ ] Convergence/failure states are logged clearly.
-- [ ] Calibration metrics are implemented and reported.
-- [ ] Posterior summaries are stable across repeated runs or restarts.
-- [ ] Ablation runs exist for key modeling choices.
-- [ ] Latent backend matches or exceeds Stage 1 on all must-pass scenarios.
-- [ ] Any gains on switching scenarios do not come with unacceptable losses on baseline scenarios.
-- [ ] Runtime and memory overhead are documented.
-- [ ] Comparative benchmark report vs Stage 1 is archived.
-- [ ] The backend can be disabled cleanly via config without changing the public API.
+- [x] Latent backend runs on `toy_v1`, `medium_v1`, and full `core_v1` suite.
+- [x] Convergence/failure states are logged clearly (ConvergenceWarning captured; `n_iter`, `converged` in calibration dict; per-fixture `run.log`).
+- [x] Calibration metrics are implemented and reported (`mean_log_likelihood`, `reconstruction_rmse`, `mean_noise_variance`, `n_components_used`, `n_components_selected_by`).
+- [x] Posterior summaries are stable across repeated runs (determinism gate test passes).
+- [x] Ablation runs exist for key modeling choices (`artifacts/reports/stage2_latent-ablation.json`; grid density, CV folds, fixed-k vs auto-k).
+- [x] Latent backend matches or exceeds Stage 1 on all must-pass scenarios (toy_v1=1.0, medium_v1=1.0 vs Stage 1 medium_v1=0.875).
+- [x] No regression on baseline scenarios.
+- [x] Runtime and memory overhead documented (`artifacts/reports/stage2_latent-runtime-memory.json`).
+- [x] Comparative benchmark report vs Stage 1 archived (`artifacts/reports/stage2-vs-stage1.json`).
+- [x] Backend can be disabled cleanly via `backend=baseline` config without changing the public API.
+- [x] Stability selection (`evaluation/selection.py`) is implemented, documented, and gate-tested.
+- [x] Stability selection recommends a correct alpha on synthetic data with known modules (verified in `test_stage2_gates.py` and `test_realistic_fixtures.py`).
+- [x] Benchmark runner writes per-fixture stability JSON when `run_stability_selection=True`.
+- [x] `realistic_v1` fixture added to `core_v1` suite: 50 % non-switching genes, variable isoforms (2–5), NB overdispersion, shared confounder, equal module sizes.
+- [x] `realistic_unequal_v1` fixture added: same as `realistic_v1` but with power-law module sizes [38,25,17,12,8] to isolate module-size imbalance.
+- [x] Latent recovery gates cleared without n_components leakage: CV selection auto-identifies correct k; realistic_v1=1.0, realistic_unequal_v1=1.0.
+- [x] Baseline failure on realistic fixtures is documented as expected behaviour in `tests/test_realistic_fixtures.py`.
+- [x] README includes Stage 2 worked example with realistic_v1 (stability selection workflow, calibration interpretation).
 
 ### Recommended Commands
 
@@ -409,7 +417,7 @@ python -m isograph.workflow.cli compare \
 | --- | --- | --- | --- | --- | --- | --- |
 | pending | 0 | pending | pending | pending | pending | pending |
 | 2026-04-18 | 1 | 98ef29792cff8db5a557148e3ee545d66c72078d | N/A | artifacts/reports/stage1_baseline-benchmark.json | artifacts/reports/stage1_baseline-runtime-memory.json | toy_v1=1.0, medium_v1=0.875, real=complete; peak mem ≤ 9MB |
-| pending | 2 | pending | pending | pending | pending | pending |
+| 2026-04-18 | 2 | pending | N/A | artifacts/reports/stage2_latent-benchmark.json | artifacts/reports/stage2_latent-runtime-memory.json | toy_v1=1.0, medium_v1=1.0 (↑0.125 vs Stage 1), realistic_v1=1.0, realistic_unequal_v1=1.0; CV component selection; no n_components leakage; delta_recovery vs Stage 1: medium_v1 +0.125 |
 | pending | 3 | pending | pending | pending | pending | pending |
 | pending | 4 | pending | pending | pending | pending | pending |
 

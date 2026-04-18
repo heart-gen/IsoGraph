@@ -1,0 +1,31 @@
+{
+  "results": [
+    {
+      "dataset": "toy_v1",
+      "peak_memory_bytes": 198944,
+      "runtime_seconds": 57.63989155890886
+    },
+    {
+      "dataset": "medium_v1",
+      "peak_memory_bytes": 9139531,
+      "runtime_seconds": 29.57058360998053
+    },
+    {
+      "dataset": "realistic_v1",
+      "peak_memory_bytes": 2209075,
+      "runtime_seconds": 6.776072192937136
+    },
+    {
+      "dataset": "realistic_unequal_v1",
+      "peak_memory_bytes": 2212098,
+      "runtime_seconds": 6.252026929985732
+    },
+    {
+      "dataset": "real_caudate_aa_v1",
+      "peak_memory_bytes": 8532604,
+      "runtime_seconds": 9.086154379998334
+    }
+  ],
+  "stage": "stage2_latent",
+  "suite": "core_v1"
+}
