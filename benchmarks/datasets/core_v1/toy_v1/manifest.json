@@ -1,0 +1,64 @@
+{
+  "dataset_name": "toy_v1",
+  "description": "Toy deterministic simulation with exact switch truth.",
+  "feature_tables": [
+    {
+      "filename": "genes.parquet",
+      "kind": "gene",
+      "n_rows": 24
+    },
+    {
+      "filename": "transcripts.parquet",
+      "kind": "transcript",
+      "n_rows": 48
+    },
+    {
+      "filename": "psi.parquet",
+      "kind": "psi",
+      "n_rows": 24
+    },
+    {
+      "filename": "truth_modules.parquet",
+      "kind": "truth_module",
+      "n_rows": 24
+    },
+    {
+      "filename": "truth_switch.parquet",
+      "kind": "truth_switch",
+      "n_rows": 24
+    }
+  ],
+  "matrices": [
+    {
+      "assay_name": "gene_counts",
+      "encoding": "dense_npz",
+      "filename": "gene_counts.npz",
+      "n_features": 24,
+      "n_samples": 48
+    },
+    {
+      "assay_name": "transcript_counts",
+      "encoding": "dense_npz",
+      "filename": "transcript_counts.npz",
+      "n_features": 48,
+      "n_samples": 48
+    },
+    {
+      "assay_name": "psi",
+      "encoding": "dense_npz",
+      "filename": "psi.npz",
+      "n_features": 24,
+      "n_samples": 48
+    }
+  ],
+  "provenance": {
+    "generator": "synthetic_v1",
+    "seed": "7"
+  },
+  "sample_table": "samples.parquet",
+  "suite_name": "core_v1",
+  "truth_tables": [
+    "truth_modules.parquet",
+    "truth_switch.parquet"
+  ]
+}

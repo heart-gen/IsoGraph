@@ -1,0 +1,64 @@
+{
+  "dataset_name": "medium_v1",
+  "description": "Medium deterministic simulation with planted switch modules.",
+  "feature_tables": [
+    {
+      "filename": "genes.parquet",
+      "kind": "gene",
+      "n_rows": 400
+    },
+    {
+      "filename": "transcripts.parquet",
+      "kind": "transcript",
+      "n_rows": 800
+    },
+    {
+      "filename": "psi.parquet",
+      "kind": "psi",
+      "n_rows": 400
+    },
+    {
+      "filename": "truth_modules.parquet",
+      "kind": "truth_module",
+      "n_rows": 400
+    },
+    {
+      "filename": "truth_switch.parquet",
+      "kind": "truth_switch",
+      "n_rows": 400
+    }
+  ],
+  "matrices": [
+    {
+      "assay_name": "gene_counts",
+      "encoding": "dense_npz",
+      "filename": "gene_counts.npz",
+      "n_features": 400,
+      "n_samples": 240
+    },
+    {
+      "assay_name": "transcript_counts",
+      "encoding": "dense_npz",
+      "filename": "transcript_counts.npz",
+      "n_features": 800,
+      "n_samples": 240
+    },
+    {
+      "assay_name": "psi",
+      "encoding": "dense_npz",
+      "filename": "psi.npz",
+      "n_features": 400,
+      "n_samples": 240
+    }
+  ],
+  "provenance": {
+    "generator": "synthetic_v1",
+    "seed": "8"
+  },
+  "sample_table": "samples.parquet",
+  "suite_name": "core_v1",
+  "truth_tables": [
+    "truth_modules.parquet",
+    "truth_switch.parquet"
+  ]
+}
