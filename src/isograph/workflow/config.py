@@ -20,18 +20,10 @@ class BaselineModelConfig:
 
 @dataclass
 class RealDataFreezeConfig:
-    counts_root: Path = Path(
-        "/projects/b1213/resources/processed-data/text-files/counts/caudate"
-    )
-    annotations_root: Path = Path("/projects/b1213/resources/processed-data/r-variables/caudate/_m")
-    phenotype_tsv: Path = Path(
-        "/projects/b1213/users/kynon/projects/ancestry-aging-adrd-risk/inputs/brainseq/"
-        "phenotypes/_m/phenotypes.tsv"
-    )
-    ancestry_tsv: Path = Path(
-        "/projects/b1213/users/kynon/projects/ancestry-aging-adrd-risk/inputs/brainseq/"
-        "global_ancestry/_m/structure.out_ancestry_proportion_raceDemo_compare"
-    )
+    counts_root: Path = Path("data/counts")
+    annotations_root: Path = Path("data/annotations")
+    phenotype_tsv: Path = Path("data/phenotypes.tsv")
+    ancestry_tsv: Path = Path("data/ancestry.txt")
     output_name: str = "real_caudate_aa_v1"
     gene_panel_size: int = 256
     allowed_diagnoses: list[str] = field(default_factory=lambda: ["Control", "SCZD"])
@@ -67,6 +59,6 @@ class FitCommandConfig:
 @dataclass
 class CompareCommandConfig:
     command: str = "compare"
-    left_report: Path | None = None
-    right_report: Path | None = None
+    reference: Path | None = None
+    candidate: Path | None = None
     output_path: Path = Path("artifacts/reports/comparison.json")

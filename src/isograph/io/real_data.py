@@ -116,6 +116,12 @@ def _resolve_repo_path(path: Path) -> Path:
     return path if path.is_absolute() else REPO_ROOT / path
 
 
+def _find_tsv_path(directory: Path, stem: str) -> Path:
+    """Return ``directory/stem.tsv.gz`` if it exists, else ``directory/stem.tsv``."""
+    gz = directory / f"{stem}.tsv.gz"
+    return gz if gz.exists() else directory / f"{stem}.tsv"
+
+
 def _selection_key(config: RealDataFreezeConfig) -> str:
     diagnoses = "-".join(value.lower() for value in sorted(config.allowed_diagnoses))
     return f"caudate_aa_adult_{diagnoses}"
@@ -198,7 +204,7 @@ def _load_or_cache_gene_projection(
         return gene_counts, sample_cols
 
     started_at = perf_counter()
-    raw_gene_counts = _load_count_table(counts_root / "gene-counts.tsv")
+    raw_gene_counts = _load_count_table(_find_tsv_path(counts_root, "gene-counts"))
     sample_cols = _sample_columns(samples, list(raw_gene_counts.columns))
     projection_cols = [col for col in GENE_CACHE_METADATA_COLUMNS if col in raw_gene_counts.columns] + sample_cols
     gene_counts = raw_gene_counts[projection_cols].copy()
@@ -263,12 +269,15 @@ def _build_transcript_cache(
     tx_ids = pa.array(tx_gene_map["transcript_id"].tolist())
     gene_ids = pa.array(tx_gene_map["gene_id"].tolist())
     tx_columns = ["Name", "Length", "EffectiveLength", *sample_cols]
-    reader = pacsv.open_csv(
-        counts_root / "tx-counts.tsv",
-        read_options=pacsv.ReadOptions(use_threads=True, block_size=8 << 20),
-        parse_options=pacsv.ParseOptions(delimiter="\t"),
-        convert_options=pacsv.ConvertOptions(include_columns=tx_columns),
-    )
+    tx_counts_path = _find_tsv_path(counts_root, "tx-counts")
+    csv_read_opts = pacsv.ReadOptions(use_threads=True, block_size=8 << 20)
+    csv_parse_opts = pacsv.ParseOptions(delimiter="\t")
+    csv_convert_opts = pacsv.ConvertOptions(include_columns=tx_columns)
+    if tx_counts_path.suffix == ".gz":
+        _input = pa.CompressedInputStream(pa.OSFile(str(tx_counts_path)), "gzip")
+        reader = pacsv.open_csv(_input, csv_read_opts, csv_parse_opts, csv_convert_opts)
+    else:
+        reader = pacsv.open_csv(tx_counts_path, csv_read_opts, csv_parse_opts, csv_convert_opts)
 
     temp_dir = source_cache_dir / "transcript_counts.build"
     if temp_dir.exists():
@@ -320,7 +329,7 @@ def _build_transcript_cache(
     metadata = {
         "schema_version": TRANSCRIPT_CACHE_SCHEMA_VERSION,
         "selection_key": source_cache_dir.name,
-        "tx_counts_tsv": str(counts_root / "tx-counts.tsv"),
+        "tx_counts_tsv": str(tx_counts_path),
         "annotation_tsv": str(annot_root / "transcript_annotation.tsv.gz"),
         "selected_samples": sample_cols,
         "bucket_count": TRANSCRIPT_CACHE_BUCKETS,

@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 
 from isograph.evaluation.runner import benchmark, compare_reports, export_dataset_summary
+from isograph.evaluation.snapshots import compare_snapshot_dirs
 from isograph.io.real_data import freeze_real_dataset
 from isograph.models.baseline import BaselineNetworkModel
 from isograph.io.artifacts import load_dataset_bundle
@@ -34,8 +35,8 @@ def build_parser() -> argparse.ArgumentParser:
     fit.add_argument("--output-dir", default="artifacts/fits/manual")
 
     compare = subparsers.add_parser("compare")
-    compare.add_argument("--left-report", required=True)
-    compare.add_argument("--right-report", required=True)
+    compare.add_argument("--reference", required=True, help="Reference snapshot directory or benchmark JSON report")
+    compare.add_argument("--candidate", required=True, help="Candidate snapshot directory or benchmark JSON report")
     compare.add_argument("--output-path", default="artifacts/reports/comparison.json")
 
     export = subparsers.add_parser("export")
@@ -88,13 +89,19 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     if args.command == "compare":
-        payload = load_config("compare", overrides)
-        payload["left_report"] = args.left_report
-        payload["right_report"] = args.right_report
-        payload["output_path"] = args.output_path
-        config = instantiate_dataclass(CompareCommandConfig, payload)
-        output = compare_reports(Path(config.left_report), Path(config.right_report), Path(config.output_path))
-        print(output)
+        reference = Path(args.reference)
+        candidate = Path(args.candidate)
+        output_path = Path(args.output_path)
+        if reference.is_dir() and candidate.is_dir():
+            # Snapshot comparison: reference/candidate are artifact directories.
+            ensure_dir(output_path.parent)
+            report = compare_snapshot_dirs(reference, candidate)
+            write_json(output_path, report)
+            print(output_path)
+        else:
+            # Legacy benchmark-report comparison: reference/candidate are JSON files.
+            output = compare_reports(reference, candidate, output_path)
+            print(output)
         return
 
     if args.command == "export":

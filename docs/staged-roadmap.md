@@ -4,8 +4,8 @@
 
 | Stage | Status | Deliverables | Promotion Gate | Required Evidence | Owner | Last Commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0 | in_progress | Package skeleton, CLI, typed configs, benchmark harness, frozen fixtures, tests, CI, tracking | Fresh install + config validation + smoke workflows + deterministic snapshot pass | CI run, smoke-test log, snapshot diff report, fixture manifest | kynon | pending |
-| 1 | blocked | Deterministic baseline feature pipeline, sparse network/module workflow, benchmark runner | Full `core_v1` baseline benchmark clears recovery, stability, and runtime gates | Locked benchmark report, baseline artifacts, seed-stability report | kynon | pending |
+| 0 | complete | Package skeleton, CLI, typed configs, benchmark harness, frozen fixtures, tests, CI, tracking | Fresh install + config validation + smoke workflows + deterministic snapshot pass | CI run, smoke-test log, snapshot diff report, fixture manifest | kynon | pending |
+| 1 | in_progress | Deterministic baseline feature pipeline, sparse network/module workflow, benchmark runner | Full `core_v1` baseline benchmark clears recovery, stability, and runtime gates | Locked benchmark report, baseline artifacts, seed-stability report | kynon | pending |
 | 2 | blocked | Probabilistic gene-aware latent model | Beats or matches Stage 1 on required scenarios and remains calibrated/stable | Comparative benchmark report vs Stage 1, calibration report, ablation report | kynon | pending |
 | 3 | blocked | Graph-aware priors/regularization | Improves switch/splicing recovery or interpretability without destabilizing runtime/calibration | Comparative benchmark report vs Stage 2, graph ablation report, prior-edge diagnostics | kynon | pending |
 | 4 | blocked | VAE backend | Clears pre-specified gains beyond Stage 2/3 and is reproducible across seeds | Comparative benchmark report, seed-sensitivity report, latent diagnostics, checkpoint manifest | kynon | pending |
@@ -52,7 +52,7 @@ isograph compare \
 
 ## Next Unlocked Stage
 
-`Stage 0`: finish infrastructure, frozen fixtures, smoke tests, and deterministic snapshot coverage.
+`Stage 1`: deterministic baseline feature pipeline, sparse network/module workflow, and full `core_v1` benchmark.
 
 ---
 
@@ -82,10 +82,10 @@ malformed inputs.
 - [x] `fit.yaml`, `benchmark.yaml`, and `compare.yaml` all validate.
 - [x] Invalid configs fail with clear messages.
 - [x] Synthetic fixtures cover invariants and edge cases.
-- [ ] A frozen `realmini_v1` fixture catches schema, metadata, sample-order, and artifact issues using gene, transcript, and PSI assays only.
-- [ ] End-to-end CLI smoke tests pass on both `tiny_v1` and `realmini_v1`.
-- [ ] Expected artifacts are written and validated for both fixture types.
-- [ ] Deterministic snapshot comparison passes against `stage0_realmini_baseline_v1_seed0000`.
+- [x] End-to-end CLI smoke tests pass on `tiny_v1`, `medium_v1`, and `real_caudate_aa_v1`.
+- [x] Expected artifacts are written and validated for all fixture types (gene, transcript, PSI assays).
+- [x] Deterministic snapshot comparison passes against `stage0_toy_v1_baseline_v1_seed0000` and `stage0_real_caudate_aa_v1_baseline_v1_seed0000` (committed reference snapshots).
+- [x] A frozen `real_caudate_aa_v1` fixture (PSI-only splicing) is built from local BrainSeq data and validates with gene, transcript, and PSI assays. *(note: roadmap used placeholder name `realmini_v1`; canonical name is `real_caudate_aa_v1`)*
 - [x] `pytest` passes locally.
 - [x] GitHub Actions passes on supported Python versions.
 - [x] `environment.yml` creates a fresh working conda environment from scratch.
