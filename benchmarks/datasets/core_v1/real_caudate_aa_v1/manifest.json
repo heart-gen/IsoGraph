@@ -1,0 +1,58 @@
+{
+  "dataset_name": "real_caudate_aa_v1",
+  "description": "Frozen adult AA caudate subset with Control and SCZD samples only. Splicing is represented by PSI only.",
+  "feature_tables": [
+    {
+      "filename": "genes.parquet",
+      "kind": "gene",
+      "n_rows": 256
+    },
+    {
+      "filename": "transcripts.parquet",
+      "kind": "transcript",
+      "n_rows": 4500
+    },
+    {
+      "filename": "psi.parquet",
+      "kind": "psi",
+      "n_rows": 8188
+    }
+  ],
+  "matrices": [
+    {
+      "assay_name": "gene_counts",
+      "encoding": "dense_npz",
+      "filename": "gene_counts.npz",
+      "n_features": 256,
+      "n_samples": 205
+    },
+    {
+      "assay_name": "transcript_counts",
+      "encoding": "dense_npz",
+      "filename": "transcript_counts.npz",
+      "n_features": 4500,
+      "n_samples": 205
+    },
+    {
+      "assay_name": "psi",
+      "encoding": "dense_npz",
+      "filename": "psi.npz",
+      "n_features": 8188,
+      "n_samples": 205
+    }
+  ],
+  "provenance": {
+    "annotations_root": "data/annotations",
+    "cache_root": "/home/kynon/Documents/github/software/IsoGraph/benchmarks/cache/real_data",
+    "counts_root": "data/counts",
+    "fixture_cache_dir": "/home/kynon/Documents/github/software/IsoGraph/benchmarks/cache/real_data/fixtures/real_caudate_aa_v1_genes256",
+    "phenotype_tsv": "data/phenotypes.tsv",
+    "selection": "Region=Caudate,Race=AA,Age>17,dropped=f,Dx in {Control,SCZD}",
+    "source_cache_dir": "/home/kynon/Documents/github/software/IsoGraph/benchmarks/cache/real_data/sources/caudate_aa_adult_control-sczd",
+    "splicing_feature_type": "psi",
+    "transcript_cache_metadata": "/home/kynon/Documents/github/software/IsoGraph/benchmarks/cache/real_data/sources/caudate_aa_adult_control-sczd/transcript_counts.cache.json"
+  },
+  "sample_table": "samples.parquet",
+  "suite_name": "core_v1",
+  "truth_tables": []
+}
