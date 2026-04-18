@@ -3,17 +3,29 @@ defaults:
 
 command: benchmark
 dataset_suite: core_v1
+stage_name: stage1_baseline
+fixture_filter: null
 benchmark_root: benchmarks
 artifacts_root: artifacts
 dataset_root: benchmarks/datasets
 report_root: artifacts/reports
 tracking_uri: null
 seed: 7
+recovery_thresholds:
+  toy_v1: 1.0
+  medium_v1: 0.875
+fixture_model_overrides:
+  toy_v1:
+    alpha: 0.05
+    min_module_size: 2
+  medium_v1:
+    alpha: 0.02
+    min_module_size: 2
 real_data:
-  counts_root: /projects/b1213/resources/processed-data/text-files/counts/caudate
-  annotations_root: /projects/b1213/resources/processed-data/r-variables/caudate/_m
-  phenotype_tsv: /projects/b1213/users/kynon/projects/ancestry-aging-adrd-risk/inputs/brainseq/phenotypes/_m/phenotypes.tsv
-  ancestry_tsv: /projects/b1213/users/kynon/projects/ancestry-aging-adrd-risk/inputs/brainseq/global_ancestry/_m/structure.out_ancestry_proportion_raceDemo_compare
+  counts_root: data/counts
+  annotations_root: data/annotations
+  phenotype_tsv: data/phenotypes.tsv
+  ancestry_tsv: data/ancestry.txt
   output_name: real_caudate_aa_v1
   gene_panel_size: 256
   cache_root: benchmarks/cache/real_data
