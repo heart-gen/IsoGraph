@@ -4,9 +4,9 @@
 
 | Stage | Status | Deliverables | Promotion Gate | Required Evidence | Owner | Last Commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| 0 | complete | Package skeleton, CLI, typed configs, benchmark harness, frozen fixtures, tests, CI, tracking | Fresh install + config validation + smoke workflows + deterministic snapshot pass | CI run, smoke-test log, snapshot diff report, fixture manifest | kynon | pending |
+| 0 | complete | Package skeleton, CLI, typed configs, benchmark harness, frozen fixtures, tests, CI, tracking | Fresh install + config validation + smoke workflows + deterministic snapshot pass | CI run, smoke-test log, snapshot diff report, fixture manifest | kynon | ddd5644 |
 | 1 | complete | Deterministic baseline feature pipeline, sparse network/module workflow, benchmark runner | Full `core_v1` baseline benchmark clears recovery, stability, and runtime gates | Locked benchmark report, baseline artifacts, seed-stability report | kynon | 98ef297 |
-| 2 | complete | Probabilistic gene-aware latent model | Beats or matches Stage 1 on required scenarios and remains calibrated/stable | Comparative benchmark report vs Stage 1, calibration report, ablation report | kynon | pending |
+| 2 | complete | Probabilistic gene-aware latent model | Beats or matches Stage 1 on required scenarios and remains calibrated/stable | Comparative benchmark report vs Stage 1, calibration report, ablation report | kynon | 56e4119 |
 | 3 | blocked | Graph-aware priors/regularization | Improves switch/splicing recovery or interpretability without destabilizing runtime/calibration | Comparative benchmark report vs Stage 2, graph ablation report, prior-edge diagnostics | kynon | pending |
 | 4 | blocked | VAE backend | Clears pre-specified gains beyond Stage 2/3 and is reproducible across seeds | Comparative benchmark report, seed-sensitivity report, latent diagnostics, checkpoint manifest | kynon | pending |
 
@@ -415,9 +415,9 @@ python -m isograph.workflow.cli compare \
 
 | Date | Stage | Commit | MLflow Run | Benchmark Report | Runtime/Memory | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| pending | 0 | pending | pending | pending | pending | pending |
+| 2026-04-18 | 0 | ddd5644b1e9e5f60d3d40e4001bdedfc3047a20c | N/A | snapshots/stage0_toy_v1_baseline_v1_seed0000, snapshots/stage0_real_caudate_aa_v1_baseline_v1_seed0000 | N/A | Package skeleton, CLI, configs, benchmark harness, frozen fixtures, CI, tracking infra complete |
 | 2026-04-18 | 1 | 98ef29792cff8db5a557148e3ee545d66c72078d | N/A | artifacts/reports/stage1_baseline-benchmark.json | artifacts/reports/stage1_baseline-runtime-memory.json | toy_v1=1.0, medium_v1=0.875, real=complete; peak mem ≤ 9MB |
-| 2026-04-18 | 2 | 56e4119 | N/A | artifacts/reports/stage2_latent-benchmark.json | artifacts/reports/stage2_latent-runtime-memory.json | toy_v1=1.0, medium_v1=1.0 (↑0.125 vs Stage 1), realistic_v1=1.0, realistic_unequal_v1=1.0; CV component selection; no n_components leakage; delta_recovery vs Stage 1: medium_v1 +0.125 |
+| 2026-04-18 | 2 | 56e41191fa963d31dc3ec88dc37fb9f08acd4201 | N/A | artifacts/reports/stage2_latent-benchmark.json | artifacts/reports/stage2_latent-runtime-memory.json | toy_v1=1.0, medium_v1=1.0 (↑0.125 vs Stage 1), realistic_v1=1.0, realistic_unequal_v1=1.0; CV component selection; no n_components leakage; delta_recovery vs Stage 1: medium_v1 +0.125 |
 | pending | 3 | pending | pending | pending | pending | pending |
 | pending | 4 | pending | pending | pending | pending | pending |
 
