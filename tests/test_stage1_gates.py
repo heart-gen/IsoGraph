@@ -4,7 +4,7 @@ Covers items from the Stage 1 checklist that are not already in the smoke suite:
   - Sample-order permutation invariance
   - Single-isoform gene handling
   - Zero-count gene edge case
-  - medium_v1 recovery threshold (≥ 0.7)
+  - medium_v1 recovery threshold (≥ 0.875)
   - medium_v1 snapshot determinism
   - Benchmark runner integration (synthetic fixtures only, marked slow)
 """
@@ -236,12 +236,12 @@ def test_zero_counts_edge_case(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# medium_v1 recovery threshold gate (≥ 0.7)
+# medium_v1 recovery threshold gate (≥ 0.875)
 # ---------------------------------------------------------------------------
 
 
 def test_medium_v1_recovery_threshold(tmp_path: Path) -> None:
-    """medium_v1 module recovery clears the Stage 1 threshold of 0.7."""
+    """medium_v1 module recovery clears the Stage 1 threshold of 0.875."""
     paths = generate_core_suite(tmp_path / "datasets", seed=7)
     medium_dir = next(p for p in paths if "medium" in p.name)
 
@@ -250,7 +250,7 @@ def test_medium_v1_recovery_threshold(tmp_path: Path) -> None:
     assert truth is not None and not truth.empty
 
     recovery = module_recovery_score(artifacts.module_table, truth)
-    assert recovery >= 0.7, f"medium_v1 recovery {recovery:.4f} < Stage 1 gate 0.7"
+    assert recovery >= 0.875, f"medium_v1 recovery {recovery:.4f} < Stage 1 gate 0.875"
 
 
 # ---------------------------------------------------------------------------

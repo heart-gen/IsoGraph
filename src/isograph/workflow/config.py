@@ -45,8 +45,11 @@ class BenchmarkCommandConfig:
     real_data: RealDataFreezeConfig = field(default_factory=RealDataFreezeConfig)
     model: BaselineModelConfig = field(default_factory=BaselineModelConfig)
     recovery_thresholds: dict[str, float] = field(
-        default_factory=lambda: {"toy_v1": 1.0, "medium_v1": 0.7}
+        default_factory=lambda: {"toy_v1": 1.0, "medium_v1": 0.875}
     )
+    # Per-fixture model config overrides (e.g. different alpha per fixture).
+    # Keys are fixture names; values are partial BaselineModelConfig field dicts.
+    fixture_model_overrides: dict[str, dict] = field(default_factory=dict)
 
 
 @dataclass

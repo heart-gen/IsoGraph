@@ -44,9 +44,19 @@ def _convert_value(value: Any, target_type: Any) -> Any:
 
 
 def instantiate_dataclass(config_type: type[T], payload: dict[str, Any]) -> T:
+    import dataclasses
+
     type_hints = get_type_hints(config_type)
     values: dict[str, Any] = {}
     for field in fields(config_type):
+        if field.name not in payload or payload[field.name] is None:
+            # Prefer the field's own default over a None payload value.
+            if field.default is not dataclasses.MISSING:
+                values[field.name] = field.default
+                continue
+            if field.default_factory is not dataclasses.MISSING:  # type: ignore[misc]
+                values[field.name] = field.default_factory()  # type: ignore[misc]
+                continue
         current = payload.get(field.name)
         values[field.name] = _convert_value(current, type_hints.get(field.name, field.type))
     return config_type(**values)

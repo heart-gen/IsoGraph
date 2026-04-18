@@ -37,13 +37,21 @@ def benchmark(config: BenchmarkCommandConfig) -> dict[str, Path]:
     paths = prepare_core_suite(config)
     report_rows = []
     rt_rows = []
-    model = BaselineNetworkModel(config.model)
     stage_artifacts_dir = ensure_dir(config.artifacts_root / "benchmarks" / config.stage_name)
 
     with tracking_run(config.tracking_uri, run_name=f"{config.dataset_suite}-{config.model.name}"):
         for dataset_dir in paths:
             bundle = load_dataset_bundle(dataset_dir)
             dataset_name = bundle.manifest.dataset_name
+
+            overrides = config.fixture_model_overrides.get(dataset_name, {})
+            if overrides:
+                import dataclasses
+                model_config = dataclasses.replace(config.model, **overrides)
+                model = BaselineNetworkModel(model_config)
+            else:
+                model_config = config.model
+                model = BaselineNetworkModel(model_config)
 
             tracemalloc.start()
             start = perf_counter()
@@ -69,7 +77,7 @@ def benchmark(config: BenchmarkCommandConfig) -> dict[str, Path]:
             }
             save_snapshot(
                 fit_artifacts=artifacts,
-                model_config=config.model,
+                model_config=model_config,
                 metrics=metrics,
                 output_dir=ensure_dir(stage_artifacts_dir / dataset_name),
                 snapshot_name=f"stage1_{dataset_name}_baseline_v1_seed{config.seed:04d}",
