@@ -1,0 +1,6 @@
+{
+  "dataset_name": "toy_v1",
+  "isograph_version": "0.1.0",
+  "model": "baseline_network",
+  "snapshot_name": "stage0_toy_v1_baseline_v1_seed0000"
+}
