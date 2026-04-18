@@ -57,7 +57,8 @@ def main(argv: list[str] | None = None) -> None:
         payload = load_config("benchmark", overrides)
         config = instantiate_dataclass(BenchmarkCommandConfig, payload)
         output = benchmark(config)
-        print(output)
+        print(output["report"])
+        print(output["runtime_memory"])
         return
 
     if args.command == "freeze-real":

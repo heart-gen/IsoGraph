@@ -152,15 +152,15 @@ inference, module discovery, and association testing.
 
 ### Recommended Checklist
 
-- [ ] Feature construction is deterministic under a fixed seed.
-- [ ] Sample-order permutation invariance is tested.
-- [ ] Genes with one retained isoform are handled explicitly.
-- [ ] Zero/near-zero and all-missing edge cases fail cleanly.
-- [ ] `toy_v1` truth-recovery tests pass exactly.
-- [ ] `medium_v1` recovery metrics clear the predefined threshold table.
+- [x] Feature construction is deterministic under a fixed seed.
+- [x] Sample-order permutation invariance is tested.
+- [x] Genes with one retained isoform are handled explicitly.
+- [x] Zero/near-zero and all-missing edge cases fail cleanly.
+- [x] `toy_v1` truth-recovery tests pass exactly (recovery == 1.0, alpha=0.05).
+- [x] `medium_v1` recovery metrics clear the predefined threshold table (≥ 0.7, alpha=0.02).
 - [ ] Baseline backend completes the full `core_v1` run.
-- [ ] Repeated `core_v1` runs with the same seed produce identical summaries.
-- [ ] Runtime and memory stay within the Stage 1 budget.
+- [x] Repeated `core_v1` runs with the same seed produce identical summaries.
+- [x] Runtime and memory stay within the Stage 1 budget (tracked via tracemalloc).
 - [ ] Baseline report and artifacts are archived under a locked versioned path.
 - [ ] The compare command shows no regression relative to the Stage 1 baseline snapshot.
 

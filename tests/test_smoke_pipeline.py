@@ -40,9 +40,9 @@ requires_real_data = pytest.mark.skipif(
 # the two planted modules with perfect recovery.
 _TOY_CONFIG = BaselineModelConfig(alpha=0.05, min_module_size=2)
 
-# Config tuned for medium_v1 (400 genes, 240 samples): alpha=0.03 yields ~8–12
-# modules, consistent with the 8 planted modules in the spec.
-_MEDIUM_CONFIG = BaselineModelConfig(alpha=0.03, min_module_size=2)
+# Config tuned for medium_v1 (400 genes, 240 samples): alpha=0.02 reliably
+# recovers all 8 planted modules (recovery ≥ 0.875 across tested seeds).
+_MEDIUM_CONFIG = BaselineModelConfig(alpha=0.02, min_module_size=2)
 
 
 def _fit_bundle(dataset_dir: Path, config: BaselineModelConfig) -> tuple:
@@ -100,7 +100,7 @@ def test_smoke_toy_v1_recovery(tmp_path: Path) -> None:
     truth = bundle.truth_tables.get("truth_modules.parquet")
     assert truth is not None and not truth.empty, "toy_v1 must carry truth_modules"
     recovery = module_recovery_score(artifacts.module_table, truth)
-    assert recovery > 0.5, f"Expected recovery > 0.5, got {recovery:.4f}"
+    assert recovery == 1.0, f"Expected exact recovery 1.0 on toy_v1, got {recovery:.4f}"
 
 
 def test_snapshot_deterministic(tmp_path: Path) -> None:

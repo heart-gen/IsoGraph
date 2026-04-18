@@ -34,6 +34,8 @@ class RealDataFreezeConfig:
 class BenchmarkCommandConfig:
     command: str = "benchmark"
     dataset_suite: str = "core_v1"
+    stage_name: str = "stage1_baseline"
+    fixture_filter: str | None = None  # None = run all; "toy_v1"|"medium_v1"|"real_caudate_aa_v1" = one fixture
     benchmark_root: Path = Path("benchmarks")
     artifacts_root: Path = Path("artifacts")
     dataset_root: Path = Path("benchmarks/datasets")
@@ -42,6 +44,9 @@ class BenchmarkCommandConfig:
     seed: int = 7
     real_data: RealDataFreezeConfig = field(default_factory=RealDataFreezeConfig)
     model: BaselineModelConfig = field(default_factory=BaselineModelConfig)
+    recovery_thresholds: dict[str, float] = field(
+        default_factory=lambda: {"toy_v1": 1.0, "medium_v1": 0.7}
+    )
 
 
 @dataclass

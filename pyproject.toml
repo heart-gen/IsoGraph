@@ -35,6 +35,7 @@ packages = [{ include = "isograph", from = "src" }]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = ["slow: marks tests as slow (skipped in fast CI runs)"]
 
 [tool.ruff]
 line-length = 100
