@@ -5,7 +5,7 @@
 | Stage | Status | Deliverables | Promotion Gate | Required Evidence | Owner | Last Commit |
 | --- | --- | --- | --- | --- | --- | --- |
 | 0 | complete | Package skeleton, CLI, typed configs, benchmark harness, frozen fixtures, tests, CI, tracking | Fresh install + config validation + smoke workflows + deterministic snapshot pass | CI run, smoke-test log, snapshot diff report, fixture manifest | kynon | pending |
-| 1 | in_progress | Deterministic baseline feature pipeline, sparse network/module workflow, benchmark runner | Full `core_v1` baseline benchmark clears recovery, stability, and runtime gates | Locked benchmark report, baseline artifacts, seed-stability report | kynon | pending |
+| 1 | complete | Deterministic baseline feature pipeline, sparse network/module workflow, benchmark runner | Full `core_v1` baseline benchmark clears recovery, stability, and runtime gates | Locked benchmark report, baseline artifacts, seed-stability report | kynon | 98ef297 |
 | 2 | blocked | Probabilistic gene-aware latent model | Beats or matches Stage 1 on required scenarios and remains calibrated/stable | Comparative benchmark report vs Stage 1, calibration report, ablation report | kynon | pending |
 | 3 | blocked | Graph-aware priors/regularization | Improves switch/splicing recovery or interpretability without destabilizing runtime/calibration | Comparative benchmark report vs Stage 2, graph ablation report, prior-edge diagnostics | kynon | pending |
 | 4 | blocked | VAE backend | Clears pre-specified gains beyond Stage 2/3 and is reproducible across seeds | Comparative benchmark report, seed-sensitivity report, latent diagnostics, checkpoint manifest | kynon | pending |
@@ -157,12 +157,12 @@ inference, module discovery, and association testing.
 - [x] Genes with one retained isoform are handled explicitly.
 - [x] Zero/near-zero and all-missing edge cases fail cleanly.
 - [x] `toy_v1` truth-recovery tests pass exactly (recovery == 1.0, alpha=0.05).
-- [x] `medium_v1` recovery metrics clear the predefined threshold table (≥ 0.7, alpha=0.02).
-- [ ] Baseline backend completes the full `core_v1` run.
+- [x] `medium_v1` recovery metrics clear the predefined threshold table (≥ 0.875, alpha=0.02; achieved 0.875).
+- [x] Baseline backend completes the full `core_v1` run.
 - [x] Repeated `core_v1` runs with the same seed produce identical summaries.
-- [x] Runtime and memory stay within the Stage 1 budget (tracked via tracemalloc).
-- [ ] Baseline report and artifacts are archived under a locked versioned path.
-- [ ] The compare command shows no regression relative to the Stage 1 baseline snapshot.
+- [x] Runtime and memory stay within the Stage 1 budget (tracked via tracemalloc; peak ≤ 9MB per fixture).
+- [x] Baseline report and artifacts are archived under `artifacts/benchmarks/stage1_baseline/` and `snapshots/stage1_core_v1_baseline_v1_seed0007/`.
+- [x] The compare command shows no regression relative to the Stage 1 baseline snapshot.
 
 ### Recommended Commands
 
@@ -408,7 +408,7 @@ python -m isograph.workflow.cli compare \
 | Date | Stage | Commit | MLflow Run | Benchmark Report | Runtime/Memory | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | pending | 0 | pending | pending | pending | pending | pending |
-| pending | 1 | pending | pending | pending | pending | pending |
+| 2026-04-18 | 1 | 98ef29792cff8db5a557148e3ee545d66c72078d | N/A | artifacts/reports/stage1_baseline-benchmark.json | artifacts/reports/stage1_baseline-runtime-memory.json | toy_v1=1.0, medium_v1=0.875, real=complete; peak mem ≤ 9MB |
 | pending | 2 | pending | pending | pending | pending | pending |
 | pending | 3 | pending | pending | pending | pending | pending |
 | pending | 4 | pending | pending | pending | pending | pending |
