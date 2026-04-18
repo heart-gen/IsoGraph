@@ -1,0 +1,6 @@
+{
+  "dataset_name": "realistic_unequal_v1",
+  "isograph_version": "0.1.0",
+  "model": "latent_network",
+  "snapshot_name": "stage2_latent_realistic_unequal_v1_latent_v1_seed0007"
+}
