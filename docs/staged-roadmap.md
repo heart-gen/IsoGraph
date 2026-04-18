@@ -417,7 +417,7 @@ python -m isograph.workflow.cli compare \
 | --- | --- | --- | --- | --- | --- | --- |
 | pending | 0 | pending | pending | pending | pending | pending |
 | 2026-04-18 | 1 | 98ef29792cff8db5a557148e3ee545d66c72078d | N/A | artifacts/reports/stage1_baseline-benchmark.json | artifacts/reports/stage1_baseline-runtime-memory.json | toy_v1=1.0, medium_v1=0.875, real=complete; peak mem ≤ 9MB |
-| 2026-04-18 | 2 | pending | N/A | artifacts/reports/stage2_latent-benchmark.json | artifacts/reports/stage2_latent-runtime-memory.json | toy_v1=1.0, medium_v1=1.0 (↑0.125 vs Stage 1), realistic_v1=1.0, realistic_unequal_v1=1.0; CV component selection; no n_components leakage; delta_recovery vs Stage 1: medium_v1 +0.125 |
+| 2026-04-18 | 2 | 56e4119 | N/A | artifacts/reports/stage2_latent-benchmark.json | artifacts/reports/stage2_latent-runtime-memory.json | toy_v1=1.0, medium_v1=1.0 (↑0.125 vs Stage 1), realistic_v1=1.0, realistic_unequal_v1=1.0; CV component selection; no n_components leakage; delta_recovery vs Stage 1: medium_v1 +0.125 |
 | pending | 3 | pending | pending | pending | pending | pending |
 | pending | 4 | pending | pending | pending | pending | pending |
 
