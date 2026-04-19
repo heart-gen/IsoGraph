@@ -63,10 +63,30 @@ class GraphModelConfig:
 
 @dataclass
 class VaeModelConfig:
+    """Configuration for the VAE network backend.
+
+    **Choosing hidden_dim** (independent of latent_dim — no reliable ratio):
+
+    - ``n_samples >= 150``: 128 (default) works well.
+    - ``75 <= n_samples < 150``: raise to 192 for high-dispersion data.
+    - ``n_samples < 75``: 256 reduces underfitting, but expect lower recovery;
+      the model is data-limited. Do not use a ratio like ``latent_dim * 8`` —
+      stress tests show non-monotonic recovery across hidden_dim values,
+      especially for high-dispersion or small-n data.
+
+    **Choosing latent_dim / latent_dim_grid**:
+
+    Set ``latent_dim_grid`` to a list (e.g. ``[2, 4, 6, 8, 12]``) to let the
+    model sweep and auto-select the smallest *k* whose reconstruction RMSE
+    improvement falls below 0.01. This is recommended when you do not know the
+    number of true modules. Leave ``latent_dim_grid=None`` to use a fixed
+    ``latent_dim``.
+    """
     name: str = "vae_network"
     latent_dim: int = 8
-    hidden_dim: int = 64
+    hidden_dim: int = 128
     n_hidden_layers: int = 2
+    latent_dim_grid: list[int] | None = None
     beta: float = 1.0
     n_epochs: int = 500
     lr: float = 1e-3

@@ -89,6 +89,134 @@ try:
             "vae_posterior_collapse": len(collapsed) > 0,
         }
 
+    def _select_latent_dim_idx(
+        k_grid: list[int], rmses: list[float], abs_tol: float = 0.01
+    ) -> int:
+        """Return index of selected k: smallest k where RMSE improvement < abs_tol."""
+        for i in range(1, len(k_grid)):
+            if rmses[i - 1] - rmses[i] < abs_tol:
+                return i - 1
+        return len(k_grid) - 1
+
+    def _train_single_vae(
+        X_train: torch.Tensor,
+        X_val: torch.Tensor,
+        X_all: torch.Tensor,
+        X_np: np.ndarray,
+        n_genes: int,
+        cfg,
+        latent_dim: int,
+    ) -> tuple:
+        """Train one VAE with a specific latent_dim. Returns (x_recon_np, cal_partial, encoder, decoder)."""
+        torch.manual_seed(cfg.random_state)
+        np.random.seed(cfg.random_state)
+
+        encoder = _Encoder(n_genes, cfg.hidden_dim, latent_dim, cfg.n_hidden_layers)
+        decoder = _Decoder(latent_dim, cfg.hidden_dim, n_genes, cfg.n_hidden_layers)
+
+        params = list(encoder.parameters()) + list(decoder.parameters())
+        optimizer = torch.optim.Adam(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, patience=20, factor=0.5
+        )
+        generator = torch.Generator()
+        generator.manual_seed(cfg.random_state)
+
+        warmup = cfg.warmup_epochs if cfg.warmup_epochs is not None else max(1, cfg.n_epochs // 4)
+        best_val = float("inf")
+        patience_ctr = 0
+        best_epoch = 0
+        early_stopped = False
+        best_enc_state: dict = {}
+        best_dec_state: dict = {}
+        best_recon_l = 0.0
+        best_kl_l = 0.0
+
+        batch_size = cfg.batch_size
+        use_minibatch = batch_size is not None and batch_size < X_train.shape[0]
+
+        for epoch in range(cfg.n_epochs):
+            beta_t = min(cfg.beta, cfg.beta * (epoch + 1) / warmup)
+
+            encoder.train()
+            decoder.train()
+
+            if use_minibatch:
+                perm = torch.randperm(X_train.shape[0], generator=generator)
+                for start in range(0, X_train.shape[0], batch_size):
+                    batch = X_train[perm[start : start + batch_size]]
+                    mu, lv = encoder(batch)
+                    z = _reparameterize(mu, lv, generator)
+                    xr = decoder(z)
+                    loss, _, _ = _elbo_loss(batch, xr, mu, lv, beta_t)
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+            else:
+                mu, lv = encoder(X_train)
+                z = _reparameterize(mu, lv, generator)
+                xr = decoder(z)
+                loss, _, _ = _elbo_loss(X_train, xr, mu, lv, beta_t)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            encoder.eval()
+            decoder.eval()
+            with torch.no_grad():
+                mu_v, lv_v = encoder(X_val)
+                xr_v = decoder(mu_v)
+                val_loss, recon_l, kl_l = _elbo_loss(X_val, xr_v, mu_v, lv_v, beta_t)
+
+            scheduler.step(val_loss)
+            val_f = float(val_loss)
+
+            if epoch >= warmup:
+                if val_f < best_val - cfg.early_stop_tol:
+                    best_val = val_f
+                    best_epoch = epoch
+                    patience_ctr = 0
+                    best_recon_l = float(recon_l)
+                    best_kl_l = float(kl_l)
+                    best_enc_state = {k: v.clone() for k, v in encoder.state_dict().items()}
+                    best_dec_state = {k: v.clone() for k, v in decoder.state_dict().items()}
+                else:
+                    patience_ctr += 1
+                    if patience_ctr >= cfg.patience:
+                        early_stopped = True
+                        break
+
+        epochs_trained = (best_epoch + 1) if early_stopped else cfg.n_epochs
+
+        if best_enc_state:
+            encoder.load_state_dict(best_enc_state)
+            decoder.load_state_dict(best_dec_state)
+
+        encoder.eval()
+        decoder.eval()
+        with torch.no_grad():
+            mu_all, lv_all = encoder(X_all)
+            x_recon_all = decoder(mu_all)
+
+        collapse_dict = _detect_collapse(mu_all, lv_all, cfg.collapse_threshold)
+        x_recon_np = x_recon_all.numpy()
+        rmse = float(np.sqrt(np.mean((X_np - x_recon_np) ** 2)))
+
+        cal_partial = {
+            "reconstruction_rmse": rmse,
+            "vae_final_elbo": best_val,
+            "vae_final_recon_loss": best_recon_l,
+            "vae_final_kl_loss": best_kl_l,
+            "vae_best_epoch": best_epoch,
+            "vae_early_stopped": early_stopped,
+            "vae_n_epochs_trained": epochs_trained,
+            "vae_beta_used": cfg.beta,
+            "vae_latent_dim": latent_dim,
+            "converged": early_stopped,
+            **collapse_dict,
+        }
+        return x_recon_np, cal_partial, encoder, decoder
+
     _TORCH_AVAILABLE = True
 
 except ImportError:  # pragma: no cover
@@ -195,8 +323,6 @@ class VaeNetworkModel(NetworkModel):
 
         if n_genes >= 2:
             cfg = self.config
-            torch.manual_seed(cfg.random_state)
-            np.random.seed(cfg.random_state)
 
             X_np = switch_matrix.T.astype(np.float32)  # (n_samples, n_genes)
             n_samples = X_np.shape[0]
@@ -210,120 +336,39 @@ class VaeNetworkModel(NetworkModel):
             X_val = torch.tensor(X_np[val_idx])
             X_all = torch.tensor(X_np)
 
-            encoder = _Encoder(n_genes, cfg.hidden_dim, cfg.latent_dim, cfg.n_hidden_layers)
-            decoder = _Decoder(cfg.latent_dim, cfg.hidden_dim, n_genes, cfg.n_hidden_layers)
+            k_grid = cfg.latent_dim_grid if cfg.latent_dim_grid else [cfg.latent_dim]
+            grid_rmses: list[float] = []
+            grid_results: list[tuple] = []
 
-            params = list(encoder.parameters()) + list(decoder.parameters())
-            optimizer = torch.optim.Adam(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
-            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer, patience=20, factor=0.5
-            )
-            generator = torch.Generator()
-            generator.manual_seed(cfg.random_state)
+            for k in k_grid:
+                x_recon_np, cal_partial, enc, dec = _train_single_vae(
+                    X_train, X_val, X_all, X_np, n_genes, cfg, k
+                )
+                grid_rmses.append(cal_partial["reconstruction_rmse"])
+                grid_results.append((x_recon_np, cal_partial, enc, dec))
 
-            warmup = cfg.warmup_epochs if cfg.warmup_epochs is not None else max(1, cfg.n_epochs // 4)
-            best_val = float("inf")
-            patience_ctr = 0
-            best_epoch = 0
-            early_stopped = False
-            best_enc_state: dict = {}
-            best_dec_state: dict = {}
-            best_recon_l = 0.0
-            best_kl_l = 0.0
+            sel_idx = _select_latent_dim_idx(k_grid, grid_rmses) if len(k_grid) > 1 else 0
+            selected_k = k_grid[sel_idx]
+            x_recon_np, cal_partial, encoder, decoder = grid_results[sel_idx]
 
-            batch_size = cfg.batch_size
-            use_minibatch = batch_size is not None and batch_size < len(train_idx)
+            if len(k_grid) > 1:
+                cal_partial["latent_dim_selected"] = selected_k
+                cal_partial["latent_dim_grid_rmses"] = dict(zip(k_grid, grid_rmses))
+                _log.info(
+                    "latent_dim_grid sweep: selected k=%d from %s (rmses=%s)",
+                    selected_k, k_grid,
+                    [f"{r:.4f}" for r in grid_rmses],
+                )
 
-            for epoch in range(cfg.n_epochs):
-                beta_t = min(cfg.beta, cfg.beta * (epoch + 1) / warmup)
-
-                encoder.train()
-                decoder.train()
-
-                if use_minibatch:
-                    perm = torch.randperm(len(X_train), generator=generator)
-                    for start in range(0, len(X_train), batch_size):
-                        batch = X_train[perm[start : start + batch_size]]
-                        mu, lv = encoder(batch)
-                        z = _reparameterize(mu, lv, generator)
-                        xr = decoder(z)
-                        loss, _, _ = _elbo_loss(batch, xr, mu, lv, beta_t)
-                        optimizer.zero_grad()
-                        loss.backward()
-                        optimizer.step()
-                else:
-                    mu, lv = encoder(X_train)
-                    z = _reparameterize(mu, lv, generator)
-                    xr = decoder(z)
-                    loss, _, _ = _elbo_loss(X_train, xr, mu, lv, beta_t)
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
-
-                encoder.eval()
-                decoder.eval()
-                with torch.no_grad():
-                    mu_v, lv_v = encoder(X_val)
-                    xr_v = decoder(mu_v)
-                    val_loss, recon_l, kl_l = _elbo_loss(X_val, xr_v, mu_v, lv_v, beta_t)
-
-                scheduler.step(val_loss)
-                val_f = float(val_loss)
-
-                # Don't track best model or count patience during beta warmup.
-                # The KL weight hasn't reached its target yet, so val loss during
-                # warmup is not comparable to val loss after warmup.
-                if epoch >= warmup:
-                    if val_f < best_val - cfg.early_stop_tol:
-                        best_val = val_f
-                        best_epoch = epoch
-                        patience_ctr = 0
-                        best_recon_l = float(recon_l)
-                        best_kl_l = float(kl_l)
-                        best_enc_state = {k: v.clone() for k, v in encoder.state_dict().items()}
-                        best_dec_state = {k: v.clone() for k, v in decoder.state_dict().items()}
-                    else:
-                        patience_ctr += 1
-                        if patience_ctr >= cfg.patience:
-                            early_stopped = True
-                            break
-
-            epochs_trained = (best_epoch + 1) if early_stopped else cfg.n_epochs
-
-            if best_enc_state:
-                encoder.load_state_dict(best_enc_state)
-                decoder.load_state_dict(best_dec_state)
-
-            encoder.eval()
-            decoder.eval()
-            with torch.no_grad():
-                mu_all, lv_all = encoder(X_all)
-                x_recon_all = decoder(mu_all)
-
-            collapse_dict = _detect_collapse(mu_all, lv_all, cfg.collapse_threshold)
-            if collapse_dict["vae_n_collapsed_dims"] >= max(1, cfg.latent_dim // 2):
+            if cal_partial["vae_n_collapsed_dims"] >= max(1, selected_k // 2):
                 _log.warning(
                     "VAE posterior collapse: %d/%d latent dims collapsed. "
                     "Consider reducing beta or increasing warmup_epochs.",
-                    collapse_dict["vae_n_collapsed_dims"],
-                    cfg.latent_dim,
+                    cal_partial["vae_n_collapsed_dims"],
+                    selected_k,
                 )
 
-            x_recon_np = x_recon_all.numpy()
-            denoised_switch = x_recon_np.T  # (n_genes, n_samples)
-            rmse = float(np.sqrt(np.mean((X_np - x_recon_np) ** 2)))
-
-            calibration.update({
-                "reconstruction_rmse": rmse,
-                "vae_final_elbo": best_val,
-                "vae_final_recon_loss": best_recon_l,
-                "vae_final_kl_loss": best_kl_l,
-                "vae_best_epoch": best_epoch,
-                "vae_early_stopped": early_stopped,
-                "vae_n_epochs_trained": epochs_trained,
-                "converged": early_stopped,
-                **collapse_dict,
-            })
+            calibration.update(cal_partial)
 
             partial = self._gene_similarity(x_recon_np)
             for i, source in enumerate(gene_ids):
@@ -344,7 +389,7 @@ class VaeNetworkModel(NetworkModel):
                         "encoder": encoder.state_dict(),
                         "decoder": decoder.state_dict(),
                         "n_genes": n_genes,
-                        "latent_dim": cfg.latent_dim,
+                        "latent_dim": selected_k,
                         "hidden_dim": cfg.hidden_dim,
                         "n_hidden_layers": cfg.n_hidden_layers,
                     },
