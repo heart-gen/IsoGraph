@@ -10,7 +10,7 @@
       "n_samples": 48,
       "recommended_alpha": null,
       "recovery": 1.0,
-      "runtime_seconds": 7.723297554068267
+      "runtime_seconds": 7.220243484945968
     },
     {
       "dataset": "medium_v1",
@@ -20,7 +20,7 @@
       "n_samples": 240,
       "recommended_alpha": null,
       "recovery": 1.0,
-      "runtime_seconds": 5.37310541595798
+      "runtime_seconds": 4.976812567096204
     },
     {
       "dataset": "realistic_v1",
@@ -30,7 +30,7 @@
       "n_samples": 160,
       "recommended_alpha": null,
       "recovery": 1.0,
-      "runtime_seconds": 1.9120031050406396
+      "runtime_seconds": 1.9817406309302896
     },
     {
       "dataset": "realistic_unequal_v1",
@@ -40,17 +40,17 @@
       "n_samples": 160,
       "recommended_alpha": null,
       "recovery": 0.9851851851851852,
-      "runtime_seconds": 2.2339275759877637
+      "runtime_seconds": 1.9515278449980542
     },
     {
       "dataset": "noisy_v1",
-      "n_edges": 1017,
+      "n_edges": 650,
       "n_genes": 300,
-      "n_modules": 17,
+      "n_modules": 7,
       "n_samples": 100,
       "recommended_alpha": null,
-      "recovery": 0.22526041666666666,
-      "runtime_seconds": 2.114212793065235
+      "recovery": 0.8617527173913043,
+      "runtime_seconds": 2.222842089016922
     },
     {
       "dataset": "large_v1",
@@ -60,7 +60,7 @@
       "n_samples": 120,
       "recommended_alpha": null,
       "recovery": 0.7952380952380953,
-      "runtime_seconds": 7.339978385949507
+      "runtime_seconds": 7.101185656967573
     },
     {
       "dataset": "nonlinear_v1",
@@ -70,7 +70,7 @@
       "n_samples": 200,
       "recommended_alpha": null,
       "recovery": 0.9575892857142857,
-      "runtime_seconds": 2.0737424100516364
+      "runtime_seconds": 2.2995962619315833
     },
     {
       "dataset": "real_caudate_aa_v1",
@@ -80,7 +80,7 @@
       "n_samples": 205,
       "recommended_alpha": null,
       "recovery": null,
-      "runtime_seconds": 2.899214414996095
+      "runtime_seconds": 2.976917390944436
     }
   ],
   "stage": "stage4_vae",
