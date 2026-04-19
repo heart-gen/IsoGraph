@@ -1,4 +1,4 @@
-"""Stage-3 graph prior diagnostics and ablation utilities."""
+"""Stage-3 graph prior diagnostics, ablation utilities, and edge topology metrics."""
 
 from __future__ import annotations
 
@@ -11,6 +11,110 @@ import pandas as pd
 from isograph.evaluation.metrics import module_recovery_score
 from isograph.models.graph import GraphNetworkModel
 from isograph.workflow.config import GraphModelConfig
+
+
+def edge_topology_report(
+    edge_table: pd.DataFrame,
+    truth_modules: pd.DataFrame,
+) -> dict:
+    """Compute within-module edge precision, recall, and hub metrics.
+
+    Works on output from any stage (Stage 1/2/3) — only requires the
+    standard edge_table (source, target, weight) and truth_modules
+    (gene_id, module_id).
+
+    Returns
+    -------
+    dict with keys:
+
+    Edge precision/recall (treating within-module pairs as positives):
+      within_module_precision  — fraction of inferred edges that are within-module
+      within_module_recall     — fraction of true within-module pairs with an inferred edge
+      n_inferred_edges         — total inferred edges
+      n_within_inferred        — inferred edges that are within-module
+      n_possible_within        — total gene pairs sharing a module
+      f1_score                 — harmonic mean of precision and recall
+
+    Edge weight enrichment (continuous; module-label-free):
+      mean_weight_within       — mean |weight| of within-module edges
+      mean_weight_between      — mean |weight| of between-module edges
+      weight_enrichment        — mean_weight_within / mean_weight_between (>1 = enriched)
+
+    Hub accuracy (top-k degree genes stable across fits):
+      hub_genes_top10          — list of gene_ids with highest degree in inferred network
+      hub_degrees_top10        — corresponding degree values
+    """
+    module_map: dict[str, str] = {}
+    if truth_modules is not None and not truth_modules.empty:
+        module_map = dict(zip(truth_modules["gene_id"], truth_modules["module_id"]))
+
+    # Build set of all true within-module pairs
+    genes_by_module: dict = {}
+    for gene, mod in module_map.items():
+        genes_by_module.setdefault(mod, []).append(gene)
+
+    true_within: set[frozenset] = set()
+    for members in genes_by_module.values():
+        for i, a in enumerate(members):
+            for b in members[i + 1:]:
+                true_within.add(frozenset({a, b}))
+
+    n_possible_within = len(true_within)
+
+    # Parse inferred edges
+    inferred_edges: list[tuple[frozenset, float]] = []
+    if not edge_table.empty:
+        for _, row in edge_table.iterrows():
+            inferred_edges.append((
+                frozenset({row["source"], row["target"]}),
+                float(row["weight"]),
+            ))
+
+    n_inferred = len(inferred_edges)
+
+    # Precision / recall
+    within_inferred = [(e, w) for e, w in inferred_edges if e in true_within]
+    between_inferred = [(e, w) for e, w in inferred_edges if e not in true_within]
+
+    n_within_inferred = len(within_inferred)
+    precision = n_within_inferred / n_inferred if n_inferred > 0 else 0.0
+    recall = n_within_inferred / n_possible_within if n_possible_within > 0 else 0.0
+    f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
+
+    # Weight enrichment
+    within_weights = [abs(w) for _, w in within_inferred]
+    between_weights = [abs(w) for _, w in between_inferred]
+    mean_w_within = float(np.mean(within_weights)) if within_weights else 0.0
+    mean_w_between = float(np.mean(between_weights)) if between_weights else 0.0
+    # inf when all inferred edges are within-module (perfect precision); nan when no edges at all
+    if mean_w_between > 0:
+        weight_enrichment = mean_w_within / mean_w_between
+    elif mean_w_within > 0:
+        weight_enrichment = float("inf")
+    else:
+        weight_enrichment = float("nan")
+
+    # Hub genes by degree
+    degree_counter: dict[str, int] = {}
+    for (e, _) in inferred_edges:
+        a, b = tuple(e)
+        degree_counter[a] = degree_counter.get(a, 0) + 1
+        degree_counter[b] = degree_counter.get(b, 0) + 1
+    top10 = sorted(degree_counter, key=lambda g: -degree_counter[g])[:10]
+
+    return {
+        "within_module_precision": precision,
+        "within_module_recall": recall,
+        "f1_score": f1,
+        "n_inferred_edges": n_inferred,
+        "n_within_inferred": n_within_inferred,
+        "n_possible_within": n_possible_within,
+        "mean_weight_within": mean_w_within,
+        "mean_weight_between": mean_w_between,
+        "weight_enrichment": weight_enrichment,
+        "hub_genes_top10": top10,
+        "hub_degrees_top10": [degree_counter.get(g, 0) for g in top10],
+    }
 
 
 def graph_prior_edge_report(
