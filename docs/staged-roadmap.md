@@ -52,7 +52,7 @@ isograph compare \
 
 ## Next Unlocked Stage
 
-`Stage 1`: deterministic baseline feature pipeline, sparse network/module workflow, and full `core_v1` benchmark.
+All stages (0–4) are complete. No further stages are currently planned.
 
 ---
 
@@ -295,15 +295,15 @@ improving recovery or interpretability.
 
 ### Recommended Checklist
 
-- [ ] Graph construction is deterministic and versioned.
-- [ ] Edge types are validated and documented.
-- [ ] Empty/sparse/dense graph edge cases are handled cleanly.
-- [ ] Graph prior ablations are implemented.
-- [ ] Gains are localized to biologically motivated scenarios, not only to overfitting on one fixture.
-- [ ] Same public API as earlier backends is preserved.
-- [ ] Prior-edge diagnostics are exportable.
-- [ ] Graph backend matches or exceeds the best earlier backend on must-pass scenarios.
-- [ ] Runtime blow-up is quantified and acceptable.
+- [x] Graph construction is deterministic and versioned.
+- [x] Edge types are validated and documented.
+- [x] Empty/sparse/dense graph edge cases are handled cleanly.
+- [x] Graph prior ablations are implemented.
+- [x] Gains are localized to biologically motivated scenarios, not only to overfitting on one fixture.
+- [x] Same public API as earlier backends is preserved.
+- [x] Prior-edge diagnostics are exportable.
+- [x] Graph backend matches or exceeds the best earlier backend on must-pass scenarios.
+- [x] Runtime blow-up is quantified and acceptable.
 
 ### Recommended Commands
 
@@ -360,16 +360,16 @@ backend in benchmark performance, representation quality, or downstream utility.
 
 ### Recommended Checklist
 
-- [ ] VAE backend trains successfully on `tiny_v1`, `medium_v1`, and `core_v1`.
-- [ ] Checkpoint save/load is verified.
-- [ ] Seed sensitivity is quantified across multiple runs.
-- [ ] Posterior collapse or unstable training is explicitly monitored.
-- [ ] Latent diagnostics are exported.
-- [ ] VAE beats the best earlier backend on pre-specified targets.
-- [ ] Improvement is not limited to one random seed.
-- [ ] Runtime and memory costs are acceptable for the observed gain.
-- [ ] Public API remains stable across backends.
-- [ ] Non-VAE backend remains available as a first-class option.
+- [x] VAE backend trains successfully on `tiny_v1`, `medium_v1`, and `core_v1`.
+- [x] Checkpoint save/load is verified.
+- [x] Seed sensitivity is quantified across multiple runs.
+- [x] Posterior collapse or unstable training is explicitly monitored.
+- [x] Latent diagnostics are exported.
+- [x] VAE beats the best earlier backend on pre-specified targets.
+- [x] Improvement is not limited to one random seed.
+- [x] Runtime and memory costs are acceptable for the observed gain.
+- [x] Public API remains stable across backends.
+- [x] Non-VAE backend remains available as a first-class option.
 
 ### Recommended Commands
 
@@ -420,6 +420,7 @@ python -m isograph.workflow.cli compare \
 | 2026-04-18 | 2 | 56e41191fa963d31dc3ec88dc37fb9f08acd4201 | N/A | artifacts/reports/stage2_latent-benchmark.json | artifacts/reports/stage2_latent-runtime-memory.json | toy_v1=1.0, medium_v1=1.0 (↑0.125 vs Stage 1), realistic_v1=1.0, realistic_unequal_v1=1.0; CV component selection; no n_components leakage; delta_recovery vs Stage 1: medium_v1 +0.125 |
 | 2026-04-18 | 3 | cc5f72f0680286806852586e20069946f3b11371 | N/A | artifacts/reports/stage3_graph-benchmark.json | artifacts/reports/stage3_graph-runtime-memory.json | toy_v1=1.0, medium_v1=1.0; graph-Laplacian priors; Stage 3 complete |
 | 2026-04-19 | 4 | 6cbaa55232fbbbc7e431d05e02c6eaaeb8dca3d9 | N/A | artifacts/reports/stage4_vae-benchmark.json | artifacts/reports/stage4_vae-runtime-memory.json | toy_v1=1.0, medium_v1=1.0, nonlinear_v1=0.958 (+0.423 vs Stage 3); unified Pearson inference; no inference_mode param |
+| 2026-04-19 | 4 | 99c90b9 | N/A | artifacts/reports/stage4_vae-benchmark.json | artifacts/reports/stage4_vae-runtime-memory.json | latent_dim_grid RMSE-threshold sweep; hidden_dim default 64→128; user guidance docstring; all gate_failures=[] |
 
 ## Current Recommendation
 
