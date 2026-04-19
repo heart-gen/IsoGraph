@@ -28,6 +28,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+pytest.importorskip("torch", reason="PyTorch not installed — skip VAE gate tests")
+
 from isograph.benchmarks.synthetic import generate_core_suite
 from isograph.evaluation.metrics import module_recovery_score
 from isograph.evaluation.runner import benchmark
