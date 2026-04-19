@@ -1,0 +1,66 @@
+{
+  "dataset_name": "nonlinear_v1",
+  "description": "Non-linear stress test: 4 modules with radial / product-interaction structure (inner ring, outer ring, positive f1\u00b7f2, negative f1\u00b7f2). None of these can be expressed as a1\u00b7f1 + a2\u00b7f2, so linear FA / partial-correlation methods cannot fully recover the modules. Designed as the Stage 4 (VAE) target fixture.",
+  "feature_tables": [
+    {
+      "filename": "genes.parquet",
+      "kind": "gene",
+      "n_rows": 200
+    },
+    {
+      "filename": "transcripts.parquet",
+      "kind": "transcript",
+      "n_rows": 583
+    },
+    {
+      "filename": "psi.parquet",
+      "kind": "psi",
+      "n_rows": 200
+    },
+    {
+      "filename": "truth_modules.parquet",
+      "kind": "truth_module",
+      "n_rows": 100
+    },
+    {
+      "filename": "truth_switch.parquet",
+      "kind": "truth_switch",
+      "n_rows": 200
+    }
+  ],
+  "matrices": [
+    {
+      "assay_name": "gene_counts",
+      "encoding": "dense_npz",
+      "filename": "gene_counts.npz",
+      "n_features": 200,
+      "n_samples": 200
+    },
+    {
+      "assay_name": "transcript_counts",
+      "encoding": "dense_npz",
+      "filename": "transcript_counts.npz",
+      "n_features": 583,
+      "n_samples": 200
+    },
+    {
+      "assay_name": "psi",
+      "encoding": "dense_npz",
+      "filename": "psi.npz",
+      "n_features": 200,
+      "n_samples": 200
+    }
+  ],
+  "provenance": {
+    "generator": "nonlinear_v1",
+    "n_modules": "4",
+    "seed": "13",
+    "state_effect_size": "2.5"
+  },
+  "sample_table": "samples.parquet",
+  "suite_name": "core_v1",
+  "truth_tables": [
+    "truth_modules.parquet",
+    "truth_switch.parquet"
+  ]
+}

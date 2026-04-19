@@ -21,6 +21,12 @@ from isograph.io.real_data import freeze_real_dataset
 from isograph.models.baseline import BaselineNetworkModel
 from isograph.models.graph import GraphNetworkModel
 from isograph.models.latent import LatentNetworkModel
+
+try:
+    from isograph.models.vae import VaeNetworkModel
+    _VAE_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    _VAE_AVAILABLE = False
 from isograph.utils import ensure_dir, write_json
 from isograph.workflow.config import BenchmarkCommandConfig
 
@@ -47,6 +53,14 @@ def _make_model(config: BenchmarkCommandConfig, dataset_name: str):
         overrides = config.fixture_latent_overrides.get(dataset_name, {})
         latent_config = dataclasses.replace(config.latent, **overrides) if overrides else config.latent
         return LatentNetworkModel(latent_config), latent_config
+    elif config.backend == "vae":
+        if not _VAE_AVAILABLE:
+            raise ImportError(
+                "PyTorch is required for the vae backend. Install it with: pip install torch"
+            )
+        overrides = config.fixture_vae_overrides.get(dataset_name, {})
+        vae_config = dataclasses.replace(config.vae, **overrides) if overrides else config.vae
+        return VaeNetworkModel(vae_config), vae_config
     else:
         overrides = config.fixture_model_overrides.get(dataset_name, {})
         model_config = dataclasses.replace(config.model, **overrides) if overrides else config.model

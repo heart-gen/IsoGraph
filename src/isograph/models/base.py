@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import pandas as pd
 
@@ -14,6 +15,7 @@ class FitArtifacts:
     trait_table: pd.DataFrame
     feature_scores: pd.DataFrame
     calibration: dict | None = None
+    checkpoint_path: Path | None = None
 
 
 class NetworkModel:

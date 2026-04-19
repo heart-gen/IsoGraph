@@ -1,0 +1,164 @@
+defaults:
+  - _self_
+
+command: benchmark
+dataset_suite: core_v1
+stage_name: stage4_vae
+backend: vae
+fixture_filter: null
+benchmark_root: benchmarks
+artifacts_root: artifacts
+dataset_root: benchmarks/datasets
+report_root: artifacts/reports
+tracking_uri: null
+seed: 7
+recovery_thresholds:
+  toy_v1: 1.0
+  medium_v1: 1.0
+  nonlinear_v1: 0.750
+
+vae:
+  name: vae_network
+  latent_dim: 8
+  hidden_dim: 64
+  n_hidden_layers: 2
+  beta: 0.5
+  n_epochs: 500
+  lr: 0.001
+  weight_decay: 1.0e-5
+  batch_size: null
+  warmup_epochs: null
+  val_fraction: 0.2
+  patience: 50
+  early_stop_tol: 1.0e-4
+  collapse_threshold: 0.01
+  random_state: 7
+  alpha: 0.70
+  min_module_size: 2
+  residualize_covariates:
+    - RIN
+    - PMI
+    - mito_mapping_rate
+    - percent_assigned
+  trait_columns:
+    - Dx
+    - Age
+  checkpoint_dir: null
+
+fixture_vae_overrides:
+  toy_v1:
+    alpha: 0.70
+    min_module_size: 2
+    latent_dim: 4
+    hidden_dim: 64
+    n_epochs: 500
+    beta: 0.5
+    random_state: 7
+  medium_v1:
+    alpha: 0.70
+    min_module_size: 2
+    latent_dim: 12
+    hidden_dim: 128
+    n_epochs: 500
+    beta: 0.5
+    random_state: 7
+  realistic_v1:
+    alpha: 0.70
+    min_module_size: 2
+    latent_dim: 8
+    hidden_dim: 64
+    beta: 0.5
+    random_state: 7
+  realistic_unequal_v1:
+    alpha: 0.70
+    min_module_size: 2
+    latent_dim: 8
+    hidden_dim: 64
+    beta: 0.5
+    random_state: 7
+  nonlinear_v1:
+    alpha: 0.80
+    min_module_size: 2
+    latent_dim: 4
+    hidden_dim: 128
+    beta: 0.5
+    n_epochs: 800
+    random_state: 7
+  noisy_v1:
+    alpha: 0.65
+    min_module_size: 2
+    latent_dim: 6
+    hidden_dim: 64
+    beta: 0.5
+    random_state: 7
+  large_v1:
+    alpha: 0.70
+    min_module_size: 2
+    latent_dim: 10
+    hidden_dim: 128
+    n_epochs: 500
+    beta: 0.5
+    random_state: 7
+
+real_data:
+  counts_root: data/counts
+  annotations_root: data/annotations
+  phenotype_tsv: data/phenotypes.tsv
+  ancestry_tsv: data/ancestry.txt
+  output_name: real_caudate_aa_v1
+  gene_panel_size: 256
+  cache_root: benchmarks/cache/real_data
+  allowed_diagnoses:
+    - Control
+    - SCZD
+
+model:
+  name: baseline_network
+  alpha: 0.12
+  min_module_size: 3
+  max_modules: 64
+  residualize_covariates:
+    - RIN
+    - PMI
+    - mito_mapping_rate
+    - percent_assigned
+  trait_columns:
+    - Dx
+    - Age
+
+latent:
+  name: latent_network
+  n_components: 10
+  alpha: 0.05
+  min_module_size: 2
+  max_iter: 1000
+  tol: 1.0e-4
+  residualize_covariates:
+    - RIN
+    - PMI
+    - mito_mapping_rate
+    - percent_assigned
+  trait_columns:
+    - Dx
+    - Age
+
+graph:
+  name: graph_network
+  n_components: 10
+  alpha: 0.05
+  min_module_size: 2
+  max_iter: 1000
+  tol: 1.0e-4
+  residualize_covariates:
+    - RIN
+    - PMI
+    - mito_mapping_rate
+    - percent_assigned
+  trait_columns:
+    - Dx
+    - Age
+  gamma: 0.5
+  edge_types:
+    - corr
+  corr_threshold: 0.3
+  normalized_laplacian: true
