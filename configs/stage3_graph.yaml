@@ -3,8 +3,8 @@ defaults:
 
 command: benchmark
 dataset_suite: core_v1
-stage_name: stage1_baseline
-backend: baseline
+stage_name: stage3_graph
+backend: graph
 fixture_filter: null
 benchmark_root: benchmarks
 artifacts_root: artifacts
@@ -14,9 +14,10 @@ tracking_uri: null
 seed: 7
 recovery_thresholds:
   toy_v1: 1.0
-  medium_v1: 0.875
-latent:
-  name: latent_network
+  medium_v1: 1.0
+
+graph:
+  name: graph_network
   n_components: 10
   n_components_grid:
     - 2
@@ -43,37 +44,49 @@ latent:
   trait_columns:
     - Dx
     - Age
+  gamma: 0.5
+  edge_types:
+    - corr
+  corr_threshold: 0.3
+  normalized_laplacian: true
 
-fixture_latent_overrides:
+fixture_graph_overrides:
   toy_v1:
     alpha: 0.05
     min_module_size: 2
+    gamma: 0.5
+    corr_threshold: 0.3
   medium_v1:
     alpha: 0.01
     min_module_size: 2
+    gamma: 0.5
+    corr_threshold: 0.3
   realistic_v1:
     alpha: 0.02
     min_module_size: 2
+    gamma: 0.3
+    corr_threshold: 0.3
   realistic_unequal_v1:
     alpha: 0.02
     min_module_size: 2
+    gamma: 0.3
+    corr_threshold: 0.3
   noisy_v1:
     alpha: 0.05
     min_module_size: 2
+    gamma: 0.3
+    corr_threshold: 0.3
   large_v1:
     alpha: 0.03
     min_module_size: 2
+    gamma: 0.3
+    corr_threshold: 0.3
   nonlinear_v1:
     alpha: 0.05
     min_module_size: 2
+    gamma: 0.3
+    corr_threshold: 0.3
 
-fixture_model_overrides:
-  toy_v1:
-    alpha: 0.05
-    min_module_size: 2
-  medium_v1:
-    alpha: 0.02
-    min_module_size: 2
 real_data:
   counts_root: data/counts
   annotations_root: data/annotations
@@ -85,11 +98,28 @@ real_data:
   allowed_diagnoses:
     - Control
     - SCZD
+
 model:
   name: baseline_network
   alpha: 0.12
   min_module_size: 3
   max_modules: 64
+  residualize_covariates:
+    - RIN
+    - PMI
+    - mito_mapping_rate
+    - percent_assigned
+  trait_columns:
+    - Dx
+    - Age
+
+latent:
+  name: latent_network
+  n_components: 10
+  alpha: 0.05
+  min_module_size: 2
+  max_iter: 1000
+  tol: 1.0e-4
   residualize_covariates:
     - RIN
     - PMI

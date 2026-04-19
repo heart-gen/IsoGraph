@@ -40,6 +40,28 @@ class BaselineModelConfig:
 
 
 @dataclass
+class GraphModelConfig:
+    name: str = "graph_network"
+    n_components: int = 10
+    n_components_grid: list[int] | None = field(
+        default_factory=lambda: [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20]
+    )
+    n_components_cv_folds: int = 5
+    alpha: float = 0.10
+    min_module_size: int = 2
+    max_iter: int = 1000
+    tol: float = 1e-4
+    residualize_covariates: list[str] = field(
+        default_factory=lambda: ["RIN", "PMI", "mito_mapping_rate", "percent_assigned"]
+    )
+    trait_columns: list[str] = field(default_factory=lambda: ["Dx", "Age"])
+    gamma: float = 0.5
+    edge_types: list[str] = field(default_factory=lambda: ["corr"])
+    corr_threshold: float = 0.3
+    normalized_laplacian: bool = True
+
+
+@dataclass
 class RealDataFreezeConfig:
     counts_root: Path = Path("data/counts")
     annotations_root: Path = Path("data/annotations")
@@ -68,7 +90,7 @@ class BenchmarkCommandConfig:
     command: str = "benchmark"
     dataset_suite: str = "core_v1"
     stage_name: str = "stage1_baseline"
-    backend: str = "baseline"  # "baseline" | "latent"
+    backend: str = "baseline"  # "baseline" | "latent" | "graph"
     fixture_filter: str | None = None  # None = run all; "toy_v1"|"medium_v1"|"real_caudate_aa_v1" = one fixture
     benchmark_root: Path = Path("benchmarks")
     artifacts_root: Path = Path("artifacts")
@@ -79,6 +101,7 @@ class BenchmarkCommandConfig:
     real_data: RealDataFreezeConfig = field(default_factory=RealDataFreezeConfig)
     model: BaselineModelConfig = field(default_factory=BaselineModelConfig)
     latent: LatentModelConfig = field(default_factory=LatentModelConfig)
+    graph: GraphModelConfig = field(default_factory=GraphModelConfig)
     recovery_thresholds: dict[str, float] = field(
         default_factory=lambda: {"toy_v1": 1.0, "medium_v1": 0.875}
     )
@@ -87,6 +110,8 @@ class BenchmarkCommandConfig:
     fixture_model_overrides: dict[str, dict] = field(default_factory=dict)
     # Per-fixture latent config overrides for the latent backend.
     fixture_latent_overrides: dict[str, dict] = field(default_factory=dict)
+    # Per-fixture graph config overrides for the graph backend.
+    fixture_graph_overrides: dict[str, dict] = field(default_factory=dict)
     # When True, run stability selection on real-data fixtures and append
     # recommended_alpha to the benchmark report for each such fixture.
     run_stability_selection: bool = False

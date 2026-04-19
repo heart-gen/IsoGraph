@@ -19,6 +19,7 @@ from isograph.evaluation.tracking import tracking_run
 from isograph.io.artifacts import describe_dataset, load_dataset_bundle
 from isograph.io.real_data import freeze_real_dataset
 from isograph.models.baseline import BaselineNetworkModel
+from isograph.models.graph import GraphNetworkModel
 from isograph.models.latent import LatentNetworkModel
 from isograph.utils import ensure_dir, write_json
 from isograph.workflow.config import BenchmarkCommandConfig
@@ -38,7 +39,11 @@ def prepare_core_suite(config: BenchmarkCommandConfig) -> list[Path]:
 
 
 def _make_model(config: BenchmarkCommandConfig, dataset_name: str):
-    if config.backend == "latent":
+    if config.backend == "graph":
+        overrides = config.fixture_graph_overrides.get(dataset_name, {})
+        graph_config = dataclasses.replace(config.graph, **overrides) if overrides else config.graph
+        return GraphNetworkModel(graph_config), graph_config
+    elif config.backend == "latent":
         overrides = config.fixture_latent_overrides.get(dataset_name, {})
         latent_config = dataclasses.replace(config.latent, **overrides) if overrides else config.latent
         return LatentNetworkModel(latent_config), latent_config
