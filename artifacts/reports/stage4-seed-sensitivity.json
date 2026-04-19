@@ -1,0 +1,60 @@
+{
+  "backend": "vae",
+  "seed_sensitivity": {
+    "toy_v1": {
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "recoveries": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "mean_recovery": 1.0,
+      "std_recovery": 0.0,
+      "min_recovery": 1.0,
+      "max_recovery": 1.0,
+      "mean_runtime_seconds": 1.044992937380448
+    },
+    "nonlinear_v1": {
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "recoveries": [
+        0.9587542087542088,
+        0.9747596153846154,
+        0.9823200992555832
+      ],
+      "mean_recovery": 0.9719446411314691,
+      "std_recovery": 0.009824488411281238,
+      "min_recovery": 0.9587542087542088,
+      "max_recovery": 0.9823200992555832,
+      "mean_runtime_seconds": 1.311006328323856
+    },
+    "medium_v1": {
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "recoveries": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "mean_recovery": 1.0,
+      "std_recovery": 0.0,
+      "min_recovery": 1.0,
+      "max_recovery": 1.0,
+      "mean_runtime_seconds": 2.1474992246367037
+    }
+  }
+}

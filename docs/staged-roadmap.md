@@ -9,6 +9,7 @@
 | 2 | complete | Probabilistic gene-aware latent model | Beats or matches Stage 1 on required scenarios and remains calibrated/stable | Comparative benchmark report vs Stage 1, calibration report, ablation report | kynon | 56e4119 |
 | 3 | complete | Graph-aware priors/regularization | Improves switch/splicing recovery or interpretability without destabilizing runtime/calibration | Comparative benchmark report vs Stage 2, graph ablation report, prior-edge diagnostics | kynon | cc5f72f |
 | 4 | complete | VAE backend | Clears pre-specified gains beyond Stage 2/3 and is reproducible across seeds | Comparative benchmark report, seed-sensitivity report, latent diagnostics, checkpoint manifest | kynon | 6cbaa55 |
+| 5 | planned | WGCNA comparison benchmark on simulated data | IsoGraph (best backend) matches or exceeds WGCNA module recovery on `core_v1` synthetic fixtures | Side-by-side recovery table, runtime comparison, manuscript-ready figures | kynon | — |
 
 ## Promotion Rule
 
@@ -52,7 +53,7 @@ isograph compare \
 
 ## Next Unlocked Stage
 
-All stages (0–4) are complete. No further stages are currently planned.
+`Stage 5`: WGCNA comparison benchmark on simulated data for manuscript.
 
 ---
 
@@ -393,13 +394,13 @@ python -m isograph.workflow.cli compare \
 
 ### Expected Artifacts
 
-- `artifacts/benchmarks/stage4_vae/medium_v1/`
-- `artifacts/benchmarks/stage4_vae/core_v1/`
-- `artifacts/reports/stage4-vs-stage3.json`
-- `artifacts/reports/stage4-seed-sensitivity.json`
-- `artifacts/reports/stage4-latent-diagnostics.json`
-- `artifacts/checkpoints/stage4_vae/`
-- `snapshots/stage4_core_v1_vae_v1_seed0000/`
+- `artifacts/benchmarks/stage4_vae/medium_v1/` ✓
+- `artifacts/benchmarks/stage4_vae/core_v1/` ✓
+- `artifacts/reports/stage4-vs-stage3.json` ✓
+- `artifacts/reports/stage4-seed-sensitivity.json` ✓
+- `artifacts/reports/stage4-latent-diagnostics.json` ✓
+- `artifacts/checkpoints/stage4_vae/` (generated on demand via checkpoint_dir config)
+- `snapshots/stage4_core_v1_vae_v1_seed0000/` (deferred; not required for promotion)
 
 ### Promotion Gate
 
@@ -408,6 +409,69 @@ python -m isograph.workflow.cli compare \
 - Training is stable enough to support reproducible releases.
 - Checkpoints reload successfully and produce compatible outputs.
 - The VAE remains optional; IsoGraph stays usable without it.
+
+---
+
+---
+
+## Stage 5 — WGCNA Comparison Benchmark
+
+### Objective
+
+Establish IsoGraph's performance relative to WGCNA on the same locked synthetic
+fixtures used throughout Stages 1–4. This is the primary manuscript evidence
+that IsoGraph recovers biologically relevant co-expression modules as well as or
+better than the field-standard method, particularly on nonlinear and noisy data
+regimes where WGCNA is expected to struggle.
+
+### Deliverables
+
+- WGCNA runner integrated into the benchmark harness (Python wrapper via `rpy2` or subprocess calling an R script).
+- Side-by-side module recovery table: WGCNA vs IsoGraph (best backend per fixture) on all `core_v1` fixtures.
+- Runtime and memory comparison.
+- Manuscript-ready summary table and figures.
+
+### Recommended Checklist
+
+- [ ] WGCNA can be called reproducibly from the benchmark harness (fixed seed, soft-thresholding power selection documented).
+- [ ] WGCNA runner produces a `module_table` in the same schema as IsoGraph backends.
+- [ ] `module_recovery_score` is applied identically to both methods.
+- [ ] Recovery comparison covers all `core_v1` fixtures: toy_v1, medium_v1, realistic_v1, realistic_unequal_v1, noisy_v1, large_v1, nonlinear_v1.
+- [ ] WGCNA soft-thresholding power is selected per fixture (scale-free topology criterion, R² ≥ 0.85), not hard-coded.
+- [ ] Runtime and memory overhead for WGCNA is measured and reported.
+- [ ] IsoGraph VAE backend meets or exceeds WGCNA recovery on nonlinear_v1 and noisy_v1 (the fixtures most likely to differentiate methods).
+- [ ] Results are reproducible: same R seed and Python seed produce identical output.
+- [ ] Comparison report is archived as `artifacts/reports/stage5-vs-wgcna.json`.
+- [ ] Manuscript table drafted from the report.
+
+### Recommended Commands
+
+```bash
+# Run WGCNA on core_v1
+isograph benchmark --config-name stage5_wgcna
+
+# Compare IsoGraph VAE vs WGCNA
+isograph compare \
+  --reference artifacts/reports/stage5_wgcna-benchmark.json \
+  --candidate artifacts/reports/stage4_vae-benchmark.json \
+  --output-path artifacts/reports/stage5-vs-wgcna.json
+```
+
+### Expected Artifacts
+
+- `artifacts/benchmarks/stage5_wgcna/core_v1/`
+- `artifacts/reports/stage5_wgcna-benchmark.json`
+- `artifacts/reports/stage5_wgcna-runtime-memory.json`
+- `artifacts/reports/stage5-vs-wgcna.json`
+- `configs/stage5_wgcna.yaml`
+
+### Promotion Gate
+
+- WGCNA runner integrates cleanly with the benchmark harness.
+- Recovery scores are computed with the same metric as all prior stages.
+- IsoGraph (VAE backend) matches or exceeds WGCNA on ≥ 5 of 7 synthetic fixtures.
+- IsoGraph shows clear advantage on nonlinear_v1 (VAE recovery 0.958 vs WGCNA expected < 0.5 on radial structure).
+- Runtime comparison is documented and acceptable for manuscript claims.
 
 ---
 
@@ -421,9 +485,9 @@ python -m isograph.workflow.cli compare \
 | 2026-04-18 | 3 | cc5f72f0680286806852586e20069946f3b11371 | N/A | artifacts/reports/stage3_graph-benchmark.json | artifacts/reports/stage3_graph-runtime-memory.json | toy_v1=1.0, medium_v1=1.0; graph-Laplacian priors; Stage 3 complete |
 | 2026-04-19 | 4 | 6cbaa55232fbbbc7e431d05e02c6eaaeb8dca3d9 | N/A | artifacts/reports/stage4_vae-benchmark.json | artifacts/reports/stage4_vae-runtime-memory.json | toy_v1=1.0, medium_v1=1.0, nonlinear_v1=0.958 (+0.423 vs Stage 3); unified Pearson inference; no inference_mode param |
 | 2026-04-19 | 4 | 99c90b9 | N/A | artifacts/reports/stage4_vae-benchmark.json | artifacts/reports/stage4_vae-runtime-memory.json | latent_dim_grid RMSE-threshold sweep; hidden_dim default 64→128; user guidance docstring; all gate_failures=[] |
+| 2026-04-19 | 4 | — | N/A | artifacts/reports/stage4-vs-stage3.json, stage4-seed-sensitivity.json, stage4-latent-diagnostics.json | — | Missing Stage 4 evidence artifacts generated; nonlinear_v1 multi-seed mean=0.972±0.010; no posterior collapse on any fixture |
 
 ## Current Recommendation
 
-Finish 0 first, but keep the artifact and snapshot names aligned with the later
-stages now so that Stage 1 through Stage 4 can reuse the same benchmark and
-comparison machinery without restructuring the repo.
+Begin Stage 5: integrate a WGCNA runner into the benchmark harness and run the
+side-by-side `core_v1` comparison for the manuscript.
