@@ -1,0 +1,88 @@
+{
+  "backend": "graph",
+  "gate_failures": [],
+  "results": [
+    {
+      "dataset": "toy_v1",
+      "n_edges": 132,
+      "n_genes": 24,
+      "n_modules": 2,
+      "n_samples": 48,
+      "recommended_alpha": null,
+      "recovery": 1.0,
+      "runtime_seconds": 56.35285703104455
+    },
+    {
+      "dataset": "medium_v1",
+      "n_edges": 9800,
+      "n_genes": 400,
+      "n_modules": 8,
+      "n_samples": 240,
+      "recommended_alpha": null,
+      "recovery": 1.0,
+      "runtime_seconds": 31.07012320298236
+    },
+    {
+      "dataset": "realistic_v1",
+      "n_edges": 950,
+      "n_genes": 200,
+      "n_modules": 5,
+      "n_samples": 160,
+      "recommended_alpha": null,
+      "recovery": 1.0,
+      "runtime_seconds": 7.729207235039212
+    },
+    {
+      "dataset": "realistic_unequal_v1",
+      "n_edges": 1053,
+      "n_genes": 200,
+      "n_modules": 5,
+      "n_samples": 160,
+      "recommended_alpha": null,
+      "recovery": 0.9736842105263157,
+      "runtime_seconds": 6.757724162074737
+    },
+    {
+      "dataset": "noisy_v1",
+      "n_edges": 409,
+      "n_genes": 300,
+      "n_modules": 7,
+      "n_samples": 100,
+      "recommended_alpha": null,
+      "recovery": 0.8241744366744367,
+      "runtime_seconds": 9.518615983077325
+    },
+    {
+      "dataset": "large_v1",
+      "n_edges": 1497,
+      "n_genes": 800,
+      "n_modules": 9,
+      "n_samples": 120,
+      "recommended_alpha": null,
+      "recovery": 0.8550952380952381,
+      "runtime_seconds": 48.23193097207695
+    },
+    {
+      "dataset": "nonlinear_v1",
+      "n_edges": 211,
+      "n_genes": 200,
+      "n_modules": 4,
+      "n_samples": 200,
+      "recommended_alpha": null,
+      "recovery": 0.5433333333333333,
+      "runtime_seconds": 5.955535097979009
+    },
+    {
+      "dataset": "real_caudate_aa_v1",
+      "n_edges": 157,
+      "n_genes": 256,
+      "n_modules": 1,
+      "n_samples": 205,
+      "recommended_alpha": null,
+      "recovery": null,
+      "runtime_seconds": 7.890666832914576
+    }
+  ],
+  "stage": "stage3_graph",
+  "suite": "core_v1"
+}
