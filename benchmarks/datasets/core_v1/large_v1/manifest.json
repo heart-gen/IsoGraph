@@ -1,0 +1,68 @@
+{
+  "dataset_name": "large_v1",
+  "description": "Scale stress test: 800 genes / 120 samples (ratio 6.7\u00d7), 10 power-law modules, 75 % background, NB dispersion=7 (real caudate median). Stage 1 covariance estimation is severely underdetermined; FA dimension reduction (Stage 2 / 3) is the key differentiator.",
+  "feature_tables": [
+    {
+      "filename": "genes.parquet",
+      "kind": "gene",
+      "n_rows": 800
+    },
+    {
+      "filename": "transcripts.parquet",
+      "kind": "transcript",
+      "n_rows": 2350
+    },
+    {
+      "filename": "psi.parquet",
+      "kind": "psi",
+      "n_rows": 800
+    },
+    {
+      "filename": "truth_modules.parquet",
+      "kind": "truth_module",
+      "n_rows": 200
+    },
+    {
+      "filename": "truth_switch.parquet",
+      "kind": "truth_switch",
+      "n_rows": 800
+    }
+  ],
+  "matrices": [
+    {
+      "assay_name": "gene_counts",
+      "encoding": "dense_npz",
+      "filename": "gene_counts.npz",
+      "n_features": 800,
+      "n_samples": 120
+    },
+    {
+      "assay_name": "transcript_counts",
+      "encoding": "dense_npz",
+      "filename": "transcript_counts.npz",
+      "n_features": 2350,
+      "n_samples": 120
+    },
+    {
+      "assay_name": "psi",
+      "encoding": "dense_npz",
+      "filename": "psi.npz",
+      "n_features": 800,
+      "n_samples": 120
+    }
+  ],
+  "provenance": {
+    "confounder_weight": "0.4",
+    "count_dispersion": "7.0",
+    "generator": "realistic_v1",
+    "module_sizes": "[40, 32, 25, 20, 18, 16, 15, 13, 12, 9]",
+    "seed": "12",
+    "switching_fraction": "0.25"
+  },
+  "sample_table": "samples.parquet",
+  "suite_name": "core_v1",
+  "truth_tables": [
+    "truth_modules.parquet",
+    "truth_switch.parquet"
+  ]
+}

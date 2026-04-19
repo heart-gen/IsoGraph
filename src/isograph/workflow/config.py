@@ -62,6 +62,32 @@ class GraphModelConfig:
 
 
 @dataclass
+class VaeModelConfig:
+    name: str = "vae_network"
+    latent_dim: int = 8
+    hidden_dim: int = 64
+    n_hidden_layers: int = 2
+    beta: float = 1.0
+    n_epochs: int = 500
+    lr: float = 1e-3
+    weight_decay: float = 1e-5
+    batch_size: int | None = None
+    warmup_epochs: int | None = None
+    val_fraction: float = 0.2
+    patience: int = 50
+    early_stop_tol: float = 1e-4
+    collapse_threshold: float = 0.01
+    random_state: int = 0
+    alpha: float = 0.70
+    min_module_size: int = 2
+    residualize_covariates: list[str] = field(
+        default_factory=lambda: ["RIN", "PMI", "mito_mapping_rate", "percent_assigned"]
+    )
+    trait_columns: list[str] = field(default_factory=lambda: ["Dx", "Age"])
+    checkpoint_dir: Path | None = None
+
+
+@dataclass
 class RealDataFreezeConfig:
     counts_root: Path = Path("data/counts")
     annotations_root: Path = Path("data/annotations")
@@ -90,7 +116,7 @@ class BenchmarkCommandConfig:
     command: str = "benchmark"
     dataset_suite: str = "core_v1"
     stage_name: str = "stage1_baseline"
-    backend: str = "baseline"  # "baseline" | "latent" | "graph"
+    backend: str = "baseline"  # "baseline" | "latent" | "graph" | "vae"
     fixture_filter: str | None = None  # None = run all; "toy_v1"|"medium_v1"|"real_caudate_aa_v1" = one fixture
     benchmark_root: Path = Path("benchmarks")
     artifacts_root: Path = Path("artifacts")
@@ -112,6 +138,9 @@ class BenchmarkCommandConfig:
     fixture_latent_overrides: dict[str, dict] = field(default_factory=dict)
     # Per-fixture graph config overrides for the graph backend.
     fixture_graph_overrides: dict[str, dict] = field(default_factory=dict)
+    vae: VaeModelConfig = field(default_factory=VaeModelConfig)
+    # Per-fixture VAE config overrides for the vae backend.
+    fixture_vae_overrides: dict[str, dict] = field(default_factory=dict)
     # When True, run stability selection on real-data fixtures and append
     # recommended_alpha to the benchmark report for each such fixture.
     run_stability_selection: bool = False

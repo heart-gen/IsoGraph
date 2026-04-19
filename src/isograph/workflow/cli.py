@@ -26,7 +26,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="isograph")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    subparsers.add_parser("benchmark")
+    bench = subparsers.add_parser("benchmark")
+    bench.add_argument("--config-name", default="benchmark", help="Hydra config name (without .yaml)")
     freeze = subparsers.add_parser("freeze-real")
     freeze.add_argument("--suite-name", default="core_v1")
 
@@ -54,7 +55,7 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(cli_args)
 
     if args.command == "benchmark":
-        payload = load_config("benchmark", overrides)
+        payload = load_config(args.config_name, overrides)
         config = instantiate_dataclass(BenchmarkCommandConfig, payload)
         output = benchmark(config)
         print(output["report"])

@@ -1,0 +1,68 @@
+{
+  "dataset_name": "noisy_v1",
+  "description": "High-noise stress test: 300 genes, 100 samples, 8 power-law modules, ~70 % background, NB dispersion=15, weak Dx/Age effects (0.2\u20130.6 / 0.1\u20130.25), strong confounder (weight=0.6). Grounded in real caudate dispersion (~median 6, max 25) and sparse switching fraction.",
+  "feature_tables": [
+    {
+      "filename": "genes.parquet",
+      "kind": "gene",
+      "n_rows": 300
+    },
+    {
+      "filename": "transcripts.parquet",
+      "kind": "transcript",
+      "n_rows": 856
+    },
+    {
+      "filename": "psi.parquet",
+      "kind": "psi",
+      "n_rows": 300
+    },
+    {
+      "filename": "truth_modules.parquet",
+      "kind": "truth_module",
+      "n_rows": 95
+    },
+    {
+      "filename": "truth_switch.parquet",
+      "kind": "truth_switch",
+      "n_rows": 300
+    }
+  ],
+  "matrices": [
+    {
+      "assay_name": "gene_counts",
+      "encoding": "dense_npz",
+      "filename": "gene_counts.npz",
+      "n_features": 300,
+      "n_samples": 100
+    },
+    {
+      "assay_name": "transcript_counts",
+      "encoding": "dense_npz",
+      "filename": "transcript_counts.npz",
+      "n_features": 856,
+      "n_samples": 100
+    },
+    {
+      "assay_name": "psi",
+      "encoding": "dense_npz",
+      "filename": "psi.npz",
+      "n_features": 300,
+      "n_samples": 100
+    }
+  ],
+  "provenance": {
+    "confounder_weight": "0.6",
+    "count_dispersion": "15.0",
+    "generator": "realistic_v1",
+    "module_sizes": "[22, 18, 14, 11, 9, 8, 7, 6]",
+    "seed": "11",
+    "switching_fraction": "0.31666666666666665"
+  },
+  "sample_table": "samples.parquet",
+  "suite_name": "core_v1",
+  "truth_tables": [
+    "truth_modules.parquet",
+    "truth_switch.parquet"
+  ]
+}
