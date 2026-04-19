@@ -245,6 +245,22 @@ def test_vae_single_isoform_handling():
     assert isinstance(arts.module_table, pd.DataFrame)
 
 
+def test_vae_latent_dim_grid_selects_k(core_suite):
+    """Grid sweep selects a latent_dim that achieves at least baseline recovery."""
+    cfg = VaeModelConfig(
+        latent_dim_grid=[2, 4, 8], hidden_dim=64, n_epochs=500, beta=0.5,
+        alpha=0.70, min_module_size=2, random_state=7,
+    )
+    arts, bundle = _fit_vae(core_suite["toy_v1"], cfg)
+    assert arts.calibration is not None
+    assert "latent_dim_selected" in arts.calibration, "latent_dim_selected missing from calibration"
+    assert "latent_dim_grid_rmses" in arts.calibration, "latent_dim_grid_rmses missing from calibration"
+    assert arts.calibration["latent_dim_selected"] in [2, 4, 8]
+    truth = bundle.truth_tables.get("truth_modules.parquet", pd.DataFrame())
+    recovery = module_recovery_score(arts.module_table, truth)
+    assert recovery >= 0.95, f"grid sweep toy_v1 recovery={recovery:.4f} < 0.95"
+
+
 def test_vae_no_torch_graceful_error(core_suite):
     """When torch is absent, fit() should raise ImportError with a clear message."""
     import isograph.models.vae as vae_module
