@@ -1,0 +1,27 @@
+alpha: 0.8
+batch_size: null
+beta: 0.5
+checkpoint_dir: null
+collapse_threshold: 0.01
+early_stop_tol: 0.0001
+hidden_dim: 128
+latent_dim: 4
+latent_dim_grid: null
+lr: 0.001
+min_module_size: 2
+n_epochs: 800
+n_hidden_layers: 2
+name: vae_network
+patience: 50
+random_state: 7
+residualize_covariates:
+- RIN
+- PMI
+- mito_mapping_rate
+- percent_assigned
+trait_columns:
+- Dx
+- Age
+val_fraction: 0.2
+warmup_epochs: null
+weight_decay: 1.0e-05
