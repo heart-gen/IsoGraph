@@ -1,0 +1,158 @@
+{
+  "backend": "graph",
+  "calibration_by_fixture": [
+    {
+      "converged": true,
+      "fixture": "toy_v1",
+      "graph_corr_threshold": 0.3,
+      "graph_edge_types_used": [
+        "corr"
+      ],
+      "graph_gamma": 0.5,
+      "graph_mean_degree": 23.0,
+      "graph_n_edges": 276,
+      "graph_n_nodes": 24,
+      "graph_smoothing_rmse": 0.33640795979422033,
+      "mean_log_likelihood": 80.55989724234813,
+      "mean_noise_variance": 2.6820749343588652e-05,
+      "n_components_selected_by": "cv",
+      "n_components_used": 3,
+      "n_iter": 22,
+      "reconstruction_rmse": 0.004856818520315315
+    },
+    {
+      "converged": true,
+      "fixture": "medium_v1",
+      "graph_corr_threshold": 0.3,
+      "graph_edge_types_used": [
+        "corr"
+      ],
+      "graph_gamma": 0.5,
+      "graph_mean_degree": 399.0,
+      "graph_n_edges": 79800,
+      "graph_n_nodes": 400,
+      "graph_smoothing_rmse": 0.33347118631324923,
+      "mean_log_likelihood": 1365.752398892026,
+      "mean_noise_variance": 5.77409546975334e-05,
+      "n_components_selected_by": "cv",
+      "n_components_used": 8,
+      "n_iter": 12,
+      "reconstruction_rmse": 0.007532852267098196
+    },
+    {
+      "converged": true,
+      "fixture": "realistic_v1",
+      "graph_corr_threshold": 0.3,
+      "graph_edge_types_used": [
+        "corr"
+      ],
+      "graph_gamma": 0.3,
+      "graph_mean_degree": 33.54,
+      "graph_n_edges": 3354,
+      "graph_n_nodes": 200,
+      "graph_smoothing_rmse": 0.15524969906381797,
+      "mean_log_likelihood": -2.601067940466609,
+      "mean_noise_variance": 0.08064736394594325,
+      "n_components_selected_by": "cv",
+      "n_components_used": 5,
+      "n_iter": 7,
+      "reconstruction_rmse": 0.27822218268924614
+    },
+    {
+      "converged": true,
+      "fixture": "realistic_unequal_v1",
+      "graph_corr_threshold": 0.3,
+      "graph_edge_types_used": [
+        "corr"
+      ],
+      "graph_gamma": 0.3,
+      "graph_mean_degree": 16.34,
+      "graph_n_edges": 1634,
+      "graph_n_nodes": 200,
+      "graph_smoothing_rmse": 0.14688035910351316,
+      "mean_log_likelihood": -8.094307885162875,
+      "mean_noise_variance": 0.08009482322440604,
+      "n_components_selected_by": "cv",
+      "n_components_used": 5,
+      "n_iter": 9,
+      "reconstruction_rmse": 0.27745539129003477
+    },
+    {
+      "converged": true,
+      "fixture": "noisy_v1",
+      "graph_corr_threshold": 0.3,
+      "graph_edge_types_used": [
+        "corr"
+      ],
+      "graph_gamma": 0.3,
+      "graph_mean_degree": 9.026666666666667,
+      "graph_n_edges": 1354,
+      "graph_n_nodes": 300,
+      "graph_smoothing_rmse": 0.1535016483863483,
+      "mean_log_likelihood": -7.557795209068874,
+      "mean_noise_variance": 0.10888512051091116,
+      "n_components_selected_by": "cv",
+      "n_components_used": 7,
+      "n_iter": 7,
+      "reconstruction_rmse": 0.3219477092986517
+    },
+    {
+      "converged": true,
+      "fixture": "large_v1",
+      "graph_corr_threshold": 0.3,
+      "graph_edge_types_used": [
+        "corr"
+      ],
+      "graph_gamma": 0.3,
+      "graph_mean_degree": 9.595,
+      "graph_n_edges": 3838,
+      "graph_n_nodes": 800,
+      "graph_smoothing_rmse": 0.11034100619088848,
+      "mean_log_likelihood": 172.16547819894504,
+      "mean_noise_variance": 0.05924127130647231,
+      "n_components_selected_by": "cv",
+      "n_components_used": 9,
+      "n_iter": 8,
+      "reconstruction_rmse": 0.2407475832655013
+    },
+    {
+      "converged": true,
+      "fixture": "nonlinear_v1",
+      "graph_corr_threshold": 0.3,
+      "graph_edge_types_used": [
+        "corr"
+      ],
+      "graph_gamma": 0.3,
+      "graph_mean_degree": 27.32,
+      "graph_n_edges": 2732,
+      "graph_n_nodes": 200,
+      "graph_smoothing_rmse": 0.15344740516671568,
+      "mean_log_likelihood": -5.704571113125753,
+      "mean_noise_variance": 0.08589507105209963,
+      "n_components_selected_by": "cv",
+      "n_components_used": 4,
+      "n_iter": 7,
+      "reconstruction_rmse": 0.28841755431084765
+    },
+    {
+      "converged": true,
+      "fixture": "real_caudate_aa_v1",
+      "graph_corr_threshold": 0.3,
+      "graph_edge_types_used": [
+        "corr"
+      ],
+      "graph_gamma": 0.5,
+      "graph_mean_degree": 49.072961373390555,
+      "graph_n_edges": 5717,
+      "graph_n_nodes": 233,
+      "graph_smoothing_rmse": 0.855131437899138,
+      "mean_log_likelihood": -333.6312789797033,
+      "mean_noise_variance": 1.67377694017534,
+      "n_components_selected_by": "cv",
+      "n_components_used": 6,
+      "n_iter": 7,
+      "reconstruction_rmse": 1.2803678277407606
+    }
+  ],
+  "stage": "stage3_graph"
+}
