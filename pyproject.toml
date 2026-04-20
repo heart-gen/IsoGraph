@@ -25,6 +25,12 @@ dev = [
     "mlflow-skinny>=2.16,<3",
     "pytest>=8.3,<9",
 ]
+docs = [
+    "myst-parser>=3,<4",
+    "sphinx>=7,<8",
+    "sphinx-autodoc-typehints>=2,<3",
+    "sphinx-rtd-theme>=3,<4",
+]
 
 [project.scripts]
 isograph = "isograph.workflow.cli:main"

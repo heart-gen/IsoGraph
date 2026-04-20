@@ -1,24 +1,19 @@
 """Alpha selection via stability selection for real data without ground truth.
 
-Stability selection (Meinshausen & Bühlmann, 2010) estimates the probability
-that each edge appears when the model is refit on random subsamples of the data.
-Edges that appear consistently across subsamples are considered stable. The
-method provides a principled way to choose the partial-correlation threshold
-(alpha) when module ground truth is unavailable.
+Stability selection estimates how reproducibly each gene-gene edge appears when
+a model is refit on repeated random subsamples of the data. Edges that appear
+consistently across subsamples are considered stable.
 
-Algorithm
----------
-For each alpha in a user-supplied grid:
-  For each of n_iterations bootstrap rounds:
-    Draw a random subsample of `subsample_fraction` of the samples.
-    Fit the model on the subsampled data.
-    Record which gene pairs appear as edges.
-  Compute the stability score for each pair: fraction of rounds with an edge.
-Report the number of stable edges (score ≥ stability_threshold) per alpha.
+The implementation follows a simple loop:
 
-Recommended alpha: the coarsest (largest) alpha for which the stable-edge count
-still meets a minimum desired edge count, or the elbow of the stable-edge-count
-curve. A lower alpha yields denser networks; a higher alpha yields sparser ones.
+- iterate over a user-supplied ``alpha_grid``
+- refit the model on repeated subsamples for each alpha
+- count how often each edge appears
+- report the number of stable edges per alpha
+
+IsoGraph reports the coarsest alpha that still yields at least one stable edge
+as ``recommended_alpha``. Lower alpha values yield denser networks; higher
+values yield sparser ones.
 """
 
 from __future__ import annotations
