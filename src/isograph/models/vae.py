@@ -434,7 +434,7 @@ def load_vae_checkpoint(
         raise ImportError(
             "PyTorch is required to load VAE checkpoints. Install it with: pip install torch"
         )
-    data = torch.load(checkpoint_path, map_location="cpu")
+    data = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
     chk_n_genes = data["n_genes"]
     if chk_n_genes != n_genes:
         raise ValueError(

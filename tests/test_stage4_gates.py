@@ -220,7 +220,7 @@ def test_vae_checkpoint_save_load(core_suite, tmp_path):
     assert chk_path.exists(), "Checkpoint file not saved"
 
     import torch
-    data = torch.load(chk_path, map_location="cpu")
+    data = torch.load(chk_path, map_location="cpu", weights_only=True)
     n_genes = data["n_genes"]
     loaded = load_vae_checkpoint(chk_path, cfg, n_genes)
     assert loaded is not None

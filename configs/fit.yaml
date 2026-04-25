@@ -6,13 +6,107 @@ benchmark_root: benchmarks
 artifacts_root: artifacts
 dataset_path: null
 output_dir: artifacts/fits/manual
+backend: vae
 tracking_uri: null
 seed: 7
+
 model:
   name: baseline_network
   alpha: 0.12
   min_module_size: 3
   max_modules: 64
+  residualize_covariates:
+    - RIN
+    - PMI
+    - mito_mapping_rate
+    - percent_assigned
+  trait_columns:
+    - Dx
+    - Age
+
+latent:
+  name: latent_network
+  n_components: 10
+  n_components_grid: [2, 3, 4, 5, 6, 7, 8, 9, 10]
+  cv_folds: 5
+  alpha: 0.10
+  min_module_size: 2
+  random_state: 0
+  residualize_covariates:
+    - RIN
+    - PMI
+    - mito_mapping_rate
+    - percent_assigned
+  trait_columns:
+    - Dx
+    - Age
+
+graph:
+  name: graph_network
+  alpha: 0.12
+  min_module_size: 3
+  residualize_covariates:
+    - RIN
+    - PMI
+    - mito_mapping_rate
+    - percent_assigned
+  trait_columns:
+    - Dx
+    - Age
+
+vae:
+  name: vae_network
+  hidden_dim: 128
+  n_hidden_layers: 2
+  latent_dim: 16
+  latent_dim_grid: null
+  n_epochs: 600
+  batch_size: null
+  lr: 0.001
+  beta: 0.5
+  patience: 30
+  alpha: 0.75
+  min_module_size: 2
+  random_state: 0
+  residualize_covariates:
+    - RIN
+    - PMI
+    - mito_mapping_rate
+    - percent_assigned
+  trait_columns:
+    - Dx
+    - Age
+
+wgcna:
+  name: wgcna_network
+  power: null
+  sft_r2_threshold: 0.85
+  min_module_size: 2
+  merge_cut_height: 0.25
+  deep_split: 2
+  network_type: signed
+  random_state: 0
+  residualize_covariates:
+    - RIN
+    - PMI
+    - mito_mapping_rate
+    - percent_assigned
+  trait_columns:
+    - Dx
+    - Age
+
+gpu_latent:
+  name: gpu_latent_network
+  n_components: 10
+  n_components_grid: [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20]
+  bic_selection: true
+  max_iter: 500
+  lr: 0.01
+  tol: 1.0e-5
+  alpha: 0.10
+  alpha_percentile: null
+  min_module_size: 2
+  random_state: 0
   residualize_covariates:
     - RIN
     - PMI

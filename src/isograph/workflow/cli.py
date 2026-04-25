@@ -34,6 +34,12 @@ def build_parser() -> argparse.ArgumentParser:
     fit = subparsers.add_parser("fit")
     fit.add_argument("--dataset-path", required=True)
     fit.add_argument("--output-dir", default="artifacts/fits/manual")
+    fit.add_argument(
+        "--backend",
+        default=None,
+        choices=["baseline", "latent", "graph", "vae", "wgcna", "gpu_latent"],
+        help="Network model backend (default: value in fit.yaml, usually 'baseline')",
+    )
 
     compare = subparsers.add_parser("compare")
     compare.add_argument("--reference", required=True, help="Reference snapshot directory or benchmark JSON report")
@@ -74,19 +80,43 @@ def main(argv: list[str] | None = None) -> None:
         payload = load_config("fit", overrides)
         payload["dataset_path"] = args.dataset_path
         payload["output_dir"] = args.output_dir
+        if args.backend is not None:
+            payload["backend"] = args.backend
         config = instantiate_dataclass(FitCommandConfig, payload)
         bundle = load_dataset_bundle(Path(config.dataset_path))
-        artifacts = BaselineNetworkModel(config.model).fit(
+        fit_kwargs = dict(
             transcript_counts=bundle.matrices["transcript_counts"],
             transcript_table=bundle.feature_tables["transcript"],
             sample_table=bundle.sample_table,
         )
+        if config.backend == "baseline":
+            model = BaselineNetworkModel(config.model)
+        elif config.backend == "latent":
+            from isograph.models.latent import LatentNetworkModel
+            model = LatentNetworkModel(config.latent)
+        elif config.backend == "graph":
+            from isograph.models.graph import GraphNetworkModel
+            model = GraphNetworkModel(config.graph)
+        elif config.backend == "vae":
+            from isograph.models.vae import VaeNetworkModel
+            model = VaeNetworkModel(config.vae)
+        elif config.backend == "wgcna":
+            from isograph.models.wgcna import WgcnaNetworkModel
+            model = WgcnaNetworkModel(config.wgcna)
+        elif config.backend == "gpu_latent":
+            from isograph.models.gpu_latent import GpuLatentNetworkModel
+            model = GpuLatentNetworkModel(config.gpu_latent)
+        else:
+            raise ValueError(f"Unknown backend: {config.backend!r}")
+        artifacts = model.fit(**fit_kwargs)
         output_dir = ensure_dir(Path(config.output_dir))
         artifacts.module_table.to_parquet(output_dir / "modules.parquet", index=False)
         artifacts.edge_table.to_parquet(output_dir / "edges.parquet", index=False)
         artifacts.trait_table.to_parquet(output_dir / "traits.parquet", index=False)
         artifacts.feature_scores.to_parquet(output_dir / "feature_scores.parquet", index=False)
         write_json(output_dir / "fit_config.json", dataclass_to_jsonable(config))
+        if artifacts.calibration:
+            write_json(output_dir / "calibration.json", artifacts.calibration)
         print(output_dir)
         return
 
