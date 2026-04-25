@@ -1,0 +1,25 @@
+alpha: 0.03
+alpha_percentile: 99.5
+bic_selection: true
+lr: 0.005
+max_iter: 1000
+min_module_size: 2
+n_components: 20
+n_components_grid:
+- 8
+- 10
+- 12
+- 15
+- 18
+- 20
+name: gpu_latent_network
+random_state: 7
+residualize_covariates:
+- RIN
+- PMI
+- mito_mapping_rate
+- percent_assigned
+tol: 1.0e-05
+trait_columns:
+- Dx
+- Age
