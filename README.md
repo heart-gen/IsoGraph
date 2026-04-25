@@ -5,19 +5,6 @@ modules from bulk RNA-seq. It combines gene-local compositional modeling with ne
 inference so researchers can move from transcript-level counts to gene-module structure,
 trait associations, and reproducible benchmark artifacts.
 
-## Status
-
-IsoGraph currently includes completed development stages 0 through 7:
-
-- Stage 0: package, CLI, config validation, fixtures, and reproducibility infrastructure
-- Stage 1: deterministic baseline network backend
-- Stage 2: latent probabilistic backend (sklearn FA + partial correlation) with stability selection
-- Stage 3: graph-aware backend
-- Stage 4: VAE backend (default production backend)
-- Stage 5: WGCNA comparison benchmark on simulated data
-- Stage 6: large-scale fixtures (6k–12k genes) and VAE architecture scaling
-- Stage 7: GPU-accelerated FA backend (Woodbury identity + BIC component selection)
-
 ## Core Capabilities
 
 - Generate and benchmark against the permanent `core_v1` fixture suite and the large-scale
@@ -30,26 +17,37 @@ IsoGraph currently includes completed development stages 0 through 7:
 
 ## Installation
 
-The repository ships with a conda environment that installs IsoGraph in editable mode:
+Install the core package from PyPI:
 
 ```bash
-conda env create -f environment.yml
-conda activate isograph
-isograph --help
+pip install isograph
 ```
 
-If `conda` is not initialized in the current shell, run `eval "$(conda shell.bash hook)"`
-first or initialize conda for your shell.
+The core package supports Python `3.11` through `3.14`.
 
-The core package supports Python `3.11` through `3.14`. The bundled environment uses
-Python `3.11` as the canonical local development runtime.
+### Optional backends
+
+The `vae` and `gpu_latent` backends require PyTorch:
+
+```bash
+pip install torch
+```
+
+See the [PyTorch installation guide](https://pytorch.org/get-started/locally/) for
+GPU/CUDA builds.
+
+The `wgcna` backend requires R (with the `WGCNA` package installed) and the `rpy2`
+Python binding:
+
+```bash
+pip install rpy2
+```
 
 ## Quickstart
 
 Run a minimal benchmark on the bundled toy fixture (VAE is the default backend):
 
 ```bash
-conda activate isograph
 isograph benchmark -- \
   fixture_filter=toy_v1 \
   stage_name=readme_smoke

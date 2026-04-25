@@ -1,37 +1,59 @@
 # Installation
 
-## Conda Environment
+## PyPI (recommended)
 
-The canonical local setup uses the repository environment file:
-
-```bash
-conda env create -f environment.yml
-conda activate isograph
-isograph --help
-```
-
-This installs the package in editable mode with development dependencies.
-
-## Minimal Editable Install
-
-If you manage Python yourself, a direct editable install is also supported:
+Install the core package from PyPI:
 
 ```bash
-python -m pip install --upgrade pip
-python -m pip install -e .
+pip install isograph
 ```
 
-## Documentation Dependencies
+Supports Python `3.11` through `3.14`.
+
+## Optional Backends
+
+### VAE and GPU-latent
+
+The `vae` and `gpu_latent` backends require PyTorch. Install a build appropriate for
+your environment before using `backend=vae`, `backend=gpu_latent`, or importing
+`isograph.models.vae` / `isograph.models.gpu_latent`:
+
+```bash
+pip install torch
+```
+
+See the [PyTorch installation guide](https://pytorch.org/get-started/locally/) for
+GPU/CUDA builds.
+
+### WGCNA
+
+The `wgcna` backend requires R with the `WGCNA` package and the `rpy2` Python binding:
+
+```bash
+pip install rpy2
+```
+
+In R:
+
+```r
+install.packages("WGCNA")
+```
+
+## Documentation
 
 To build the Sphinx documentation locally:
 
 ```bash
-python -m pip install -e .[docs]
+pip install isograph[docs]
 python -m sphinx -W -b html docs docs/_build/html
 ```
 
-## Optional VAE Dependency
+## Development
 
-The VAE backend requires PyTorch in addition to the package dependencies shipped in
-`pyproject.toml`. Install a PyTorch build appropriate for your environment before using
-`backend=vae` or importing `isograph.models.vae`.
+To install in editable mode with development dependencies:
+
+```bash
+git clone https://github.com/heart-gen/IsoGraph
+cd IsoGraph
+pip install -e .[dev]
+```
