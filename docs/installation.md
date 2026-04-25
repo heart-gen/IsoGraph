@@ -27,13 +27,7 @@ GPU/CUDA builds.
 
 ### WGCNA
 
-The `wgcna` backend requires R with the `WGCNA` package and the `rpy2` Python binding:
-
-```bash
-pip install rpy2
-```
-
-In R:
+The `wgcna` backend requires R with the `WGCNA` package and `Rscript` on `PATH`:
 
 ```r
 install.packages("WGCNA")

@@ -428,7 +428,7 @@ regimes where WGCNA is expected to struggle.
 
 ### Deliverables
 
-- WGCNA runner integrated into the benchmark harness (Python wrapper via `rpy2` or subprocess calling an R script).
+- WGCNA runner integrated into the benchmark harness (subprocess calling an R script via `Rscript`).
 - Side-by-side module recovery table: WGCNA vs IsoGraph (best backend per fixture) on all `core_v1` fixtures.
 - Runtime and memory comparison.
 - Manuscript-ready summary table and figures.

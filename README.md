@@ -36,12 +36,7 @@ pip install torch
 See the [PyTorch installation guide](https://pytorch.org/get-started/locally/) for
 GPU/CUDA builds.
 
-The `wgcna` backend requires R (with the `WGCNA` package installed) and the `rpy2`
-Python binding:
-
-```bash
-pip install rpy2
-```
+The `wgcna` backend requires R with the `WGCNA` package and `Rscript` on `PATH`.
 
 ## Quickstart
 
