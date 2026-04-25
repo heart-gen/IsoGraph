@@ -1,0 +1,38 @@
+{
+  "backend": "gpu_latent",
+  "gate_failures": [],
+  "results": [
+    {
+      "dataset": "xlarge_v1",
+      "n_edges": 89985,
+      "n_genes": 6000,
+      "n_modules": 1,
+      "n_samples": 240,
+      "recommended_alpha": null,
+      "recovery": 0.03720595295247239,
+      "runtime_seconds": 59.63567148591392
+    },
+    {
+      "dataset": "xxlarge_v1",
+      "n_edges": 71994,
+      "n_genes": 12000,
+      "n_modules": 8,
+      "n_samples": 240,
+      "recommended_alpha": null,
+      "recovery": 0.4178189663473911,
+      "runtime_seconds": 52.889480938902125
+    },
+    {
+      "dataset": "xxlarge_stress_v1",
+      "n_edges": 71994,
+      "n_genes": 12000,
+      "n_modules": 1,
+      "n_samples": 240,
+      "recommended_alpha": null,
+      "recovery": 0.018559082119034686,
+      "runtime_seconds": 52.66048099193722
+    }
+  ],
+  "stage": "stage7_gpu_latent_scale",
+  "suite": "scale_v1"
+}

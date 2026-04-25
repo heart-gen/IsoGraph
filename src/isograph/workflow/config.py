@@ -113,6 +113,36 @@ class VaeModelConfig:
 
 
 @dataclass
+class GpuLatentModelConfig:
+    """Configuration for the GPU-accelerated Factor Analysis backend (Stage 7).
+
+    Uses the Woodbury identity to fit FA without materialising the p×p covariance
+    matrix, then selects n_components via BIC elbow (no cross-validation).
+    """
+    name: str = "gpu_latent_network"
+    n_components: int = 10
+    n_components_grid: list[int] | None = field(
+        default_factory=lambda: [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20]
+    )
+    bic_selection: bool = True   # True = BIC elbow; False = use fixed n_components
+    max_iter: int = 500
+    lr: float = 1e-2
+    tol: float = 1e-5
+    alpha: float = 0.10
+    # When set, threshold = percentile(|partial_corr|, alpha_percentile) computed
+    # from the data, overriding the fixed alpha.  Use e.g. 95.0 to keep the top 5%
+    # of gene pairs.  Useful at high p/n ratios where partial correlations are
+    # structurally small and a fixed threshold gives no edges.
+    alpha_percentile: float | None = None
+    min_module_size: int = 2
+    random_state: int = 0
+    residualize_covariates: list[str] = field(
+        default_factory=lambda: ["RIN", "PMI", "mito_mapping_rate", "percent_assigned"]
+    )
+    trait_columns: list[str] = field(default_factory=lambda: ["Dx", "Age"])
+
+
+@dataclass
 class WgcnaModelConfig:
     name: str = "wgcna_network"
     power: int | None = None
@@ -186,6 +216,9 @@ class BenchmarkCommandConfig:
     wgcna: WgcnaModelConfig = field(default_factory=WgcnaModelConfig)
     # Per-fixture WGCNA config overrides for the wgcna backend.
     fixture_wgcna_overrides: dict[str, dict] = field(default_factory=dict)
+    gpu_latent: GpuLatentModelConfig = field(default_factory=GpuLatentModelConfig)
+    # Per-fixture GPU latent config overrides for the gpu_latent backend.
+    fixture_gpu_latent_overrides: dict[str, dict] = field(default_factory=dict)
     # When True, run stability selection on real-data fixtures and append
     # recommended_alpha to the benchmark report for each such fixture.
     run_stability_selection: bool = False
@@ -199,9 +232,15 @@ class FitCommandConfig:
     artifacts_root: Path = Path("artifacts")
     dataset_path: Path | None = None
     output_dir: Path = Path("artifacts/fits/manual")
+    backend: str = "vae"  # "baseline" | "latent" | "graph" | "vae" | "wgcna" | "gpu_latent"
     tracking_uri: str | None = None
     seed: int = 7
     model: BaselineModelConfig = field(default_factory=BaselineModelConfig)
+    latent: LatentModelConfig = field(default_factory=LatentModelConfig)
+    graph: GraphModelConfig = field(default_factory=GraphModelConfig)
+    vae: VaeModelConfig = field(default_factory=VaeModelConfig)
+    wgcna: WgcnaModelConfig = field(default_factory=WgcnaModelConfig)
+    gpu_latent: GpuLatentModelConfig = field(default_factory=GpuLatentModelConfig)
 
 
 @dataclass

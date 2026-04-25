@@ -1,0 +1,88 @@
+{
+  "backend": "gpu_latent",
+  "gate_failures": [],
+  "results": [
+    {
+      "dataset": "toy_v1",
+      "n_edges": 132,
+      "n_genes": 24,
+      "n_modules": 2,
+      "n_samples": 48,
+      "recommended_alpha": null,
+      "recovery": 1.0,
+      "runtime_seconds": 26.99702968681231
+    },
+    {
+      "dataset": "medium_v1",
+      "n_edges": 9800,
+      "n_genes": 400,
+      "n_modules": 8,
+      "n_samples": 240,
+      "recommended_alpha": null,
+      "recovery": 1.0,
+      "runtime_seconds": 40.31132854684256
+    },
+    {
+      "dataset": "realistic_v1",
+      "n_edges": 950,
+      "n_genes": 200,
+      "n_modules": 5,
+      "n_samples": 160,
+      "recommended_alpha": null,
+      "recovery": 1.0,
+      "runtime_seconds": 17.90051197214052
+    },
+    {
+      "dataset": "realistic_unequal_v1",
+      "n_edges": 1188,
+      "n_genes": 200,
+      "n_modules": 5,
+      "n_samples": 160,
+      "recommended_alpha": null,
+      "recovery": 1.0,
+      "runtime_seconds": 13.284122094977647
+    },
+    {
+      "dataset": "noisy_v1",
+      "n_edges": 278,
+      "n_genes": 300,
+      "n_modules": 4,
+      "n_samples": 100,
+      "recommended_alpha": null,
+      "recovery": 0.44502591706539074,
+      "runtime_seconds": 21.00057173613459
+    },
+    {
+      "dataset": "large_v1",
+      "n_edges": 962,
+      "n_genes": 800,
+      "n_modules": 5,
+      "n_samples": 120,
+      "recommended_alpha": null,
+      "recovery": 0.4625,
+      "runtime_seconds": 39.34016077709384
+    },
+    {
+      "dataset": "nonlinear_v1",
+      "n_edges": 194,
+      "n_genes": 200,
+      "n_modules": 4,
+      "n_samples": 200,
+      "recommended_alpha": null,
+      "recovery": 0.5883333333333334,
+      "runtime_seconds": 21.371248747222126
+    },
+    {
+      "dataset": "real_caudate_aa_v1",
+      "n_edges": 69,
+      "n_genes": 256,
+      "n_modules": 1,
+      "n_samples": 205,
+      "recommended_alpha": null,
+      "recovery": null,
+      "runtime_seconds": 21.35343380505219
+    }
+  ],
+  "stage": "stage7_gpu_latent",
+  "suite": "core_v1"
+}

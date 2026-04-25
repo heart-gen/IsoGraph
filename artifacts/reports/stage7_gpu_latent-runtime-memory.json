@@ -1,0 +1,46 @@
+{
+  "results": [
+    {
+      "dataset": "toy_v1",
+      "peak_memory_bytes": 67898583,
+      "runtime_seconds": 26.99702968681231
+    },
+    {
+      "dataset": "medium_v1",
+      "peak_memory_bytes": 10734430,
+      "runtime_seconds": 40.31132854684256
+    },
+    {
+      "dataset": "realistic_v1",
+      "peak_memory_bytes": 2744011,
+      "runtime_seconds": 17.90051197214052
+    },
+    {
+      "dataset": "realistic_unequal_v1",
+      "peak_memory_bytes": 2732142,
+      "runtime_seconds": 13.284122094977647
+    },
+    {
+      "dataset": "noisy_v1",
+      "peak_memory_bytes": 4690608,
+      "runtime_seconds": 21.00057173613459
+    },
+    {
+      "dataset": "large_v1",
+      "peak_memory_bytes": 28972592,
+      "runtime_seconds": 39.34016077709384
+    },
+    {
+      "dataset": "nonlinear_v1",
+      "peak_memory_bytes": 2998554,
+      "runtime_seconds": 21.371248747222126
+    },
+    {
+      "dataset": "real_caudate_aa_v1",
+      "peak_memory_bytes": 8532604,
+      "runtime_seconds": 21.35343380505219
+    }
+  ],
+  "stage": "stage7_gpu_latent",
+  "suite": "core_v1"
+}

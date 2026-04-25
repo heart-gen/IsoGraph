@@ -1,0 +1,33 @@
+# @package _global_
+command: benchmark
+dataset_suite: scale_v1
+stage_name: stage7_gpu_latent_scale
+backend: gpu_latent
+seed: 7
+recovery_thresholds: {}    # set after calibration run; see tests/test_stage7_gates.py
+gpu_latent:
+  n_components: 20
+  n_components_grid: [5, 8, 10, 12, 15, 18, 20, 24, 28, 32]
+  bic_selection: true
+  max_iter: 1000          # more iterations for large FA convergence
+  lr: 0.005               # lower LR for stability at large p
+  tol: 1.0e-5
+  alpha: 0.03
+  alpha_percentile: 99.5  # keep top 0.5% of pairs — much sparser graph
+  min_module_size: 2
+  random_state: 7
+fixture_gpu_latent_overrides:
+  xlarge_v1:
+    n_components_grid: [8, 10, 12, 15, 18, 20]
+    alpha_percentile: 99.5
+    min_module_size: 2
+  xxlarge_v1:
+    n_components_grid: [10, 12, 15, 18, 20, 24, 28]
+    alpha_percentile: 99.9  # 0.1% of 72M pairs = 72K edges
+    min_module_size: 2
+  xxlarge_stress_v1:
+    n_components_grid: [10, 12, 15, 18, 20, 24, 28]
+    alpha_percentile: 99.9
+    min_module_size: 2
+fixture_vae_overrides: {}
+fixture_wgcna_overrides: {}

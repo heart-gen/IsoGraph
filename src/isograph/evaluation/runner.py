@@ -28,6 +28,12 @@ try:
 except ImportError:  # pragma: no cover
     _VAE_AVAILABLE = False
 
+try:
+    from isograph.models.gpu_latent import GpuLatentNetworkModel
+    _GPU_LATENT_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    _GPU_LATENT_AVAILABLE = False
+
 from isograph.models.wgcna import WgcnaNetworkModel
 from isograph.utils import ensure_dir, write_json
 from isograph.workflow.config import BenchmarkCommandConfig
@@ -77,6 +83,14 @@ def _make_model(config: BenchmarkCommandConfig, dataset_name: str):
         overrides = config.fixture_wgcna_overrides.get(dataset_name, {})
         wgcna_config = dataclasses.replace(config.wgcna, **overrides) if overrides else config.wgcna
         return WgcnaNetworkModel(wgcna_config), wgcna_config
+    elif config.backend == "gpu_latent":
+        if not _GPU_LATENT_AVAILABLE:
+            raise ImportError(
+                "PyTorch is required for the gpu_latent backend. Install it with: pip install torch"
+            )
+        overrides = config.fixture_gpu_latent_overrides.get(dataset_name, {})
+        gl_config = dataclasses.replace(config.gpu_latent, **overrides) if overrides else config.gpu_latent
+        return GpuLatentNetworkModel(gl_config), gl_config
     else:
         overrides = config.fixture_model_overrides.get(dataset_name, {})
         model_config = dataclasses.replace(config.model, **overrides) if overrides else config.model

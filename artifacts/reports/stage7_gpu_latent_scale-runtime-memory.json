@@ -1,0 +1,21 @@
+{
+  "results": [
+    {
+      "dataset": "xlarge_v1",
+      "peak_memory_bytes": 1139118626,
+      "runtime_seconds": 59.63567148591392
+    },
+    {
+      "dataset": "xxlarge_v1",
+      "peak_memory_bytes": 4200253000,
+      "runtime_seconds": 52.889480938902125
+    },
+    {
+      "dataset": "xxlarge_stress_v1",
+      "peak_memory_bytes": 4200238928,
+      "runtime_seconds": 52.66048099193722
+    }
+  ],
+  "stage": "stage7_gpu_latent_scale",
+  "suite": "scale_v1"
+}

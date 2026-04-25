@@ -1,0 +1,43 @@
+# @package _global_
+command: benchmark
+dataset_suite: core_v1
+stage_name: stage7_gpu_latent
+backend: gpu_latent
+seed: 7
+recovery_thresholds: {}    # set after calibration run; see tests/test_stage7_gates.py
+gpu_latent:
+  n_components: 10
+  n_components_grid: [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20]
+  bic_selection: true
+  max_iter: 500
+  lr: 0.01
+  tol: 1.0e-5
+  alpha: 0.05
+  min_module_size: 2
+  random_state: 7
+# Per-fixture alpha overrides: FA partial correlations are small (~0.01-0.05),
+# so each fixture needs a tuned threshold — same values as fixture_latent_overrides.
+fixture_gpu_latent_overrides:
+  toy_v1:
+    alpha: 0.05
+    min_module_size: 2
+  medium_v1:
+    alpha: 0.01
+    min_module_size: 2
+  realistic_v1:
+    alpha: 0.02
+    min_module_size: 2
+  realistic_unequal_v1:
+    alpha: 0.02
+    min_module_size: 2
+  noisy_v1:
+    alpha: 0.05
+    min_module_size: 2
+  large_v1:
+    alpha: 0.03
+    min_module_size: 2
+  nonlinear_v1:
+    alpha: 0.05
+    min_module_size: 2
+fixture_vae_overrides: {}
+fixture_wgcna_overrides: {}
