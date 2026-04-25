@@ -10,7 +10,7 @@ authors = [
 ]
 keywords = [
     "RNA-seq", "isoform switching", "splicing", "co-expression",
-    "network inference", "bioinformatics", "transcriptomics",
+    "network inference", "bioinformatics", "transcriptomics", "vae",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
