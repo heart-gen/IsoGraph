@@ -76,6 +76,7 @@ class VaeModelConfig:
     - ``n_genes > 5000`` (25:1–50:1 genes-to-samples): hidden_dim=512–1024;
       n_hidden_layers=3 recommended; batch_size will be auto-set to
       ``min(64, n_samples // 4)`` when left as None.
+
     Do not use a ratio like ``latent_dim * 8`` — stress tests show non-monotonic
     recovery across hidden_dim values, especially for high-dispersion or small-n data.
 
