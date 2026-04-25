@@ -127,3 +127,6 @@ ehthumbs.db
 Thumbs.db
 .codex
 data/
+
+# Real-data source cache (raw input files, not for version control)
+benchmarks/cache/real_data/sources/
