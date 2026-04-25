@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -323,6 +324,15 @@ class VaeNetworkModel(NetworkModel):
 
         if n_genes >= 2:
             cfg = self.config
+            n_samples_total = switch_matrix.shape[1]
+            if cfg.batch_size is None and n_genes > 2000:
+                effective_bs = min(64, n_samples_total // 4)
+                _log.info(
+                    "Large-scale input detected (n_genes=%d > 2000): auto-setting "
+                    "batch_size=%d. Set VaeModelConfig(batch_size=<value>) to override.",
+                    n_genes, effective_bs,
+                )
+                cfg = dataclasses.replace(cfg, batch_size=effective_bs)
 
             X_np = switch_matrix.T.astype(np.float32)  # (n_samples, n_genes)
             n_samples = X_np.shape[0]

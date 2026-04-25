@@ -385,23 +385,24 @@ def _generate_realistic_dataset(
 
 
 # ---------------------------------------------------------------------------
-# Nonlinear fixture — nonlinear_v1
+# Nonlinear fixture — nonlinear_v1 and xxlarge_stress_v1
 #
 # Module activation is driven by quadrant membership in a 2-D latent space
 # (f1 × f2 interaction), not a linear combination of factors.  This breaks
 # the FA linear-Gaussian assumption: FA can identify f1 and f2 as separate
 # components but cannot represent the product f1·f2 that defines each module.
 #
-# The four modules activate in:
-#   M0 → f1 > 0  AND  f2 > 0   (SCZD-high, Age-high)
-#   M1 → f1 < 0  AND  f2 > 0   (Control,   Age-high)
-#   M2 → f1 > 0  AND  f2 < 0   (SCZD-high, Age-low)
-#   M3 → f1 < 0  AND  f2 < 0   (Control,   Age-low)
+# The first n_nonlinear_modules (must be a multiple of 4) activate via:
+#   m % 4 == 0 → inner ring: r² < P35
+#   m % 4 == 1 → outer ring: r² > P65
+#   m % 4 == 2 → positive product: f1·f2 > P65(|f1·f2|)
+#   m % 4 == 3 → negative product: f1·f2 < -P65(|f1·f2|)
 #
-# Linear methods score each sample on f1 and f2 independently, so they
-# predict M0 genes as loading on f1 + f2 (incorrect) and cannot recover
-# the within-quadrant structure cleanly.  A VAE with a non-linear decoder
-# can model the joint threshold non-linearity.
+# Remaining modules (m >= n_nonlinear_modules) activate linearly via weighted
+# combinations of f1 (Dx-correlated) and f2 (Age-correlated).
+#
+# Linear methods score each sample on f1 and f2 independently so they cannot
+# represent r² or f1·f2 — only the nonlinear modules expose this weakness.
 # ---------------------------------------------------------------------------
 
 
@@ -410,14 +411,17 @@ class NonlinearDatasetSpec:
     name: str
     n_genes: int
     n_samples: int
-    n_modules: int = 4            # must be a multiple of 4 for quadrant assignment
+    n_modules: int = 4
+    n_nonlinear_modules: int = 4      # must be a multiple of 4; remaining are linear
     module_sizes: list[int] | None = None
     switching_fraction: float = 0.5
     count_dispersion: float = 5.0
     mean_gene_total: float = 300.0
-    state_effect_size: float = 2.5   # within-quadrant signal strength
-    state_background: float = 0.15   # cross-quadrant noise standard deviation
+    state_effect_size: float = 2.5    # within-quadrant signal strength (nonlinear)
+    state_background: float = 0.15    # per-module noise std
     confounder_weight: float = 0.2
+    dx_effect_range: tuple[float, float] = (0.4, 0.9)   # linear modules only
+    age_effect_range: tuple[float, float] = (0.15, 0.45) # linear modules only
     switching_concentration: float = 20.0
     nonswitching_concentration: float = 100.0
     seed: int = 0
@@ -495,14 +499,26 @@ def _generate_nonlinear_dataset(
         prod < -p65_p,         # strong negative product  (SCZD–young or Control–old)
     ]
 
+    n_nl = spec.n_nonlinear_modules
     module_latent = np.zeros((spec.n_modules, n_samples))
     for m in range(spec.n_modules):
-        active = nonlinear_masks[m % 4].astype(float)
-        module_latent[m] = (
-            active * spec.state_effect_size
-            + rng.normal(0, spec.state_background, n_samples)
-            + spec.confounder_weight * z_confound
-        )
+        if m < n_nl:
+            # Nonlinear: quadrant / radial activation — not expressible as a1·f1 + a2·f2
+            active = nonlinear_masks[m % 4].astype(float)
+            module_latent[m] = (
+                active * spec.state_effect_size
+                + rng.normal(0, spec.state_background, n_samples)
+                + spec.confounder_weight * z_confound
+            )
+        else:
+            # Linear: weighted sum of the same latent factors f1 and f2
+            dx_eff  = rng.uniform(*spec.dx_effect_range)
+            age_eff = rng.uniform(*spec.age_effect_range)
+            module_latent[m] = (
+                dx_eff * f1 + age_eff * f2
+                + rng.normal(0, spec.state_background, n_samples)
+                + spec.confounder_weight * z_confound
+            )
 
     # ------------------------------------------------------------------
     # Isoform counts per gene
@@ -831,4 +847,124 @@ def generate_core_suite(root: Path, seed: int) -> list[Path]:
         save_dataset_bundle(noisy,             suite_dir / "noisy_v1"),
         save_dataset_bundle(large,             suite_dir / "large_v1"),
         save_dataset_bundle(nonlinear,         suite_dir / "nonlinear_v1"),
+    ]
+
+
+def generate_scale_suite(root: Path, seed: int) -> list[Path]:
+    """Generate the scale_v1 fixture suite (large-scale stress tests).
+
+    Kept separate from generate_core_suite() so that tests using the core suite
+    remain fast.  Call this only when validating large-scale (25:1–50:1
+    genes-to-samples ratio) performance.
+    """
+    suite_dir = root / "scale_v1"
+
+    # ------------------------------------------------------------------
+    # xlarge_v1: 25:1 genes-to-samples stress test.
+    #
+    # 6 000 genes / 240 samples → ratio 25×.  12 power-law modules;
+    # ~15.5 % switching genes (930 / 6 000).  All other parameters match
+    # large_v1 to isolate the effect of scale from other noise factors.
+    # ------------------------------------------------------------------
+    xlarge = _generate_realistic_dataset(
+        RealisticDatasetSpec(
+            name="xlarge_v1",
+            n_genes=6000,
+            n_samples=240,
+            n_modules=12,
+            module_sizes=[160, 130, 110, 95, 80, 70, 60, 55, 50, 45, 40, 35],  # power-law, sum=930
+            switching_fraction=930 / 6000,
+            confounder_weight=0.4,
+            count_dispersion=7.0,
+            mean_gene_total=300.0,
+            dx_effect_range=(0.4, 0.9),
+            age_effect_range=(0.15, 0.45),
+            switching_concentration=20.0,
+            nonswitching_concentration=100.0,
+            seed=seed + 8,
+        ),
+        suite_name="scale_v1",
+        description=(
+            "Large-scale stress test: 6 000 genes / 240 samples (25:1 ratio), "
+            "12 power-law modules, ~84.5 % background, NB dispersion=7. "
+            "Validates VAE architecture at the 25:1 genes-to-samples regime."
+        ),
+    )
+
+    # ------------------------------------------------------------------
+    # xxlarge_v1: 50:1 genes-to-samples stress test.
+    #
+    # 12 000 genes / 240 samples → ratio 50×.  16 power-law modules;
+    # 25 % switching genes (3 000 / 12 000).  Parameters match large_v1
+    # and xlarge_v1 for a consistent progression across scales.
+    # ------------------------------------------------------------------
+    xxlarge = _generate_realistic_dataset(
+        RealisticDatasetSpec(
+            name="xxlarge_v1",
+            n_genes=12000,
+            n_samples=240,
+            n_modules=16,
+            module_sizes=[515, 412, 322, 258, 232, 206, 193, 167, 155, 116, 103, 90, 77, 64, 52, 38],  # power-law, sum=3000
+            switching_fraction=3000 / 12000,
+            confounder_weight=0.4,
+            count_dispersion=7.0,
+            mean_gene_total=300.0,
+            dx_effect_range=(0.4, 0.9),
+            age_effect_range=(0.15, 0.45),
+            switching_concentration=20.0,
+            nonswitching_concentration=100.0,
+            seed=seed + 9,
+        ),
+        suite_name="scale_v1",
+        description=(
+            "Large-scale stress test: 12 000 genes / 240 samples (50:1 ratio), "
+            "16 power-law modules, 75 % background, NB dispersion=7. "
+            "Validates VAE architecture at the 50:1 genes-to-samples regime "
+            "representative of unfiltered bulk RNA-seq gene counts."
+        ),
+    )
+
+    # ------------------------------------------------------------------
+    # xxlarge_stress_v1: realistic stress test at 50:1 scale.
+    #
+    # Same gene/sample count as xxlarge_v1 but with:
+    #   - Noisy background (nonswitching_concentration=15 vs 100)
+    #   - Weaker module signal (switching_concentration=15 vs 20)
+    #   - High count overdispersion (15 vs 7)
+    #   - Strong confounders (0.55 vs 0.4)
+    #   - Weaker Dx/Age effect ranges
+    #   - Lower switching fraction (~15% vs 25%)
+    #   - Minimum module size 33 genes (realistic WGCNA lower bound)
+    # ------------------------------------------------------------------
+    xxlarge_stress = _generate_realistic_dataset(
+        RealisticDatasetSpec(
+            name="xxlarge_stress_v1",
+            n_genes=12000,
+            n_samples=240,
+            n_modules=24,
+            module_sizes=[140, 96, 79, 70, 64, 58, 54, 51, 48, 46, 44, 42, 40, 39, 38, 36, 35, 34, 33, 32, 31, 30, 30, 30],  # power-law, sum=1200, ~10%
+            switching_fraction=1200 / 12000,
+            confounder_weight=0.55,
+            count_dispersion=15.0,
+            mean_gene_total=300.0,
+            dx_effect_range=(0.3, 0.7),
+            age_effect_range=(0.1, 0.3),
+            switching_concentration=15.0,
+            nonswitching_concentration=15.0,
+            seed=seed + 10,
+        ),
+        suite_name="scale_v1",
+        description=(
+            "Realistic stress test: 12 000 genes / 240 samples (50:1 ratio), "
+            "16 power-law modules, ~15% switching, noisy background "
+            "(nonswitching_concentration=15), high NB dispersion=15, "
+            "strong confounders=0.55, weak Dx/Age effects. "
+            "Representative of real unfiltered bulk RNA-seq."
+        ),
+    )
+
+    return [
+        save_dataset_bundle(xlarge,        suite_dir / "xlarge_v1"),
+        save_dataset_bundle(xxlarge,       suite_dir / "xxlarge_v1"),
+        save_dataset_bundle(xxlarge_stress, suite_dir / "xxlarge_stress_v1"),
     ]

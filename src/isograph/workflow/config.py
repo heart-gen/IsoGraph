@@ -65,14 +65,19 @@ class GraphModelConfig:
 class VaeModelConfig:
     """Configuration for the VAE network backend.
 
-    **Choosing hidden_dim** (independent of latent_dim — no reliable ratio):
+    **Choosing hidden_dim** (function of BOTH n_genes AND n_samples):
 
-    - ``n_samples >= 150``: 128 (default) works well.
-    - ``75 <= n_samples < 150``: raise to 192 for high-dispersion data.
-    - ``n_samples < 75``: 256 reduces underfitting, but expect lower recovery;
-      the model is data-limited. Do not use a ratio like ``latent_dim * 8`` —
-      stress tests show non-monotonic recovery across hidden_dim values,
-      especially for high-dispersion or small-n data.
+    - ``n_genes <= 1000`` and ``n_samples >= 150``: 128 (default) works well.
+    - ``n_genes <= 1000`` and ``75 <= n_samples < 150``: raise to 192 for
+      high-dispersion data.
+    - ``n_genes <= 1000`` and ``n_samples < 75``: 256 reduces underfitting,
+      but expect lower recovery; the model is data-limited.
+    - ``1000 < n_genes <= 5000``: hidden_dim=256–512; consider n_hidden_layers=3.
+    - ``n_genes > 5000`` (25:1–50:1 genes-to-samples): hidden_dim=512–1024;
+      n_hidden_layers=3 recommended; batch_size will be auto-set to
+      ``min(64, n_samples // 4)`` when left as None.
+    Do not use a ratio like ``latent_dim * 8`` — stress tests show non-monotonic
+    recovery across hidden_dim values, especially for high-dispersion or small-n data.
 
     **Choosing latent_dim / latent_dim_grid**:
 
@@ -108,6 +113,23 @@ class VaeModelConfig:
 
 
 @dataclass
+class WgcnaModelConfig:
+    name: str = "wgcna_network"
+    power: int | None = None
+    power_range: list[int] = field(default_factory=lambda: list(range(1, 21)))
+    sft_r2_threshold: float = 0.85
+    min_module_size: int = 2
+    merge_cut_height: float = 0.25
+    deep_split: int = 2
+    network_type: str = "signed"
+    random_state: int = 0
+    trait_columns: list[str] = field(default_factory=lambda: ["Dx", "Age"])
+    residualize_covariates: list[str] = field(
+        default_factory=lambda: ["RIN", "PMI", "mito_mapping_rate", "percent_assigned"]
+    )
+
+
+@dataclass
 class RealDataFreezeConfig:
     counts_root: Path = Path("data/counts")
     annotations_root: Path = Path("data/annotations")
@@ -136,7 +158,7 @@ class BenchmarkCommandConfig:
     command: str = "benchmark"
     dataset_suite: str = "core_v1"
     stage_name: str = "stage1_baseline"
-    backend: str = "baseline"  # "baseline" | "latent" | "graph" | "vae"
+    backend: str = "vae"  # "baseline" | "latent" | "graph" | "vae" | "wgcna" | "gpu_latent"
     fixture_filter: str | None = None  # None = run all; "toy_v1"|"medium_v1"|"real_caudate_aa_v1" = one fixture
     benchmark_root: Path = Path("benchmarks")
     artifacts_root: Path = Path("artifacts")
@@ -161,6 +183,9 @@ class BenchmarkCommandConfig:
     vae: VaeModelConfig = field(default_factory=VaeModelConfig)
     # Per-fixture VAE config overrides for the vae backend.
     fixture_vae_overrides: dict[str, dict] = field(default_factory=dict)
+    wgcna: WgcnaModelConfig = field(default_factory=WgcnaModelConfig)
+    # Per-fixture WGCNA config overrides for the wgcna backend.
+    fixture_wgcna_overrides: dict[str, dict] = field(default_factory=dict)
     # When True, run stability selection on real-data fixtures and append
     # recommended_alpha to the benchmark report for each such fixture.
     run_stability_selection: bool = False

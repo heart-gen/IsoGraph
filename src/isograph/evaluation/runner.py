@@ -11,7 +11,7 @@ from time import perf_counter
 
 import pandas as pd
 
-from isograph.benchmarks.synthetic import generate_core_suite
+from isograph.benchmarks.synthetic import generate_core_suite, generate_scale_suite
 from isograph.evaluation.metrics import calibration_metrics, module_recovery_score
 from isograph.evaluation.selection import stability_selection
 from isograph.evaluation.snapshots import save_snapshot
@@ -27,10 +27,13 @@ try:
     _VAE_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _VAE_AVAILABLE = False
+
+from isograph.models.wgcna import WgcnaNetworkModel
 from isograph.utils import ensure_dir, write_json
 from isograph.workflow.config import BenchmarkCommandConfig
 
 _SYNTHETIC_FIXTURES = frozenset({"toy_v1", "medium_v1", "realistic_v1", "realistic_unequal_v1"})
+_SCALE_FIXTURES = frozenset({"xlarge_v1", "xxlarge_v1"})
 
 
 def prepare_core_suite(config: BenchmarkCommandConfig) -> list[Path]:
@@ -39,6 +42,15 @@ def prepare_core_suite(config: BenchmarkCommandConfig) -> list[Path]:
     paths: list[Path] = list(generate_core_suite(dataset_root, config.seed))
     if f not in _SYNTHETIC_FIXTURES:
         paths.append(freeze_real_dataset(config.real_data, dataset_root / config.dataset_suite))
+    if f:
+        paths = [p for p in paths if p.name == f]
+    return paths
+
+
+def prepare_scale_suite(config: BenchmarkCommandConfig) -> list[Path]:
+    dataset_root = ensure_dir(config.dataset_root)
+    f = config.fixture_filter
+    paths: list[Path] = list(generate_scale_suite(dataset_root, config.seed))
     if f:
         paths = [p for p in paths if p.name == f]
     return paths
@@ -61,6 +73,10 @@ def _make_model(config: BenchmarkCommandConfig, dataset_name: str):
         overrides = config.fixture_vae_overrides.get(dataset_name, {})
         vae_config = dataclasses.replace(config.vae, **overrides) if overrides else config.vae
         return VaeNetworkModel(vae_config), vae_config
+    elif config.backend == "wgcna":
+        overrides = config.fixture_wgcna_overrides.get(dataset_name, {})
+        wgcna_config = dataclasses.replace(config.wgcna, **overrides) if overrides else config.wgcna
+        return WgcnaNetworkModel(wgcna_config), wgcna_config
     else:
         overrides = config.fixture_model_overrides.get(dataset_name, {})
         model_config = dataclasses.replace(config.model, **overrides) if overrides else config.model
@@ -68,7 +84,10 @@ def _make_model(config: BenchmarkCommandConfig, dataset_name: str):
 
 
 def benchmark(config: BenchmarkCommandConfig) -> dict[str, Path]:
-    paths = prepare_core_suite(config)
+    if config.dataset_suite == "scale_v1":
+        paths = prepare_scale_suite(config)
+    else:
+        paths = prepare_core_suite(config)
     report_rows = []
     rt_rows = []
     artifacts_by_fixture = {}
