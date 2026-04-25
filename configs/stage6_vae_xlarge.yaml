@@ -1,0 +1,27 @@
+# @package _global_
+command: benchmark
+dataset_suite: scale_v1
+stage_name: stage6_vae_xlarge
+backend: vae
+seed: 7
+recovery_thresholds: {}    # set after calibration run; see tests/test_stage6_gates.py
+vae:
+  hidden_dim: 256
+  n_hidden_layers: 2
+  n_epochs: 600
+  beta: 0.5
+  random_state: 7
+fixture_vae_overrides:
+  xlarge_v1:
+    hidden_dim: 512
+    n_hidden_layers: 3
+    batch_size: 64
+    n_epochs: 800
+    alpha: 0.75
+  xxlarge_v1:
+    hidden_dim: 512
+    n_hidden_layers: 3
+    batch_size: 64
+    n_epochs: 1000
+    alpha: 0.75
+fixture_wgcna_overrides: {}
