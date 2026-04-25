@@ -1,0 +1,38 @@
+{
+  "backend": "vae",
+  "gate_failures": [],
+  "results": [
+    {
+      "dataset": "xlarge_v1",
+      "n_edges": 43985,
+      "n_genes": 6000,
+      "n_modules": 12,
+      "n_samples": 240,
+      "recommended_alpha": null,
+      "recovery": 1.0,
+      "runtime_seconds": 228.04961370187812
+    },
+    {
+      "dataset": "xxlarge_v1",
+      "n_edges": 416989,
+      "n_genes": 12000,
+      "n_modules": 16,
+      "n_samples": 240,
+      "recommended_alpha": null,
+      "recovery": 1.0,
+      "runtime_seconds": 738.9533549200278
+    },
+    {
+      "dataset": "xxlarge_stress_v1",
+      "n_edges": 36892,
+      "n_genes": 12000,
+      "n_modules": 24,
+      "n_samples": 240,
+      "recommended_alpha": null,
+      "recovery": 1.0,
+      "runtime_seconds": 935.4086053369101
+    }
+  ],
+  "stage": "stage6_scale_comparison_vae",
+  "suite": "scale_v1"
+}

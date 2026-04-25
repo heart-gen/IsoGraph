@@ -1,0 +1,28 @@
+{
+  "backend": "vae",
+  "gate_failures": [],
+  "results": [
+    {
+      "dataset": "xlarge_v1",
+      "n_edges": 43985,
+      "n_genes": 6000,
+      "n_modules": 12,
+      "n_samples": 240,
+      "recommended_alpha": null,
+      "recovery": 1.0,
+      "runtime_seconds": 415.34484473709017
+    },
+    {
+      "dataset": "xxlarge_v1",
+      "n_edges": 416989,
+      "n_genes": 12000,
+      "n_modules": 16,
+      "n_samples": 240,
+      "recommended_alpha": null,
+      "recovery": 1.0,
+      "runtime_seconds": 932.777532649925
+    }
+  ],
+  "stage": "stage6_vae_xlarge",
+  "suite": "scale_v1"
+}

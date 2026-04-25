@@ -1,0 +1,33 @@
+{
+  "backend": "wgcna",
+  "calibration_by_fixture": [
+    {
+      "fixture": "xlarge_v1",
+      "wgcna_merge_cut_height": 0.25,
+      "wgcna_n_modules": 24,
+      "wgcna_n_unassigned_genes": 5070,
+      "wgcna_network_type": "signed",
+      "wgcna_sft_r2": 0.87484761,
+      "wgcna_soft_threshold_power": 14
+    },
+    {
+      "fixture": "xxlarge_v1",
+      "wgcna_merge_cut_height": 0.25,
+      "wgcna_n_modules": 32,
+      "wgcna_n_unassigned_genes": 9000,
+      "wgcna_network_type": "signed",
+      "wgcna_sft_r2": 0.85252219,
+      "wgcna_soft_threshold_power": 12
+    },
+    {
+      "fixture": "xxlarge_stress_v1",
+      "wgcna_merge_cut_height": 0.25,
+      "wgcna_n_modules": 32,
+      "wgcna_n_unassigned_genes": 10200,
+      "wgcna_network_type": "signed",
+      "wgcna_sft_r2": 0.83859347,
+      "wgcna_soft_threshold_power": 12
+    }
+  ],
+  "stage": "stage6_scale_comparison_wgcna"
+}

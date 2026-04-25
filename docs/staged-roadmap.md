@@ -569,6 +569,7 @@ claims without full Bayesian inference.
 | 2026-04-19 | 4 | — | N/A | artifacts/reports/stage4-vs-stage3.json, stage4-seed-sensitivity.json, stage4-latent-diagnostics.json | — | Missing Stage 4 evidence artifacts generated; nonlinear_v1 multi-seed mean=0.972±0.010; no posterior collapse on any fixture |
 | 2026-04-23 | 5 | — | N/A | artifacts/reports/stage5_wgcna-benchmark.json, stage5-vs-wgcna.json | artifacts/reports/stage5_wgcna-runtime-memory.json | VAE wins 6/7 core_v1 fixtures vs WGCNA (signed network); nonlinear_v1 VAE=0.958 vs WGCNA=0.877; WGCNA edge on large_v1 (0.874 vs 0.795) |
 | 2026-04-23 | 6 | — | N/A | artifacts/reports/stage6_vae_xlarge-benchmark.json | artifacts/reports/stage6_vae_xlarge-runtime-memory.json | xlarge_v1 recovery=1.0 (415s), xxlarge_v1 recovery=1.0 (933s); gates locked at 0.90; no collapsed dims; VAE is now default backend |
+| 2026-04-25 | 6b | — | N/A | artifacts/reports/stage6_scale_comparison_vae-benchmark.json, stage6_scale_comparison_wgcna-benchmark.json, stage6-scale-vae-vs-wgcna.json | — | xxlarge_stress_v1 added (24 modules, min=30, max=140, ~10% switching, dispersion=15, confounder=0.55); VAE=1.0 vs WGCNA=0.822 on stress fixture; blockwiseModules upgrade for WGCNA at 12k genes |
 
 ## Current Recommendation
 

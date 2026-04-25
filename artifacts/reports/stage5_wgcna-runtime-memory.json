@@ -1,0 +1,46 @@
+{
+  "results": [
+    {
+      "dataset": "toy_v1",
+      "peak_memory_bytes": 2223340,
+      "runtime_seconds": 2.3697837139479816
+    },
+    {
+      "dataset": "medium_v1",
+      "peak_memory_bytes": 20594740,
+      "runtime_seconds": 6.2348291801754385
+    },
+    {
+      "dataset": "realistic_v1",
+      "peak_memory_bytes": 8729286,
+      "runtime_seconds": 8.31010980415158
+    },
+    {
+      "dataset": "realistic_unequal_v1",
+      "peak_memory_bytes": 6989937,
+      "runtime_seconds": 3.0188645999878645
+    },
+    {
+      "dataset": "noisy_v1",
+      "peak_memory_bytes": 6569259,
+      "runtime_seconds": 2.7883683759719133
+    },
+    {
+      "dataset": "large_v1",
+      "peak_memory_bytes": 20661102,
+      "runtime_seconds": 4.482266773004085
+    },
+    {
+      "dataset": "nonlinear_v1",
+      "peak_memory_bytes": 8695966,
+      "runtime_seconds": 2.995994766941294
+    },
+    {
+      "dataset": "real_caudate_aa_v1",
+      "peak_memory_bytes": 10336467,
+      "runtime_seconds": 3.9799557579681277
+    }
+  ],
+  "stage": "stage5_wgcna",
+  "suite": "core_v1"
+}

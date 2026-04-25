@@ -1,0 +1,87 @@
+{
+  "backend": "vae",
+  "calibration_by_fixture": [
+    {
+      "converged": false,
+      "fixture": "xlarge_v1",
+      "reconstruction_rmse": 0.2506752908229828,
+      "vae_best_epoch": 799,
+      "vae_beta_used": 0.5,
+      "vae_collapsed_dim_indices": [],
+      "vae_early_stopped": false,
+      "vae_final_elbo": 1035.63916015625,
+      "vae_final_kl_loss": 44.845489501953125,
+      "vae_final_recon_loss": 1013.2163696289062,
+      "vae_latent_dim": 8,
+      "vae_mean_kl": 57.27396011352539,
+      "vae_n_collapsed_dims": 0,
+      "vae_n_epochs_trained": 800,
+      "vae_per_dim_kl": [
+        61.65605545043945,
+        48.082576751708984,
+        46.553340911865234,
+        67.7812728881836,
+        79.79549407958984,
+        33.66101837158203,
+        46.458675384521484,
+        74.20323944091797
+      ],
+      "vae_posterior_collapse": false
+    },
+    {
+      "converged": false,
+      "fixture": "xxlarge_v1",
+      "reconstruction_rmse": 0.28198865056037903,
+      "vae_best_epoch": 999,
+      "vae_beta_used": 0.5,
+      "vae_collapsed_dim_indices": [],
+      "vae_early_stopped": false,
+      "vae_final_elbo": 2842.97998046875,
+      "vae_final_kl_loss": 92.54370880126953,
+      "vae_final_recon_loss": 2796.7080078125,
+      "vae_latent_dim": 8,
+      "vae_mean_kl": 113.6156997680664,
+      "vae_n_collapsed_dims": 0,
+      "vae_n_epochs_trained": 1000,
+      "vae_per_dim_kl": [
+        190.46908569335938,
+        84.49137115478516,
+        57.28919219970703,
+        80.69092559814453,
+        82.5794448852539,
+        128.8057098388672,
+        149.9485321044922,
+        134.6513671875
+      ],
+      "vae_posterior_collapse": false
+    },
+    {
+      "converged": false,
+      "fixture": "xxlarge_stress_v1",
+      "reconstruction_rmse": 0.3836888372898102,
+      "vae_best_epoch": 1599,
+      "vae_beta_used": 0.5,
+      "vae_collapsed_dim_indices": [],
+      "vae_early_stopped": false,
+      "vae_final_elbo": 6769.09130859375,
+      "vae_final_kl_loss": 117.49138641357422,
+      "vae_final_recon_loss": 6710.345703125,
+      "vae_latent_dim": 8,
+      "vae_mean_kl": 485.1149597167969,
+      "vae_n_collapsed_dims": 0,
+      "vae_n_epochs_trained": 1600,
+      "vae_per_dim_kl": [
+        443.6026611328125,
+        462.9043884277344,
+        363.1006774902344,
+        384.8591003417969,
+        821.4188842773438,
+        512.5726318359375,
+        501.3468933105469,
+        391.11419677734375
+      ],
+      "vae_posterior_collapse": false
+    }
+  ],
+  "stage": "stage6_scale_comparison_vae"
+}

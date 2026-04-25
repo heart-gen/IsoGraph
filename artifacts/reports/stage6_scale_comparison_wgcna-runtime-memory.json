@@ -1,0 +1,21 @@
+{
+  "results": [
+    {
+      "dataset": "xlarge_v1",
+      "peak_memory_bytes": 60388984,
+      "runtime_seconds": 39.486440173117444
+    },
+    {
+      "dataset": "xxlarge_v1",
+      "peak_memory_bytes": 120588860,
+      "runtime_seconds": 155.08026977302507
+    },
+    {
+      "dataset": "xxlarge_stress_v1",
+      "peak_memory_bytes": 120275164,
+      "runtime_seconds": 158.6542242821306
+    }
+  ],
+  "stage": "stage6_scale_comparison_wgcna",
+  "suite": "scale_v1"
+}

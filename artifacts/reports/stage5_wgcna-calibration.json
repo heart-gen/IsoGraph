@@ -1,0 +1,78 @@
+{
+  "backend": "wgcna",
+  "calibration_by_fixture": [
+    {
+      "fixture": "toy_v1",
+      "wgcna_merge_cut_height": 0.25,
+      "wgcna_n_modules": 2,
+      "wgcna_n_unassigned_genes": 0,
+      "wgcna_network_type": "signed",
+      "wgcna_sft_r2": 0.033246648,
+      "wgcna_soft_threshold_power": 1
+    },
+    {
+      "fixture": "medium_v1",
+      "wgcna_merge_cut_height": 0.25,
+      "wgcna_n_modules": 16,
+      "wgcna_n_unassigned_genes": 0,
+      "wgcna_network_type": "signed",
+      "wgcna_sft_r2": 0.083978558,
+      "wgcna_soft_threshold_power": 10
+    },
+    {
+      "fixture": "realistic_v1",
+      "wgcna_merge_cut_height": 0.25,
+      "wgcna_n_modules": 1,
+      "wgcna_n_unassigned_genes": 2,
+      "wgcna_network_type": "signed",
+      "wgcna_sft_r2": 0.0744256,
+      "wgcna_soft_threshold_power": 1
+    },
+    {
+      "fixture": "realistic_unequal_v1",
+      "wgcna_merge_cut_height": 0.25,
+      "wgcna_n_modules": 7,
+      "wgcna_n_unassigned_genes": 103,
+      "wgcna_network_type": "signed",
+      "wgcna_sft_r2": 0.38318451,
+      "wgcna_soft_threshold_power": 20
+    },
+    {
+      "fixture": "noisy_v1",
+      "wgcna_merge_cut_height": 0.25,
+      "wgcna_n_modules": 13,
+      "wgcna_n_unassigned_genes": 208,
+      "wgcna_network_type": "signed",
+      "wgcna_sft_r2": 0.78362091,
+      "wgcna_soft_threshold_power": 19
+    },
+    {
+      "fixture": "large_v1",
+      "wgcna_merge_cut_height": 0.25,
+      "wgcna_n_modules": 17,
+      "wgcna_n_unassigned_genes": 599,
+      "wgcna_network_type": "signed",
+      "wgcna_sft_r2": 0.8421597,
+      "wgcna_soft_threshold_power": 17
+    },
+    {
+      "fixture": "nonlinear_v1",
+      "wgcna_merge_cut_height": 0.25,
+      "wgcna_n_modules": 7,
+      "wgcna_n_unassigned_genes": 100,
+      "wgcna_network_type": "signed",
+      "wgcna_sft_r2": 0.67887874,
+      "wgcna_soft_threshold_power": 20
+    },
+    {
+      "fixture": "real_caudate_aa_v1",
+      "wgcna_merge_cut_height": 0.25,
+      "wgcna_n_modules": 3,
+      "wgcna_n_unassigned_genes": 0,
+      "wgcna_network_type": "signed",
+      "wgcna_sft_r2": 0.85579666,
+      "wgcna_soft_threshold_power": 6
+    }
+  ],
+  "stage": "stage5_wgcna"
+}

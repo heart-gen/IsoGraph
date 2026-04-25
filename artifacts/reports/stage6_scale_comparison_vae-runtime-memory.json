@@ -1,0 +1,21 @@
+{
+  "results": [
+    {
+      "dataset": "xlarge_v1",
+      "peak_memory_bytes": 414444242,
+      "runtime_seconds": 228.04961370187812
+    },
+    {
+      "dataset": "xxlarge_v1",
+      "peak_memory_bytes": 1433389029,
+      "runtime_seconds": 738.9533549200278
+    },
+    {
+      "dataset": "xxlarge_stress_v1",
+      "peak_memory_bytes": 1252481394,
+      "runtime_seconds": 935.4086053369101
+    }
+  ],
+  "stage": "stage6_scale_comparison_vae",
+  "suite": "scale_v1"
+}

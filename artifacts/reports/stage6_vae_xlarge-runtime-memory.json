@@ -1,0 +1,16 @@
+{
+  "results": [
+    {
+      "dataset": "xlarge_v1",
+      "peak_memory_bytes": 414453399,
+      "runtime_seconds": 415.34484473709017
+    },
+    {
+      "dataset": "xxlarge_v1",
+      "peak_memory_bytes": 1433382370,
+      "runtime_seconds": 932.777532649925
+    }
+  ],
+  "stage": "stage6_vae_xlarge",
+  "suite": "scale_v1"
+}
