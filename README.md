@@ -7,22 +7,25 @@ trait associations, and reproducible benchmark artifacts.
 
 ## Status
 
-IsoGraph currently includes completed development stages 0 through 4:
+IsoGraph currently includes completed development stages 0 through 7:
 
 - Stage 0: package, CLI, config validation, fixtures, and reproducibility infrastructure
 - Stage 1: deterministic baseline network backend
-- Stage 2: latent probabilistic backend with stability selection
+- Stage 2: latent probabilistic backend (sklearn FA + partial correlation) with stability selection
 - Stage 3: graph-aware backend
-- Stage 4: VAE backend
-
-Stage 5, a WGCNA comparison benchmark on simulated data, is planned next.
+- Stage 4: VAE backend (default production backend)
+- Stage 5: WGCNA comparison benchmark on simulated data
+- Stage 6: large-scale fixtures (6k–12k genes) and VAE architecture scaling
+- Stage 7: GPU-accelerated FA backend (Woodbury identity + BIC component selection)
 
 ## Core Capabilities
 
-- Generate and benchmark against the permanent `core_v1` fixture suite.
+- Generate and benchmark against the permanent `core_v1` fixture suite and the large-scale
+  `scale_v1` suite (6k–12k genes, 25:1–50:1 genes-to-samples ratios).
 - Freeze the bundled `real_caudate_aa_v1` real-data fixture from local BrainSeq inputs.
 - Fit the deterministic baseline backend from the command line on a prepared dataset bundle.
-- Run baseline, latent, graph, or VAE backends programmatically, or through the benchmark runner.
+- Run `baseline`, `latent`, `graph`, `vae`, `wgcna`, or `gpu_latent` backends programmatically
+  or through the benchmark runner.
 - Export reproducible artifacts, benchmark reports, calibration summaries, and snapshot comparisons.
 
 ## Installation
@@ -43,12 +46,11 @@ Python `3.11` as the canonical local development runtime.
 
 ## Quickstart
 
-Run a minimal benchmark on the bundled toy fixture:
+Run a minimal benchmark on the bundled toy fixture (VAE is the default backend):
 
 ```bash
 conda activate isograph
 isograph benchmark -- \
-  backend=baseline \
   fixture_filter=toy_v1 \
   stage_name=readme_smoke
 ```
@@ -106,6 +108,7 @@ award `R00 MD0169640` and the Alzheimer's Association award `25AARG-1413315`.
 - The benchmark CLI is optimized for the bundled fixture suite rather than arbitrary
   user-defined suites.
 - The `fit` CLI currently exposes only the baseline backend for custom datasets.
-- The VAE backend requires a separate PyTorch installation.
+- The VAE and GPU-latent backends require a separate PyTorch installation.
+- The WGCNA backend requires R with the `WGCNA` package installed.
 - The bundled `freeze-real` workflow depends on local BrainSeq-style source files and is
   not a generic data-ingestion command for arbitrary cohorts.

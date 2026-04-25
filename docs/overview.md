@@ -17,11 +17,18 @@ compared on the same fixture suite.
 
 IsoGraph currently includes:
 
-- A deterministic baseline backend.
-- A latent probabilistic backend with stability selection support.
-- A graph-aware backend.
-- A VAE backend with an optional PyTorch dependency.
-- Synthetic and real-data fixture workflows centered on the `core_v1` suite.
+- A deterministic **baseline** backend.
+- A **latent** probabilistic backend (sklearn Factor Analysis + LedoitWolf partial correlation)
+  with cross-validated component selection and stability selection support.
+- A **graph-aware** backend extending the latent model with graph-Laplacian smoothing.
+- A **VAE** backend — the default production backend — with nonlinear latent representation,
+  early stopping, posterior-collapse diagnostics, and optional checkpointing. Requires PyTorch.
+- A **WGCNA** backend wrapping R's `blockwiseModules` for direct comparison with WGCNA,
+  including blockwise mode for datasets above 5 000 genes.
+- A **GPU-latent** backend using the Woodbury identity for memory-efficient Factor Analysis
+  (avoids forming the p×p covariance matrix) with BIC-based component selection. Requires PyTorch.
+- Synthetic fixture suites: `core_v1` (24–800 genes) and `scale_v1` (6 000–12 000 genes).
+- A real-data fixture freeze workflow for BrainSeq-style bulk RNA-seq inputs.
 
 The development roadmap in `docs/staged-roadmap.md` records stage history and planned
 next work.
