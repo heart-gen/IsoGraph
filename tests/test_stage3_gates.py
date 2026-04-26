@@ -238,6 +238,8 @@ def test_graph_api_compatibility(tmp_path: Path) -> None:
         assert set(["source", "target", "weight"]).issubset(artifacts.edge_table.columns)
     if not artifacts.trait_table.empty:
         assert set(["module_id", "trait", "effect", "pvalue"]).issubset(artifacts.trait_table.columns)
+    assert isinstance(artifacts.eigengene_table, pd.DataFrame)
+    assert "module_id" in artifacts.eigengene_table.columns
 
 
 # ---------------------------------------------------------------------------
