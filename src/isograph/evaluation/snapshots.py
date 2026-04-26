@@ -85,6 +85,10 @@ def save_snapshot(
     sorted_scores = _sorted_feature_scores(fit_artifacts.feature_scores)
     sorted_scores.to_parquet(output_dir / "switch_features.parquet", index=False)
 
+    # eigengene_table.parquet (optional — present when modules exist)
+    if fit_artifacts.eigengene_table is not None:
+        fit_artifacts.eigengene_table.to_parquet(output_dir / "eigengene_table.parquet", index=False)
+
     # run_config.yaml
     config_dict = dataclass_to_jsonable(model_config)
     with open(output_dir / "run_config.yaml", "w", encoding="utf-8") as fh:
