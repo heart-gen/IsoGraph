@@ -104,10 +104,27 @@ class WgcnaNetworkModel(NetworkModel):
 
         calibration = result.get("calibration", {})
 
+        sample_ids = sample_table["sample_id"].tolist() if "sample_id" in sample_table.columns else list(range(len(sample_table)))
+        if not module_table.empty:
+            eigengene_rows: dict[str, list] = {}
+            for module_id in sorted(module_table["module_id"].unique()):
+                genes = module_table.loc[module_table["module_id"] == module_id, "gene_id"]
+                subset = feature_scores.loc[feature_scores["gene_id"].isin(genes)]
+                vec = subset.drop(columns=["gene_id"]).to_numpy(dtype=float).mean(axis=0)
+                eigengene_rows[module_id] = vec.tolist()
+            eigengene_table: pd.DataFrame = (
+                pd.DataFrame(eigengene_rows, index=sample_ids)
+                .T.reset_index()
+                .rename(columns={"index": "module_id"})
+            )
+        else:
+            eigengene_table = pd.DataFrame(columns=["module_id"] + sample_ids)
+
         return FitArtifacts(
             module_table=module_table,
             edge_table=edge_table,
             trait_table=trait_table,
             feature_scores=feature_scores,
             calibration=calibration,
+            eigengene_table=eigengene_table,
         )

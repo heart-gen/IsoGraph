@@ -16,6 +16,7 @@ class FitArtifacts:
     feature_scores: pd.DataFrame
     calibration: dict | None = None
     checkpoint_path: Path | None = None
+    eigengene_table: pd.DataFrame | None = None
 
 
 class NetworkModel:

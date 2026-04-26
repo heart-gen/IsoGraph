@@ -170,6 +170,8 @@ def test_latent_api_compatibility(tmp_path: Path) -> None:
     assert isinstance(artifacts.feature_scores, pd.DataFrame)
     assert "gene_id" in artifacts.module_table.columns or artifacts.module_table.empty
     assert "gene_id" in artifacts.feature_scores.columns
+    assert isinstance(artifacts.eigengene_table, pd.DataFrame)
+    assert "module_id" in artifacts.eigengene_table.columns
 
 
 # ---------------------------------------------------------------------------
