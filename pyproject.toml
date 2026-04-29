@@ -1,6 +1,6 @@
 [project]
 name = "isograph"
-version = "0.1.1"
+version = "0.1.2"
 description = "A Python framework for discovering isoform-switch and splicing modules from bulk RNA-seq by combining gene-local compositional modeling with splice-graph-aware latent network inference."
 readme = "README.md"
 requires-python = ">=3.11,<3.15"
