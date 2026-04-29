@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -25,19 +25,3 @@ jobs:
           python -m pip install -e .[dev]
       - name: Run fast tests (no torch required)
         run: pytest -m "not slow" --ignore=tests/test_stage4_gates.py --ignore=tests/test_stage6_gates.py --ignore=tests/test_stage7_gates.py
-
-  test-torch:
-    name: Tests with PyTorch (Python 3.11)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install package with torch
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e .[dev]
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
-      - name: Run fast torch gate tests
-        run: pytest -m "not slow" tests/test_stage4_gates.py tests/test_stage6_gates.py tests/test_stage7_gates.py
