@@ -283,9 +283,11 @@ class VaeNetworkModel(NetworkModel):
                 rows.append({"module_id": module_id, "trait": "Age", "effect": effect, "pvalue": pvalue})
             if "Dx" in sample_table.columns:
                 dx = (sample_table["Dx"] == "SCZD").astype(float).to_numpy()
-                ttest = stats.ttest_ind(eigengene[dx == 0], eigengene[dx == 1], equal_var=False)
-                effect = float(eigengene[dx == 1].mean() - eigengene[dx == 0].mean())
-                rows.append({"module_id": module_id, "trait": "Dx", "effect": effect, "pvalue": float(ttest.pvalue)})
+                grp0, grp1 = eigengene[dx == 0], eigengene[dx == 1]
+                if len(grp0) >= 2 and len(grp1) >= 2:
+                    ttest = stats.ttest_ind(grp0, grp1, equal_var=False)
+                    effect = float(grp1.mean() - grp0.mean())
+                    rows.append({"module_id": module_id, "trait": "Dx", "effect": effect, "pvalue": float(ttest.pvalue)})
         eigengene_table = pd.DataFrame(eigengene_rows, index=sample_ids).T.reset_index().rename(columns={"index": "module_id"})
         return pd.DataFrame(rows), eigengene_table
 
