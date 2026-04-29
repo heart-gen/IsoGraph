@@ -24,7 +24,7 @@ class LatentModelConfig:
     residualize_covariates: list[str] = field(
         default_factory=lambda: ["RIN", "PMI", "mito_mapping_rate", "percent_assigned"]
     )
-    trait_columns: list[str] = field(default_factory=lambda: ["Dx", "Age"])
+    trait_columns: list[str] = field(default_factory=lambda: ["Age"])
 
 
 @dataclass
@@ -36,7 +36,7 @@ class BaselineModelConfig:
     residualize_covariates: list[str] = field(
         default_factory=lambda: ["RIN", "PMI", "mito_mapping_rate", "percent_assigned"]
     )
-    trait_columns: list[str] = field(default_factory=lambda: ["Dx", "Age"])
+    trait_columns: list[str] = field(default_factory=lambda: ["Age"])
 
 
 @dataclass
@@ -54,7 +54,7 @@ class GraphModelConfig:
     residualize_covariates: list[str] = field(
         default_factory=lambda: ["RIN", "PMI", "mito_mapping_rate", "percent_assigned"]
     )
-    trait_columns: list[str] = field(default_factory=lambda: ["Dx", "Age"])
+    trait_columns: list[str] = field(default_factory=lambda: ["Age"])
     gamma: float = 0.5
     edge_types: list[str] = field(default_factory=lambda: ["corr"])
     corr_threshold: float = 0.3
@@ -109,7 +109,7 @@ class VaeModelConfig:
     residualize_covariates: list[str] = field(
         default_factory=lambda: ["RIN", "PMI", "mito_mapping_rate", "percent_assigned"]
     )
-    trait_columns: list[str] = field(default_factory=lambda: ["Dx", "Age"])
+    trait_columns: list[str] = field(default_factory=lambda: ["Age"])
     checkpoint_dir: Path | None = None
 
 
@@ -140,7 +140,7 @@ class GpuLatentModelConfig:
     residualize_covariates: list[str] = field(
         default_factory=lambda: ["RIN", "PMI", "mito_mapping_rate", "percent_assigned"]
     )
-    trait_columns: list[str] = field(default_factory=lambda: ["Dx", "Age"])
+    trait_columns: list[str] = field(default_factory=lambda: ["Age"])
 
 
 @dataclass
@@ -154,7 +154,7 @@ class WgcnaModelConfig:
     deep_split: int = 2
     network_type: str = "signed"
     random_state: int = 0
-    trait_columns: list[str] = field(default_factory=lambda: ["Dx", "Age"])
+    trait_columns: list[str] = field(default_factory=lambda: ["Age"])
     residualize_covariates: list[str] = field(
         default_factory=lambda: ["RIN", "PMI", "mito_mapping_rate", "percent_assigned"]
     )
