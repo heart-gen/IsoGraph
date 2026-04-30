@@ -104,6 +104,7 @@ class VaeModelConfig:
     early_stop_tol: float = 1e-4
     collapse_threshold: float = 0.01
     random_state: int = 0
+    device: str | None = None
     alpha: float = 0.70
     min_module_size: int = 2
     residualize_covariates: list[str] = field(
@@ -137,6 +138,7 @@ class GpuLatentModelConfig:
     alpha_percentile: float | None = None
     min_module_size: int = 2
     random_state: int = 0
+    device: str | None = None
     residualize_covariates: list[str] = field(
         default_factory=lambda: ["RIN", "PMI", "mito_mapping_rate", "percent_assigned"]
     )
