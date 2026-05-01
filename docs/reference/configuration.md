@@ -28,10 +28,6 @@ IsoGraph uses dataclass-based typed configuration models in
 - `WgcnaModelConfig`
   WGCNA backend wrapping R's `blockwiseModules`. Configures soft-thresholding power,
   minimum module size, merge cut height, and network type.
-- `GpuLatentModelConfig`
-  GPU-accelerated Factor Analysis using the Woodbury identity. Configures BIC-based
-  component selection, learning rate, per-gene noise variance output, and an optional
-  `alpha_percentile` for data-adaptive edge thresholding.
 
 ## Real-Data and Stability Configs
 
@@ -55,9 +51,6 @@ The repository ships with these YAML entry points:
 | `configs/stage6_vae_xlarge.yaml` | `core_v1` | `vae` |
 | `configs/stage6_scale_comparison_vae.yaml` | `scale_v1` | `vae` |
 | `configs/stage6_scale_comparison_wgcna.yaml` | `scale_v1` | `wgcna` |
-| `configs/stage7_gpu_latent.yaml` | `core_v1` | `gpu_latent` |
-| `configs/stage7_gpu_latent_scale.yaml` | `scale_v1` | `gpu_latent` |
-
 Use them as stable entry points and supply Hydra overrides after `--` on the CLI.
 
 ## Per-Fixture Overrides
@@ -69,6 +62,5 @@ All backends support per-fixture config overrides in `BenchmarkCommandConfig`:
 - `fixture_graph_overrides` — graph
 - `fixture_vae_overrides` — vae
 - `fixture_wgcna_overrides` — wgcna
-- `fixture_gpu_latent_overrides` — gpu_latent
 
 Values are partial field dicts merged with `dataclasses.replace` before the fit.

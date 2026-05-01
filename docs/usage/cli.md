@@ -22,7 +22,7 @@ isograph fit --dataset-path my_cohort --backend vae -- vae.alpha=0.6 vae.hidden_
 Run the bundled fixture suite, or a filtered subset, through a selected backend.
 
 The default backend is `vae`. Available backends: `baseline`, `latent`, `graph`, `vae`,
-`wgcna`, `gpu_latent`.
+`wgcna`.
 
 Examples:
 
@@ -30,14 +30,8 @@ Examples:
 # VAE on a single fixture (default backend)
 isograph benchmark -- fixture_filter=toy_v1 stage_name=vae_toy
 
-# GPU-latent on the full core suite
-isograph benchmark -- backend=gpu_latent stage_name=gpu_latent_core
-
 # WGCNA on the scale suite
 isograph benchmark --config-name stage6_scale_comparison_wgcna
-
-# Named config for a complete stage
-isograph benchmark --config-name stage7_gpu_latent
 ```
 
 Behavior:
@@ -85,15 +79,9 @@ isograph fit \
   --backend vae \
   --output-dir artifacts/fits/vae_tuned \
   -- vae.alpha=0.6 vae.hidden_dim=256 vae.n_epochs=400
-
-# GPU-Latent with percentile threshold for large gene counts
-isograph fit \
-  --dataset-path benchmarks/datasets/custom/my_cohort_v1 \
-  --backend gpu_latent \
-  -- gpu_latent.alpha_percentile=95.0
 ```
 
-Available backends: `baseline`, `latent`, `graph`, `vae`, `wgcna`, `gpu_latent`.
+Available backends: `baseline`, `latent`, `graph`, `vae`, `wgcna`.
 
 Outputs:
 
@@ -101,7 +89,7 @@ Outputs:
 - `edges.parquet`
 - `traits.parquet`
 - `feature_scores.parquet`
-- `calibration.json` (when the backend emits calibration metadata — VAE, latent, GPU-latent)
+- `calibration.json` (when the backend emits calibration metadata — VAE, latent)
 - `fit_config.json`
 
 Default config values for all backends live in `configs/fit.yaml` and can be
@@ -122,7 +110,7 @@ isograph compare \
 ```bash
 isograph compare \
   --reference artifacts/reports/stage2_latent-benchmark.json \
-  --candidate artifacts/reports/stage7_gpu_latent-benchmark.json
+  --candidate artifacts/reports/stage4_vae-benchmark.json
 ```
 
 ## `export`
