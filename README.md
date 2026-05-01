@@ -27,7 +27,11 @@ The core package supports Python `3.11` through `3.14`.
 
 ### Optional backends
 
-The `vae` and `gpu_latent` backends require PyTorch:
+IsoGraph installs `mpmath`, which is required by modern SymPy releases. The
+`vae` and `gpu_latent` backends also require PyTorch, but PyTorch is
+intentionally not installed by IsoGraph because CPU/GPU/CUDA builds are
+platform-specific. Install the build that matches your system before using
+those backends:
 
 ```bash
 pip install torch

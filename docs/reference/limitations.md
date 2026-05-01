@@ -8,6 +8,8 @@
 - `freeze-real` is tailored to the repository's BrainSeq-style input tables rather than
   arbitrary cohort layouts.
 - The VAE and GPU-latent backends require a separate PyTorch installation.
+  IsoGraph installs `mpmath` for modern SymPy compatibility, but PyTorch is
+  intentionally left to the user because CPU/GPU/CUDA builds are system-specific.
 - The WGCNA backend requires R with the `WGCNA` package installed and `Rscript` on `PATH`
   (called via subprocess — no Python R bridge required).
 
