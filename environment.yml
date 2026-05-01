@@ -4,6 +4,7 @@ channels:
 dependencies:
   - python=3.11
   - pip
+  - mpmath
   - numpy
   - pandas
   - pyarrow
@@ -11,4 +12,7 @@ dependencies:
   - scikit-learn
   - networkx
   - pip:
+      # PyTorch is intentionally not installed here; install a build
+      # appropriate for the local CPU/GPU/CUDA stack before using VAE or
+      # GPU-latent backends.
       - -e .[dev]

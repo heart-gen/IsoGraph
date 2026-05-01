@@ -54,7 +54,9 @@ Use it when you want:
 - operation at 6 000–12 000 gene scale (25:1–50:1 genes-to-samples)
 - checkpointed model state
 
-Requires PyTorch. Install separately before use.
+Requires PyTorch. Install a build appropriate for your CPU/GPU/CUDA stack before
+use. IsoGraph installs `mpmath` for modern SymPy compatibility, but it does not
+install PyTorch automatically.
 
 ## WGCNA
 
@@ -91,7 +93,10 @@ Use it when you want:
 - faster component selection than the CV-based latent backend
 - memory-efficient FA at high gene counts (avoids dense p×p matrices)
 
-Matches `LatentNetworkModel` recovery on all `core_v1` fixtures. Requires PyTorch.
+Matches `LatentNetworkModel` recovery on all `core_v1` fixtures. Requires
+PyTorch; install a build appropriate for your CPU/GPU/CUDA stack before use.
+IsoGraph installs `mpmath` for modern SymPy compatibility, but it does not
+install PyTorch automatically.
 
 ## Important Current Boundary
 
