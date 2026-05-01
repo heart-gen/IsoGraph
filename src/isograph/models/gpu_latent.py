@@ -241,7 +241,7 @@ class GpuLatentNetworkModel(NetworkModel):
                 "Install it with: pip install torch"
             )
 
-        device = "cuda" if __import__("torch").cuda.is_available() else "cpu"
+        device = self.config.device or ("cuda" if __import__("torch").cuda.is_available() else "cpu")
         _log.info("GpuLatentNetworkModel using device=%s", device)
 
         switch_matrix, feature_info = gene_switch_coordinates(transcript_counts, transcript_table)

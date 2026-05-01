@@ -105,20 +105,21 @@ try:
         n_genes: int,
         cfg,
         latent_dim: int,
+        device: str = "cpu",
     ) -> tuple:
         """Train one VAE with a specific latent_dim. Returns (x_recon_np, cal_partial, encoder, decoder)."""
         torch.manual_seed(cfg.random_state)
         np.random.seed(cfg.random_state)
 
-        encoder = _Encoder(n_genes, cfg.hidden_dim, latent_dim, cfg.n_hidden_layers)
-        decoder = _Decoder(latent_dim, cfg.hidden_dim, n_genes, cfg.n_hidden_layers)
+        encoder = _Encoder(n_genes, cfg.hidden_dim, latent_dim, cfg.n_hidden_layers).to(device)
+        decoder = _Decoder(latent_dim, cfg.hidden_dim, n_genes, cfg.n_hidden_layers).to(device)
 
         params = list(encoder.parameters()) + list(decoder.parameters())
         optimizer = torch.optim.Adam(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, patience=20, factor=0.5
         )
-        generator = torch.Generator()
+        generator = torch.Generator(device=device)
         generator.manual_seed(cfg.random_state)
 
         warmup = cfg.warmup_epochs if cfg.warmup_epochs is not None else max(1, cfg.n_epochs // 4)
@@ -141,7 +142,7 @@ try:
             decoder.train()
 
             if use_minibatch:
-                perm = torch.randperm(X_train.shape[0], generator=generator)
+                perm = torch.randperm(X_train.shape[0], generator=generator, device=device)
                 for start in range(0, X_train.shape[0], batch_size):
                     batch = X_train[perm[start : start + batch_size]]
                     mu, lv = encoder(batch)
@@ -198,7 +199,7 @@ try:
             x_recon_all = decoder(mu_all)
 
         collapse_dict = _detect_collapse(mu_all, lv_all, cfg.collapse_threshold)
-        x_recon_np = x_recon_all.numpy()
+        x_recon_np = x_recon_all.detach().cpu().numpy()
         rmse = float(np.sqrt(np.mean((X_np - x_recon_np) ** 2)))
 
         cal_partial = {
@@ -305,6 +306,8 @@ class VaeNetworkModel(NetworkModel):
 
         if n_genes >= 2:
             cfg = self.config
+            device = cfg.device or ("cuda" if __import__("torch").cuda.is_available() else "cpu")
+            _log.info("VaeNetworkModel using device=%s", device)
             n_samples_total = switch_matrix.shape[1]
             if cfg.batch_size is None and n_genes > 2000:
                 effective_bs = min(64, n_samples_total // 4)
@@ -323,9 +326,9 @@ class VaeNetworkModel(NetworkModel):
             idx = rng.permutation(n_samples)
             train_idx, val_idx = idx[n_val:], idx[:n_val]
 
-            X_train = torch.tensor(X_np[train_idx])
-            X_val = torch.tensor(X_np[val_idx])
-            X_all = torch.tensor(X_np)
+            X_train = torch.tensor(X_np[train_idx]).to(device)
+            X_val = torch.tensor(X_np[val_idx]).to(device)
+            X_all = torch.tensor(X_np).to(device)
 
             k_grid = cfg.latent_dim_grid if cfg.latent_dim_grid else [cfg.latent_dim]
             grid_rmses: list[float] = []
@@ -333,7 +336,7 @@ class VaeNetworkModel(NetworkModel):
 
             for k in k_grid:
                 x_recon_np, cal_partial, enc, dec = _train_single_vae(
-                    X_train, X_val, X_all, X_np, n_genes, cfg, k
+                    X_train, X_val, X_all, X_np, n_genes, cfg, k, device
                 )
                 grid_rmses.append(cal_partial["reconstruction_rmse"])
                 grid_results.append((x_recon_np, cal_partial, enc, dec))
