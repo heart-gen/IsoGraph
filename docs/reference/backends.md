@@ -1,6 +1,6 @@
 # Backend Reference
 
-IsoGraph exposes six model backends, each selectable via `backend=<name>` in the
+IsoGraph exposes five model backends, each selectable via `backend=<name>` in the
 benchmark config or as a Hydra override on the CLI.
 
 ## Baseline
@@ -27,6 +27,10 @@ Use it when you want:
 - a more noise-tolerant backend than the baseline
 - automatic or fixed latent-dimensionality control
 - stability selection for real data without ground-truth modules
+
+> **Memory note:** The latent backend constructs a full p×p covariance matrix
+> internally. For datasets with >> features (roughly > 1 000 genes), this becomes
+> memory-prohibitive. Use the VAE backend for large feature spaces.
 
 ## Graph
 
@@ -72,33 +76,7 @@ Use it when you want:
 Requires R with the `WGCNA` package installed and `Rscript` on `PATH`. The backend
 calls R via subprocess — no Python R bridge is needed.
 
-## GPU Latent
-
-`GpuLatentNetworkModel` is a PyTorch reimplementation of Factor Analysis using the
-**Woodbury matrix identity** — the p×p covariance matrix Σ = WW^T + Ψ is never
-materialised; all operations are O(n·p·k + k³) where k ≪ p. Component count is
-selected by BIC elbow search instead of 5-fold CV, cutting selection time from
-O(|grid| × 5 × max_iter) to O(|grid| × max_iter). Per-gene noise variances Ψ
-(diagonal of the noise covariance) are available in `calibration` as
-`gpu_latent_per_gene_noise_var`.
-
-**Alpha threshold**: a fixed `alpha` or a data-adaptive `alpha_percentile` (e.g. 95.0)
-can be used. With `alpha_percentile` the threshold is computed as the Nth percentile of
-absolute partial-correlation values, which automatically scales with dataset size and
-p/n ratio.
-
-Use it when you want:
-
-- Factor Analysis denoising with explicit per-gene noise-variance diagnostics
-- faster component selection than the CV-based latent backend
-- memory-efficient FA at high gene counts (avoids dense p×p matrices)
-
-Matches `LatentNetworkModel` recovery on all `core_v1` fixtures. Requires
-PyTorch; install a build appropriate for your CPU/GPU/CUDA stack before use.
-IsoGraph installs `mpmath` for modern SymPy compatibility, but it does not
-install PyTorch automatically.
-
 ## Important Current Boundary
 
-The `benchmark` command can drive all six backends on the bundled suites. The `fit`
+The `benchmark` command can drive all five backends on the bundled suites. The `fit`
 command currently runs only the baseline backend on custom bundles.

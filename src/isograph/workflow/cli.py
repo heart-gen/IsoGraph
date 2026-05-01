@@ -37,7 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     fit.add_argument(
         "--backend",
         default=None,
-        choices=["baseline", "latent", "graph", "vae", "wgcna", "gpu_latent"],
+        choices=["baseline", "latent", "graph", "vae", "wgcna"],
         help="Network model backend (default: value in fit.yaml, usually 'baseline')",
     )
 
@@ -103,9 +103,6 @@ def main(argv: list[str] | None = None) -> None:
         elif config.backend == "wgcna":
             from isograph.models.wgcna import WgcnaNetworkModel
             model = WgcnaNetworkModel(config.wgcna)
-        elif config.backend == "gpu_latent":
-            from isograph.models.gpu_latent import GpuLatentNetworkModel
-            model = GpuLatentNetworkModel(config.gpu_latent)
         else:
             raise ValueError(f"Unknown backend: {config.backend!r}")
         artifacts = model.fit(**fit_kwargs)
