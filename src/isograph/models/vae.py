@@ -61,7 +61,12 @@ try:
         mu: torch.Tensor, log_var: torch.Tensor, generator: torch.Generator
     ) -> torch.Tensor:
         std = torch.exp(0.5 * log_var)
-        eps = torch.randn(std.shape, generator=generator)
+        eps = torch.randn(
+            std.shape,
+            generator=generator,
+            device=std.device,
+            dtype=std.dtype,
+        )
         return mu + eps * std
 
     def _elbo_loss(
