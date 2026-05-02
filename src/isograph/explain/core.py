@@ -84,21 +84,31 @@ def explain_module(
             high_vs_low_table=high_vs_low_table,
             eigengene=eigengene,
             n_module_genes=len(module_genes),
+            sample_ids=list(sample_ids),
         )
 
     if output_dir is not None:
-        _write_outputs(results, Path(output_dir))
+        _write_outputs(results, Path(output_dir), config, feature_table_aligned)
 
     return results
 
 
-def _write_outputs(results: dict[str, ExplainResult], output_dir: Path) -> None:
+def _write_outputs(
+    results: dict[str, ExplainResult],
+    output_dir: Path,
+    config: ExplainConfig,
+    feature_table: pd.DataFrame | None = None,
+) -> None:
     ensure_dir(output_dir)
     for module_id, result in results.items():
         module_dir = ensure_dir(output_dir / module_id)
         result.gene_driver_table.to_parquet(module_dir / "gene_driver_table.parquet", index=False)
         result.transcript_polarity_table.to_parquet(module_dir / "transcript_polarity_table.parquet", index=False)
         result.high_vs_low_table.to_parquet(module_dir / "high_vs_low_table.parquet", index=False)
+
+    plot_files: list[str] = []
+    if config.plot:
+        plot_files = _write_plots(results, output_dir, config, feature_table)
 
     manifest = {
         "isograph_version": __version__,
@@ -109,5 +119,75 @@ def _write_outputs(results: dict[str, ExplainResult], output_dir: Path) -> None:
             "transcript_polarity_table.parquet",
             "high_vs_low_table.parquet",
         ],
+        "plot_files": plot_files,
     }
     write_json(output_dir / "module_explanation_manifest.json", manifest)
+
+
+def _write_plots(
+    results: dict[str, ExplainResult],
+    output_dir: Path,
+    config: ExplainConfig,
+    feature_table: pd.DataFrame | None = None,
+) -> list[str]:
+    import matplotlib
+    if matplotlib.get_backend().lower() != "agg":
+        matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from isograph.explain.plots import (
+        plot_driver_bar,
+        plot_eigengene_heatmap,
+        plot_high_vs_low_violin,
+        plot_isoform_gradient,
+        plot_summary_panel,
+        plot_switch_pair,
+        plot_transcript_polarity_heatmap,
+        summarize_module,
+    )
+
+    formats = [config.output_format] if isinstance(config.output_format, str) else list(config.output_format)
+
+    def _save(fig, rel_stem: str) -> list[str]:
+        stems: list[str] = []
+        for fmt in formats:
+            path = output_dir / f"{rel_stem}.{fmt}"
+            fig.savefig(path, dpi=150, bbox_inches="tight")
+            stems.append(f"{rel_stem}.{fmt}")
+        plt.close(fig)
+        return stems
+
+    written: list[str] = []
+
+    written.extend(_save(plot_eigengene_heatmap(results), "eigengene_heatmap"))
+
+    for module_id, result in results.items():
+        module_dir = ensure_dir(output_dir / module_id)
+
+        written.extend(_save(plot_driver_bar(result).figure, f"{module_id}/driver_bar"))
+        written.extend(_save(plot_high_vs_low_violin(result), f"{module_id}/high_vs_low"))
+
+        has_tx = not result.transcript_polarity_table.empty
+        if has_tx:
+            written.extend(_save(
+                plot_transcript_polarity_heatmap(result), f"{module_id}/transcript_polarity"
+            ))
+            written.extend(_save(plot_switch_pair(result), f"{module_id}/switch_pair"))
+
+        if has_tx and feature_table is not None and result.sample_ids:
+            try:
+                written.extend(_save(
+                    plot_isoform_gradient(result, feature_table), f"{module_id}/isoform_gradient"
+                ))
+            except ValueError:
+                pass
+
+        written.extend(_save(
+            plot_summary_panel(result, results=results, feature_table=feature_table),
+            f"{module_id}/summary_panel",
+        ))
+
+        summary = summarize_module(result)
+        write_json(module_dir / "module_summary.json", summary)
+
+    return written

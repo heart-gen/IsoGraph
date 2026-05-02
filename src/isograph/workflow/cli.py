@@ -63,6 +63,16 @@ def build_parser() -> argparse.ArgumentParser:
     explain.add_argument("--split-percentile", type=float, default=50.0)
     explain.add_argument("--min-complete-pairs", type=int, default=3)
     explain.add_argument("--fdr-method", default="bh")
+    explain.add_argument(
+        "--plot", action="store_true", default=False,
+        help="Write plot files alongside parquet outputs.",
+    )
+    explain.add_argument(
+        "--output-format", nargs="+", default=["png"],
+        choices=["png", "pdf"],
+        dest="output_format",
+        help="Plot output format(s): png, pdf, or both (default: png).",
+    )
     return parser
 
 
@@ -164,10 +174,13 @@ def main(argv: list[str] | None = None) -> None:
             if args.module_score_table is not None
             else None
         )
+        output_format = args.output_format[0] if len(args.output_format) == 1 else args.output_format
         config = ExplainConfig(
             split_percentile=args.split_percentile,
             min_complete_pairs=args.min_complete_pairs,
             fdr_method=args.fdr_method,
+            plot=args.plot,
+            output_format=output_format,
         )
         explain_module(
             artifact_dir=Path(args.artifact_dir),
