@@ -217,3 +217,18 @@ class CompareCommandConfig:
     reference: Path | None = None
     candidate: Path | None = None
     output_path: Path = Path("artifacts/reports/comparison.json")
+
+
+@dataclass
+class ExplainCommandConfig:
+    command: str = "explain-module"
+    artifact_dir: Path = Path("artifacts/fits/manual")
+    feature_table_path: Path | None = None
+    feature_meta_path: Path | None = None
+    module_ids: list[str] | None = None
+    output_dir: Path = Path("artifacts/explain")
+    module_score_table_path: Path | None = None
+    split_percentile: float = 50.0
+    min_complete_pairs: int = 3
+    fdr_method: str = "bh"
+    transcript_usage_feature_type: str = "transcript_usage"

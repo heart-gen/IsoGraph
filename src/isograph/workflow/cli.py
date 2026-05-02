@@ -49,6 +49,20 @@ def build_parser() -> argparse.ArgumentParser:
     export = subparsers.add_parser("export")
     export.add_argument("--dataset-path", required=True)
     export.add_argument("--output-path", required=True)
+
+    explain = subparsers.add_parser("explain-module")
+    explain.add_argument("--artifact-dir", required=True, dest="artifact_dir")
+    explain.add_argument("--feature-table", required=True, dest="feature_table")
+    explain.add_argument("--feature-meta", required=True, dest="feature_meta")
+    explain.add_argument(
+        "--module-ids", nargs="*", default=None, dest="module_ids",
+        help="Module IDs to explain (default: all). Example: --module-ids M000 M001",
+    )
+    explain.add_argument("--output-dir", default="artifacts/explain", dest="output_dir")
+    explain.add_argument("--module-score-table", default=None, dest="module_score_table")
+    explain.add_argument("--split-percentile", type=float, default=50.0)
+    explain.add_argument("--min-complete-pairs", type=int, default=3)
+    explain.add_argument("--fdr-method", default="bh")
     return parser
 
 
@@ -136,3 +150,32 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "export":
         output = export_dataset_summary(Path(args.dataset_path), Path(args.output_path))
         print(output)
+        return
+
+    if args.command == "explain-module":
+        import pandas as pd
+        from isograph.explain.config import ExplainConfig
+        from isograph.explain.core import explain_module
+
+        feature_table = pd.read_parquet(args.feature_table)
+        feature_meta = pd.read_parquet(args.feature_meta)
+        module_score_table = (
+            pd.read_parquet(args.module_score_table)
+            if args.module_score_table is not None
+            else None
+        )
+        config = ExplainConfig(
+            split_percentile=args.split_percentile,
+            min_complete_pairs=args.min_complete_pairs,
+            fdr_method=args.fdr_method,
+        )
+        explain_module(
+            artifact_dir=Path(args.artifact_dir),
+            feature_table=feature_table,
+            feature_meta=feature_meta,
+            module_ids=args.module_ids if args.module_ids else None,
+            output_dir=Path(args.output_dir),
+            module_score_table=module_score_table,
+            config=config,
+        )
+        print(Path(args.output_dir) / "module_explanation_manifest.json")
