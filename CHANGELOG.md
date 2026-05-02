@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Removed
+
+- **`gpu_latent` backend** — removed after benchmarking showed 10–20× worse module
+  recovery than the VAE backend (0.089–0.241 vs. 0.960–0.972) with no runtime
+  advantage and large GPU memory requirements (64–128 GB). Use `backend=vae` instead.
+
+### Changed
+
+- **Latent backend memory warning** — documentation now notes that the CPU latent
+  backend forms a p×p covariance matrix and becomes memory-prohibitive for datasets
+  with >> features (> ~1 000 genes); VAE is recommended for large feature spaces.
+
+---
+
 ## [0.1.2] — 2026-04-29
 
 ### Changed
@@ -54,13 +70,12 @@ gene-module structure and trait associations.
 
 ### Added
 
-**Network backends** — six selectable inference strategies:
+**Network backends** — five selectable inference strategies:
 - `baseline` — Deterministic sparse network (fast reference)
 - `latent` — Factor Analysis + LedoitWolf partial correlation with cross-validation
 - `graph` — Graph-Laplacian-smoothed latent model
 - `vae` *(default)* — PyTorch nonlinear VAE with early stopping and posterior-collapse diagnostics
 - `wgcna` — R `blockwiseModules` wrapper for direct WGCNA comparison
-- `gpu_latent` — Woodbury-identity Factor Analysis for memory-efficient large-scale inference
 
 **Compositional transforms** — CLR and logit normalization for transcript-usage proportions
 

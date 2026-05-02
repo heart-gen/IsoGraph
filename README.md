@@ -11,8 +11,8 @@ trait associations, and reproducible benchmark artifacts.
   `scale_v1` suite (6k–12k genes, 25:1–50:1 genes-to-samples ratios).
 - Freeze the bundled `real_caudate_aa_v1` real-data fixture from local BrainSeq inputs.
 - Fit the deterministic baseline backend from the command line on a prepared dataset bundle.
-- Run `baseline`, `latent`, `graph`, `vae`, `wgcna`, or `gpu_latent` backends programmatically
-  or through the benchmark runner.
+- Run `baseline`, `latent`, `graph`, `vae`, or `wgcna` backends programmatically or
+  through the benchmark runner.
 - Export reproducible artifacts, benchmark reports, calibration summaries, and snapshot comparisons.
 
 ## Installation
@@ -28,10 +28,9 @@ The core package supports Python `3.11` through `3.14`.
 ### Optional backends
 
 IsoGraph installs `mpmath`, which is required by modern SymPy releases. The
-`vae` and `gpu_latent` backends also require PyTorch, but PyTorch is
-intentionally not installed by IsoGraph because CPU/GPU/CUDA builds are
-platform-specific. Install the build that matches your system before using
-those backends:
+`vae` backend also requires PyTorch, but PyTorch is intentionally not installed
+by IsoGraph because CPU/GPU/CUDA builds are platform-specific. Install the build
+that matches your system before using it:
 
 ```bash
 pip install torch
@@ -105,7 +104,7 @@ award `R00 MD0169640` and the Alzheimer's Association award `25AARG-1413315`.
 - The benchmark CLI is optimized for the bundled fixture suite rather than arbitrary
   user-defined suites.
 - The `fit` CLI currently exposes only the baseline backend for custom datasets.
-- The VAE and GPU-latent backends require a separate PyTorch installation.
+- The VAE backend requires a separate PyTorch installation.
 - The WGCNA backend requires R with the `WGCNA` package installed.
 - The bundled `freeze-real` workflow depends on local BrainSeq-style source files and is
   not a generic data-ingestion command for arbitrary cohorts.

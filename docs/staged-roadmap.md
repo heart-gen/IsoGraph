@@ -11,7 +11,7 @@
 | 4 | complete | VAE backend | Clears pre-specified gains beyond Stage 2/3 and is reproducible across seeds | Comparative benchmark report, seed-sensitivity report, latent diagnostics, checkpoint manifest | kynon | 6cbaa55 |
 | 5 | complete | WGCNA comparison benchmark on simulated data | IsoGraph (best backend) matches or exceeds WGCNA module recovery on `core_v1` synthetic fixtures | Side-by-side recovery table, runtime comparison, manuscript-ready figures | kynon | — |
 | 6 | complete | Large-scale fixtures (xlarge_v1 6k, xxlarge_v1 12k, xxlarge_stress_v1 12k); VAE architecture scaling; WGCNA blockwise upgrade | VAE recovers modules ≥ 0.90 on xlarge and xxlarge fixtures; VAE default backend | Benchmark reports, gate tests locked | kynon | — |
-| 7 | complete | GPU-accelerated FA backend (Woodbury identity + BIC selection); O(n²k) partial correlations; vectorized edge extraction; `isograph fit` multi-backend CLI | Matches LatentNetworkModel recovery on core_v1 (toy=1.0, medium=1.0); xxlarge_v1 runtime 53s vs FA 1462s (0.04×, well under 1/3 threshold) | `stage7_gpu_latent-benchmark.json`, `stage7-vs-stage2.json`, gate tests locked | kynon | — |
+| 7 | removed | GPU-accelerated FA backend (Woodbury identity + BIC selection) — removed after benchmarking showed poor module recovery (0.089–0.241) vs. VAE (0.960–0.972) with no runtime advantage | N/A — backend removed | N/A | kynon | — |
 
 ## Promotion Rule
 
@@ -526,35 +526,14 @@ pytest tests/test_stage6_gates.py -v -m slow
 
 ---
 
-## Stage 7 — GPU Linear Latent Backend (replaces sklearn FA)
+## Stage 7 — GPU Linear Latent Backend (removed)
 
-### Objective
-
-Replace `LatentNetworkModel` (sklearn FactorAnalysis, CPU-only) with a GPU-accelerated
-PyTorch implementation using the Woodbury identity. Preserves the diagonal noise model
-(per-gene ψ_i) for interpretability, replacing 5-fold CV component selection with BIC.
-
-### Key Changes
-
-- New `GpuLatentNetworkModel` in `src/isograph/models/gpu_latent.py`.
-- New `GpuLatentModelConfig` in `config.py`.
-- `"gpu_latent"` branch in `_make_model()`.
-- Torch soft-imported (same pattern as VAE); CPU fallback when no GPU available.
-- BIC-based component selection (no CV grid — O(|k_grid|) fits vs O(|k_grid| × 5)).
-- Calibration includes `gpu_latent_per_gene_noise_var` (diagonal of Ψ).
-
-### Promotion Gate
-
-- Matches `LatentNetworkModel` recovery on all `core_v1` fixtures.
-- Runtime on `xxlarge_v1` < 1/3 of sklearn FA runtime.
-- Per-gene noise variance present in calibration.
-- No regression on Stage 4 or Stage 6 gates.
-
-### Pyro FA Deferral
-
-Add Pyro FA (Stage 8) **only if** manuscript reviewers specifically require posterior credible
-intervals on module membership. The GPU FA diagonal noise ψ_i is sufficient for interpretability
-claims without full Bayesian inference.
+The `gpu_latent` backend was implemented but removed after benchmarking against the full
+`isograph-brain-aging-benchmarking` suite. It achieved 0.089–0.241 module recovery
+across `core_v1` fixtures — 10–20× worse than the VAE backend (0.960–0.972) — with no
+runtime advantage (GPU latent: 5.9–8.3 s vs. VAE: 3.8–5.3 s) and required 64–128 GB
+GPU memory at scale. The backend code, configs, and gate tests have been deleted. VAE
+remains the recommended default for all dataset sizes.
 
 ---
 
@@ -576,16 +555,5 @@ claims without full Bayesian inference.
 
 ## Current Recommendation
 
-Stage 7 implementation complete (2026-04-23). All 6 fast gates pass; recovery and
-runtime slow gates are pending calibration.
-
-Stage 7 core_v1 calibration complete. `_GATE_TOY=0.95`, `_GATE_MED=0.95` locked.
-`_GATE_XLARGE` pending a scale_v1 run.
-
-**Remaining step — scale gates:**
-```bash
-# Run scale_v1 benchmark with gpu_latent (add a stage7_gpu_latent_scale.yaml config)
-# Then lock _GATE_XLARGE = observed − 0.05 in tests/test_stage7_gates.py
-# Then run slow gates:
-pytest tests/test_stage7_gates.py -v -m slow
-```
+Stage 7 (gpu_latent) has been removed. See the Stage 7 section above for details.
+VAE (Stage 4/6) is the current recommended default backend.

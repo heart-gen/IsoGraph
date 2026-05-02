@@ -12,14 +12,13 @@ Supports Python `3.11` through `3.14`.
 
 ## Optional Backends
 
-### VAE and GPU-latent
+### VAE
 
 IsoGraph installs `mpmath`, which is required by modern SymPy releases. The
-`vae` and `gpu_latent` backends also require PyTorch, but PyTorch is
-intentionally not installed by IsoGraph because CPU/GPU/CUDA builds are
-platform-specific. Install the build that matches your environment before using
-`backend=vae`, `backend=gpu_latent`, or importing `isograph.models.vae` /
-`isograph.models.gpu_latent`:
+`vae` backend also requires PyTorch, but PyTorch is intentionally not installed
+by IsoGraph because CPU/GPU/CUDA builds are platform-specific. Install the build
+that matches your environment before using `backend=vae` or importing
+`isograph.models.vae`:
 
 ```bash
 pip install torch
@@ -55,5 +54,4 @@ cd IsoGraph
 pip install -e .[dev]
 ```
 
-Install PyTorch separately when developing or testing the VAE and GPU-latent
-backends.
+Install PyTorch separately when developing or testing the VAE backend.
