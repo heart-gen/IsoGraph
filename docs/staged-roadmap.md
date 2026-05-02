@@ -526,14 +526,137 @@ pytest tests/test_stage6_gates.py -v -m slow
 
 ---
 
-## Stage 7 — GPU Linear Latent Backend (removed)
+## Stage 7 — GPU Latent Backend (removed)
 
-The `gpu_latent` backend was implemented but removed after benchmarking against the full
-`isograph-brain-aging-benchmarking` suite. It achieved 0.089–0.241 module recovery
-across `core_v1` fixtures — 10–20× worse than the VAE backend (0.960–0.972) — with no
-runtime advantage (GPU latent: 5.9–8.3 s vs. VAE: 3.8–5.3 s) and required 64–128 GB
-GPU memory at scale. The backend code, configs, and gate tests have been deleted. VAE
-remains the recommended default for all dataset sizes.
+The GPU linear latent backend (`gpu_latent`) planned for Stage 7 was implemented and
+then removed. It achieved 0.089–0.241 module recovery (10–20× worse than VAE), with no
+runtime advantage and 64–128 GB GPU memory requirements at scale. VAE remains the
+recommended default. The `gpu_latent` backend and its benchmark infrastructure have been
+fully excised from the codebase (PR #6).
+
+---
+
+## Stage 8 — Module Explanation
+
+### Objective
+
+Given a fitted IsoGraph artifact and one or more selected modules, identify the
+transcript-level and gene-local features that explain each module. The key biological
+object is a within-gene isoform switch — a module driver should be a directional
+transcript-usage contrast within a gene, not just a transcript with high marginal
+correlation.
+
+### Sub-Stages
+
+| Stage | Scope | Status |
+|-------|-------|--------|
+| 8A | Backend-agnostic tables + CLI + gate tests | **complete** |
+| 8B | Publication-ready plots | blocked on 8A |
+| 8C | Annotation/consequence table integration | blocked on 8A |
+| 8D | VAE decoder attribution (optional, checkpoint required) | blocked on 8C |
+| 8E | Captum integrated gradients (optional, `isograph[torch-explain]`) | blocked on 8A |
+
+### Stage 8A: Module Explanation MVP
+
+**New module**: `src/isograph/explain/`
+
+**CLI**:
+```bash
+isograph explain-module \
+  --artifact-dir artifacts/fits/manual \
+  --feature-table features.parquet \
+  --feature-meta feature_metadata.parquet \
+  --module-ids M000 M001 \
+  --output-dir artifacts/explain/run1
+```
+
+**Python API**:
+```python
+from isograph.explain import explain_module, ExplainConfig
+results = explain_module(
+    artifact_dir="artifacts/fits/manual",
+    feature_table=feature_df,
+    feature_meta=meta_df,
+    module_ids=["M000"],
+)
+```
+
+**Inputs**:
+- `artifact_dir`: must contain `modules.parquet` and `feature_scores.parquet`
+- `feature_table`: `pd.DataFrame` with sample IDs as index (or `sample_id` column), feature IDs as columns
+- `feature_meta`: columns `[feature_id, gene_id, feature_type]` required; `[gene_name, transcript_id, exon_id, event_id, source_coordinate]` optional
+- `module_score_table` (optional): override computed eigengenes with precomputed scores
+
+**Outputs per module** in `{output_dir}/{module_id}/`:
+- `gene_driver_table.parquet` — `[gene_id, r, pvalue, qvalue, n_samples, missing_fraction]`, sorted by `|r|`
+- `transcript_polarity_table.parquet` — `[feature_id, gene_id, [transcript_id], r, pvalue, qvalue, n_samples, missing_fraction, switch_strength]`; `switch_strength` = `max(r) − min(r)` within gene
+- `high_vs_low_table.parquet` — `[feature_id, gene_id, mean_high, mean_low, delta, se, tstat, pvalue, n_high, n_low, missing_fraction]`
+- `{output_dir}/module_explanation_manifest.json` (always written)
+
+**Validation**:
+- Hard fail: missing artifact files, unknown module IDs, missing required feature_meta columns, duplicate sample/feature IDs, <10 overlapping samples
+- Soft warn: missing optional columns, dropped samples from alignment
+
+**Gate test**: `tests/test_stage8a_gates.py` (28 tests, all fast except `@pytest.mark.slow` CLI roundtrip)
+
+### Stage 8B: Plots
+
+Per-module publication-ready figures:
+- Top driver genes barplot (|r| with 95% CI, colored by polarity)
+- Transcript usage gradient plot: x = module score, y = transcript usage, one smoothed trend per transcript per gene, top N driver genes
+- Positive vs. negative driver heatmap
+- Optional consequence barplot (after 8C)
+
+Controlled by `ExplainConfig(plot=True)`. Plot functions accept DataFrames and output paths; no global state.
+
+### Stage 8C: Annotation and Consequence Integration
+
+Accept an optional annotation/consequence table and merge it into the explain output.
+Consequence types to support (flexible column names, normalized at load time):
+
+- coding_change, utr_change, nmd_sensitivity
+- domain_gain_loss, signal_peptide_change, coding_noncoding_switch
+- alt_first_last_exon, cassette_exon, intron_retention
+- alt_5_splice, alt_3_splice
+
+Input-compatible with IsoformSwitchAnalyzeR export format (import/export, not
+re-implementation). See: https://bioconductor.org/packages/release/bioc/vignettes/IsoformSwitchAnalyzeR/
+
+### Stage 8D: VAE Decoder Attribution
+
+Only when a VAE checkpoint is available in `artifact_dir`. Perturb the module-associated
+latent dimension and decode back into feature space to identify high-confidence drivers.
+
+High-confidence definition:
+- association FDR ≤ threshold (default 0.05)
+- |decoded_delta| in top percentile (default top 10%)
+- sign(decoded_delta) agrees with sign(beta_module)
+- expression/support filters pass if available
+
+### Stage 8E: Captum Integrated Gradients
+
+Requires optional install: `pip install isograph[torch-explain]` (adds `captum`).
+
+Use Captum's Integrated Gradients to attribute module eigengene prediction to individual
+transcript features via the VAE encoder. Treats the encoder as a black-box mapping
+feature_table → latent and integrates gradients from a baseline (zero usage vector) to
+the observed input. Returns `DataFrame(feature_id, ig_score)` sorted by |ig_score|.
+
+Unlike decoder Jacobian (8D), IG attributes the full encoder nonlinearity; complementary
+to association-based approaches in 8A.
+
+### Recommended Commands
+
+```bash
+pytest tests/test_stage8a_gates.py -v
+pytest tests/test_stage8a_gates.py -v -m slow
+```
+
+### Promotion Gate (8A)
+
+- All 28 gate tests pass.
+- No regressions on existing stage gate tests.
+- `isograph explain-module --help` shows all flags.
 
 ---
 
@@ -553,7 +676,10 @@ remains the recommended default for all dataset sizes.
 | 2026-04-25 | 6b | — | N/A | artifacts/reports/stage6_scale_comparison_vae-benchmark.json, stage6_scale_comparison_wgcna-benchmark.json, stage6-scale-vae-vs-wgcna.json | — | xxlarge_stress_v1 added (24 modules, min=30, max=140, ~10% switching, dispersion=15, confounder=0.55); VAE=1.0 vs WGCNA=0.822 on stress fixture; blockwiseModules upgrade for WGCNA at 12k genes |
 | 2026-04-25 | 7 | — | N/A | artifacts/reports/stage7_gpu_latent-benchmark.json | artifacts/reports/stage7_gpu_latent-runtime-memory.json | GpuLatentNetworkModel: Woodbury FA + BIC selection; toy_v1=1.0, medium_v1=1.0, realistic_v1=1.0, realistic_unequal_v1=1.0 — matches Stage 2 latent exactly; _GATE_TOY/MED locked at 0.95; xlarge scale gates pending |
 
+| 2026-05-02 | 8A | — | N/A | — | — | Module explanation MVP: explain_module() API, isograph explain-module CLI, gene_driver/transcript_polarity/high_vs_low tables, 28 gate tests + 7 accuracy tests all pass; gene-driver AUC=1.000 and switch_strength AUC=1.000 on realistic_v1 baseline fit |
+
 ## Current Recommendation
 
 Stage 7 (gpu_latent) has been removed. See the Stage 7 section above for details.
 VAE (Stage 4/6) is the current recommended default backend.
+Stage 8 (module explanation) is in progress; Stage 8A is complete.
