@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from isograph import __version__
+from isograph.explain.annotation import (
+    _ALL_ANNOTATION_COLUMNS,
+    annotate_driver_table,
+    annotate_transcript_table,
+    load_annotation_table,
+)
 from isograph.explain.associations import (
     compute_eigengene,
     compute_gene_driver_table,
@@ -28,6 +35,7 @@ def explain_module(
     module_score_table: pd.DataFrame | None = None,
     sample_meta: pd.DataFrame | None = None,
     config: ExplainConfig | None = None,
+    annotation_table: pd.DataFrame | None = None,
 ) -> dict[str, ExplainResult]:
     """Explain one or more modules from a fitted IsoGraph artifact.
 
@@ -42,12 +50,34 @@ def explain_module(
         module_score_table: Optional samples × modules DataFrame to override computed eigengenes.
         sample_meta: Reserved for future use (covariates, subsetting).
         config: Statistical configuration. Defaults to ExplainConfig().
+        annotation_table: Optional structural annotation table (e.g., output of
+            isograph annotate-structure). Must have feature_id or transcript_id column
+            plus structural label columns. Merged into gene_driver_table and
+            transcript_polarity_table for each module.
 
     Returns:
         Dict mapping module_id → ExplainResult.
     """
     artifact_dir = Path(artifact_dir)
     config = config or ExplainConfig()
+
+    # Stage 8C: normalize annotation table if provided
+    _annotation: pd.DataFrame | None = None
+    if annotation_table is not None:
+        _annotation = load_annotation_table(annotation_table)
+        if "gene_id" not in _annotation.columns:
+            id_to_gene = feature_meta.set_index("feature_id")["gene_id"]
+            matched = _annotation["feature_id"].map(id_to_gene)
+            if matched.notna().any():
+                _annotation = _annotation.copy()
+                _annotation["gene_id"] = matched
+            else:
+                warnings.warn(
+                    "annotation_table has no gene_id column and no feature_ids matched "
+                    "feature_meta; annotate_driver_table will be skipped.",
+                    UserWarning,
+                    stacklevel=2,
+                )
 
     (
         modules,
@@ -77,6 +107,11 @@ def explain_module(
         high_vs_low_table = compute_high_vs_low_table(
             feature_table_aligned, feature_meta_validated, eigengene, sample_ids, config
         )
+        if _annotation is not None:
+            gene_driver_table = annotate_driver_table(gene_driver_table, _annotation)
+            transcript_polarity_table = annotate_transcript_table(
+                transcript_polarity_table, _annotation
+            )
         results[module_id] = ExplainResult(
             module_id=module_id,
             gene_driver_table=gene_driver_table,
@@ -88,7 +123,7 @@ def explain_module(
         )
 
     if output_dir is not None:
-        _write_outputs(results, Path(output_dir), config, feature_table_aligned)
+        _write_outputs(results, Path(output_dir), config, feature_table_aligned, _annotation)
 
     return results
 
@@ -98,6 +133,7 @@ def _write_outputs(
     output_dir: Path,
     config: ExplainConfig,
     feature_table: pd.DataFrame | None = None,
+    annotation_table: pd.DataFrame | None = None,
 ) -> None:
     ensure_dir(output_dir)
     for module_id, result in results.items():
@@ -110,6 +146,15 @@ def _write_outputs(
     if config.plot:
         plot_files = _write_plots(results, output_dir, config, feature_table)
 
+    _first = next(iter(results.values()), None)
+    annotation_columns: list[str] = []
+    if annotation_table is not None and _first is not None:
+        annotation_columns = [
+            c for c in _ALL_ANNOTATION_COLUMNS
+            if c in _first.gene_driver_table.columns
+            or c in _first.transcript_polarity_table.columns
+        ]
+
     manifest = {
         "isograph_version": __version__,
         "module_ids": list(results.keys()),
@@ -120,6 +165,8 @@ def _write_outputs(
             "high_vs_low_table.parquet",
         ],
         "plot_files": plot_files,
+        "annotation_provided": annotation_table is not None,
+        "annotation_columns": annotation_columns,
     }
     write_json(output_dir / "module_explanation_manifest.json", manifest)
 
