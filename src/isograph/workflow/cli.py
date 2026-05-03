@@ -73,6 +73,34 @@ def build_parser() -> argparse.ArgumentParser:
         dest="output_format",
         help="Plot output format(s): png, pdf, or both (default: png).",
     )
+    explain.add_argument(
+        "--annotation-table", default=None, dest="annotation_table",
+        help=(
+            "Optional path to a structural annotation table (TSV, CSV, or Parquet). "
+            "Output of 'isograph annotate-structure' or compatible format. "
+            "Merges structural labels into gene_driver_table and transcript_polarity_table."
+        ),
+    )
+
+    ann = subparsers.add_parser("annotate-structure")
+    ann.add_argument("--gtf", required=True, dest="gtf",
+                     help="Path to GTF or GTF.gz annotation file.")
+    ann.add_argument(
+        "--switch-pairs", required=True, dest="switch_pairs",
+        help="TSV file with columns gene_id, transcript_id_1, transcript_id_2.",
+    )
+    ann.add_argument(
+        "--output", default="transcript_structure_annotations.tsv", dest="output",
+        help="Output TSV path (default: transcript_structure_annotations.tsv).",
+    )
+    ann.add_argument(
+        "--gtf-cache", default=None, dest="gtf_cache",
+        help=(
+            "Optional path for a GTF parse cache (Parquet). Written on first run, "
+            "reloaded on subsequent runs — much faster on network filesystems."
+        ),
+    )
+
     return parser
 
 
@@ -164,6 +192,7 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.command == "explain-module":
         import pandas as pd
+        from isograph.explain.annotation import load_annotation_table
         from isograph.explain.config import ExplainConfig
         from isograph.explain.core import explain_module
 
@@ -172,6 +201,11 @@ def main(argv: list[str] | None = None) -> None:
         module_score_table = (
             pd.read_parquet(args.module_score_table)
             if args.module_score_table is not None
+            else None
+        )
+        annotation_table = (
+            load_annotation_table(Path(args.annotation_table))
+            if args.annotation_table is not None
             else None
         )
         output_format = args.output_format[0] if len(args.output_format) == 1 else args.output_format
@@ -190,5 +224,17 @@ def main(argv: list[str] | None = None) -> None:
             output_dir=Path(args.output_dir),
             module_score_table=module_score_table,
             config=config,
+            annotation_table=annotation_table,
         )
         print(Path(args.output_dir) / "module_explanation_manifest.json")
+        return
+
+    if args.command == "annotate-structure":
+        import pandas as pd
+        from isograph.explain.structure import annotate_switch_pairs
+
+        switch_pairs = pd.read_csv(args.switch_pairs, sep="\t")
+        gtf_cache = Path(args.gtf_cache) if args.gtf_cache else None
+        result = annotate_switch_pairs(switch_pairs, args.gtf, gtf_cache=gtf_cache)
+        result.to_csv(args.output, sep="\t", index=False)
+        print(args.output)
