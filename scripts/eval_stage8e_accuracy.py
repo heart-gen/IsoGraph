@@ -1,21 +1,22 @@
-"""Stage 8D accuracy evaluation: VAE decoder attribution vs ground truth.
+"""Stage 8E accuracy evaluation: Captum IG encoder attribution vs ground truth.
 
 Runs for each fixture:
   - toy_v1, medium_v1, realistic_v1, noisy_v1, nonlinear_v1, large_v1,
     xlarge_mini, xxlarge_mini
 
 Metrics:
-  switch_auc_vae   -- AUC(|decoded_delta|, truth_switch) over module genes
+  switch_auc_ig    -- AUC(|ig_score_abs_mean|, truth_switch) over module genes
   switch_auc_r     -- AUC(|r|, truth_switch) over module genes (8A baseline)
-  member_auc       -- AUC(|decoded_delta|, module_membership) over ALL genes
-  sign_agree       -- fraction of module genes where sign(decoded_delta)==sign(r)
-  precision@filter -- among passes_filter=True genes, fraction that are true switches
+  member_auc       -- AUC(|ig_score_abs_mean|, module_membership) over ALL genes
+  sign_agree       -- fraction of module genes where sign(ig_score)==sign(r)
+  precision@filter -- among passing genes (FDR≤0.05 & top-10% |IG| & sign agree),
+                      fraction that are true switches
 
 For toy_v1 / medium_v1 (all genes switch), switch_auc is uninformative (all
 positive); member_auc is the primary metric.
 
 Usage:
-    python scripts/eval_stage8d_accuracy.py
+    python scripts/eval_stage8e_accuracy.py
 """
 
 from __future__ import annotations
@@ -30,7 +31,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from isograph.benchmarks.synthetic import (
@@ -41,15 +41,15 @@ from isograph.benchmarks.synthetic import (
     _generate_nonlinear_dataset,
     _generate_realistic_dataset,
 )
+from isograph.explain.captum_attribution import compute_integrated_gradients
 from isograph.explain.config import ExplainConfig
 from isograph.explain.core import explain_module
-from isograph.explain.vae_attribution import compute_decoder_jacobian
 from isograph.models.vae import VaeNetworkModel
 from isograph.workflow.config import VaeModelConfig
 
 
 # ---------------------------------------------------------------------------
-# Fixture specs
+# Fixture specs (identical to eval_stage8d_accuracy.py)
 # ---------------------------------------------------------------------------
 
 _FIXTURES = [
@@ -76,13 +76,12 @@ _FIXTURES = [
     )),
     ("large_v1", "realistic", RealisticDatasetSpec(
         name="large_v1", n_genes=800, n_samples=120, n_modules=10,
-        module_sizes=[70, 55, 42, 32, 25, 20, 15, 12, 10, 9],  # power-law sum=290
+        module_sizes=[70, 55, 42, 32, 25, 20, 15, 12, 10, 9],
         switching_fraction=290/800, confounder_weight=0.4,
         count_dispersion=7.0, mean_gene_total=300.0,
         dx_effect_range=(0.3, 0.8), age_effect_range=(0.1, 0.35),
         switching_concentration=15.0, nonswitching_concentration=80.0, seed=5,
     )),
-    # xlarge/xxlarge at 1/10 scale to keep runtime reasonable
     ("xlarge_mini", "realistic", RealisticDatasetSpec(
         name="xlarge_mini", n_genes=600, n_samples=240, n_modules=12,
         module_sizes=None, switching_fraction=84/600,
@@ -101,15 +100,15 @@ _FIXTURES = [
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers (shared with eval_stage8d_accuracy.py)
 # ---------------------------------------------------------------------------
 
 def _make_bundle(spec):
     if isinstance(spec, SyntheticDatasetSpec):
-        return _generate_dataset(spec, "eval8d", spec.name)
+        return _generate_dataset(spec, "eval8e", spec.name)
     if isinstance(spec, NonlinearDatasetSpec):
-        return _generate_nonlinear_dataset(spec, "eval8d", spec.name)
-    return _generate_realistic_dataset(spec, "eval8d", spec.name)
+        return _generate_nonlinear_dataset(spec, "eval8e", spec.name)
+    return _generate_realistic_dataset(spec, "eval8e", spec.name)
 
 
 def _build_transcript_usage(transcript_counts, transcript_table, sample_ids):
@@ -124,7 +123,6 @@ def _build_transcript_usage(transcript_counts, transcript_table, sample_ids):
 
 
 def _vae_config_for(n_genes: int, artifact_dir: Path) -> VaeModelConfig:
-    """Pick reasonable VAE config for fixture size."""
     if n_genes <= 100:
         hidden_dim, n_hidden = 32, 1
     elif n_genes <= 500:
@@ -155,7 +153,6 @@ def _fit_vae_and_write(bundle, artifact_dir: Path):
             transcript_table=bundle.feature_tables["transcript"],
             sample_table=bundle.sample_table,
         )
-    # Rename integer columns to sample IDs
     fs = artifacts.feature_scores.copy()
     int_cols = [c for c in fs.columns if c != "gene_id"]
     fs = fs.rename(columns={old: new for old, new in zip(int_cols, sample_ids)})
@@ -172,15 +169,15 @@ def _auc(scores: np.ndarray, labels: np.ndarray) -> float:
     return float(count / (len(pos) * len(neg)))
 
 
+# Modules with fewer than this many genes are excluded from member_auc_large.
+# Tiny spurious modules from over-segmentation produce sub-random member_auc
+# that contaminates the mean — see nonlinear_v1 diagnosis.
+_MIN_MODULE_GENES_LARGE = 10
+
+
 # ---------------------------------------------------------------------------
 # Accuracy computation
 # ---------------------------------------------------------------------------
-
-# Modules with fewer than this many genes are excluded from member_auc_large.
-# Tiny spurious modules (2-4 genes) from over-segmentation produce sub-random
-# member_auc that contaminates the mean — see nonlinear_v1 diagnosis.
-_MIN_MODULE_GENES_LARGE = 10
-
 
 @dataclass
 class AccuracyResult:
@@ -188,15 +185,15 @@ class AccuracyResult:
     n_genes: int
     n_samples: int
     n_fitted_modules: int
-    switch_auc_vae: float   # AUC(|decoded_delta|, truth_switch) over module genes
-    switch_auc_r: float     # AUC(|r|, truth_switch) over module genes
-    member_auc: float       # AUC(|decoded_delta|, module_membership) over ALL genes
+    switch_auc_ig: float    # AUC(|ig_score_abs_mean|, truth_switch) over module genes
+    switch_auc_r: float     # AUC(|r|, truth_switch) over module genes (8A baseline)
+    member_auc: float       # AUC(|ig_score_abs_mean|, module_membership) over ALL genes
     member_auc_large: float # member_auc restricted to modules with ≥_MIN_MODULE_GENES_LARGE genes
-    sign_agree: float       # fraction sign(delta)==sign(r)
-    precision_at_filter: float  # precision among passes_filter=True genes
+    sign_agree: float       # fraction sign(ig_score_corrected)==sign(r) over module genes
+    precision_at_filter: float
     fit_seconds: float
     attr_seconds: float
-    all_switch: bool        # True if fixture has no non-switching genes (toy/medium)
+    all_switch: bool
 
 
 def _compute_accuracy(
@@ -216,22 +213,21 @@ def _compute_accuracy(
 
     t0 = time.time()
 
-    # --- Per-module Jacobians (all genes) ---
-    jacobians: dict[str, pd.DataFrame] = {}
+    # Per-module IG attributions
+    ig_maps: dict[str, pd.DataFrame] = {}
     for module_id, result in explain_results.items():
-        jacobians[module_id] = compute_decoder_jacobian(
-            checkpoint_path, result.eigengene, feature_scores
+        ig_maps[module_id] = compute_integrated_gradients(
+            checkpoint_path, result.eigengene, feature_scores, n_steps=50
         )
 
     attr_seconds = time.time() - t0
 
-    # --- Metric 1: switch_auc over module genes ---
-    vae_scores, vae_labels = [], []
+    # Metric 1: switch_auc over module genes
+    ig_scores, ig_labels = [], []
     r_scores, r_labels = [], []
 
     for module_id, result in explain_results.items():
-        jac = jacobians[module_id]
-        jac_idx = jac.set_index("gene_id")["decoded_delta"]
+        ig_df = ig_maps[module_id].set_index("gene_id")
         tbl = result.gene_driver_table
         finite = tbl["r"].notna()
         for _, row in tbl.loc[finite].iterrows():
@@ -239,21 +235,21 @@ def _compute_accuracy(
             label = 1 if gid in switch_set else 0
             r_scores.append(abs(row["r"]))
             r_labels.append(label)
-            if gid in jac_idx.index:
-                vae_scores.append(abs(jac_idx[gid]))
-                vae_labels.append(label)
+            if gid in ig_df.index:
+                ig_scores.append(ig_df.loc[gid, "ig_score_abs_mean"])
+                ig_labels.append(label)
 
-    switch_auc_vae = _auc(np.array(vae_scores), np.array(vae_labels)) if vae_scores else float("nan")
+    switch_auc_ig = _auc(np.array(ig_scores), np.array(ig_labels)) if ig_scores else float("nan")
     switch_auc_r = _auc(np.array(r_scores), np.array(r_labels)) if r_scores else float("nan")
 
-    # --- Metric 2: module membership AUC over all genes ---
+    # Metric 2: member_auc over all genes
     member_aucs = []
     member_aucs_large = []
     for module_id, result in explain_results.items():
-        jac = jacobians[module_id]
+        ig_df = ig_maps[module_id]
         module_genes = set(result.gene_driver_table["gene_id"].tolist())
-        labels = np.array([1 if g in module_genes else 0 for g in jac["gene_id"]])
-        scores = jac["decoded_delta"].abs().values
+        labels = np.array([1 if g in module_genes else 0 for g in ig_df["gene_id"]])
+        scores = ig_df["ig_score_abs_mean"].values
         if labels.sum() > 0 and (labels == 0).sum() > 0:
             auc_val = _auc(scores, labels)
             member_aucs.append(auc_val)
@@ -262,34 +258,45 @@ def _compute_accuracy(
     member_auc = float(np.mean(member_aucs)) if member_aucs else float("nan")
     member_auc_large = float(np.mean(member_aucs_large)) if member_aucs_large else float("nan")
 
-    # --- Metric 3: sign agreement (direction-corrected by latent_r sign) ---
+    # Metric 3: direction-corrected sign agreement via ig_score_corrected
     sign_agreements = []
     for module_id, result in explain_results.items():
-        jac = jacobians[module_id].set_index("gene_id")
+        ig_df = ig_maps[module_id].set_index("gene_id")
         tbl = result.gene_driver_table
         finite = tbl["r"].notna()
         for _, row in tbl.loc[finite].iterrows():
             gid = row["gene_id"]
-            if gid in jac.index and not np.isnan(jac.loc[gid, "decoded_delta"]):
-                latent_r = jac.loc[gid, "latent_r"]
-                direction = np.sign(latent_r) if latent_r != 0 else 1.0
-                corrected = jac.loc[gid, "decoded_delta"] * direction
-                agree = np.sign(corrected) == np.sign(row["r"])
-                sign_agreements.append(int(agree))
+            if gid in ig_df.index:
+                corrected = ig_df.loc[gid, "ig_score_corrected"]
+                if not np.isnan(corrected) and corrected != 0:
+                    sign_agreements.append(int(np.sign(corrected) == np.sign(row["r"])))
     sign_agree = float(np.mean(sign_agreements)) if sign_agreements else float("nan")
 
-    # --- Metric 4: precision@filter ---
-    config = ExplainConfig(vae_attribution=False, vae_fdr_threshold=0.05, vae_percentile_threshold=90.0)
+    # Metric 4: precision@filter (FDR≤0.05 & top-10% |IG| & sign agree)
     precision_vals = []
-    if not all_switch:  # Only meaningful when non-switching genes exist
-        from isograph.explain.vae_attribution import filter_vae_drivers
+    if not all_switch:
         for module_id, result in explain_results.items():
-            jac = jacobians[module_id]
-            vae_df = filter_vae_drivers(jac, result.gene_driver_table, config)
-            passing = vae_df.loc[vae_df["passes_filter"], "gene_id"].tolist()
-            if passing:
-                prec = sum(1 for g in passing if g in switch_set) / len(passing)
+            ig_df = ig_maps[module_id].set_index("gene_id")
+            tbl = result.gene_driver_table[result.gene_driver_table["r"].notna()].copy()
+            if tbl.empty:
+                continue
+            tbl["ig_abs"] = tbl["gene_id"].map(
+                ig_df["ig_score_abs_mean"].to_dict()
+            ).fillna(0.0)
+            tbl["ig_corrected"] = tbl["gene_id"].map(
+                ig_df["ig_score_corrected"].to_dict()
+            ).fillna(0.0)
+            abs_vals = tbl["ig_abs"]
+            if abs_vals.max() == 0:
+                continue
+            tbl["ig_pct"] = abs_vals.rank(pct=True) * 100.0
+            # No sign filter: IG sign reflects encoder weight conventions, not eigengene direction
+            passes = (tbl["qvalue"] <= 0.05) & (tbl["ig_pct"] >= 90.0)
+            passing_genes = tbl.loc[passes, "gene_id"].tolist()
+            if passing_genes:
+                prec = sum(1 for g in passing_genes if g in switch_set) / len(passing_genes)
                 precision_vals.append(prec)
+
     precision_at_filter = float(np.mean(precision_vals)) if precision_vals else float("nan")
 
     n_samples = len(bundle.sample_table)
@@ -298,7 +305,7 @@ def _compute_accuracy(
         n_genes=n_genes,
         n_samples=n_samples,
         n_fitted_modules=len(explain_results),
-        switch_auc_vae=switch_auc_vae,
+        switch_auc_ig=switch_auc_ig,
         switch_auc_r=switch_auc_r,
         member_auc=member_auc,
         member_auc_large=member_auc_large,
@@ -355,7 +362,7 @@ def run_all():
                 continue
 
             print("  Running explain_module...", end=" ", flush=True)
-            config = ExplainConfig(vae_attribution=False)  # attribution computed separately below
+            config = ExplainConfig(integrated_gradients=False)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", UserWarning)
                 explain_results = explain_module(
@@ -366,7 +373,7 @@ def run_all():
                 )
             print(f"done ({len(explain_results)} modules)")
 
-            print("  Computing VAE attribution accuracy...", end=" ", flush=True)
+            print("  Computing IG attribution accuracy...", end=" ", flush=True)
             result = _compute_accuracy(
                 fixture_name, bundle, artifact_dir, explain_results, fit_seconds
             )
@@ -382,23 +389,23 @@ def _print_row(r: AccuracyResult):
     tag = " (all-switch)" if r.all_switch else ""
     print(f"\n  Results for {r.fixture}{tag}:")
     print(f"    Fitted modules:    {r.n_fitted_modules}")
-    print(f"    member_auc:        {r.member_auc:.3f}   (|decoded_delta| vs module membership, all genes)")
+    print(f"    member_auc:        {r.member_auc:.3f}   (|ig_score_abs_mean| vs module membership, all genes)")
     if not np.isnan(r.member_auc_large):
         print(f"    member_auc_large:  {r.member_auc_large:.3f}   (modules with ≥{_MIN_MODULE_GENES_LARGE} genes only)")
-    print(f"    switch_auc_vae:    {r.switch_auc_vae:.3f}   (|decoded_delta| vs truth_switch, module genes)")
+    print(f"    switch_auc_ig:     {r.switch_auc_ig:.3f}   (|ig_score_abs_mean| vs truth_switch, module genes)")
     print(f"    switch_auc_r:      {r.switch_auc_r:.3f}   (|r| vs truth_switch — 8A baseline)")
-    print(f"    sign_agree:        {r.sign_agree:.3f}   (fraction sign(delta)==sign(r))")
+    print(f"    sign_agree:        {r.sign_agree:.3f}   (fraction sign(ig_score_corrected)==sign(r))")
     if not np.isnan(r.precision_at_filter):
-        print(f"    precision@filter:  {r.precision_at_filter:.3f}   (true switching among passes_filter=True)")
+        print(f"    precision@filter:  {r.precision_at_filter:.3f}   (true switching among passing genes)")
     print(f"    fit_time:          {r.fit_seconds:.1f}s")
     print(f"    attr_time:         {r.attr_seconds:.2f}s")
 
 
 def _print_summary(results: list[AccuracyResult]):
     print("\n\n" + "="*100)
-    print("SUMMARY TABLE")
+    print("SUMMARY TABLE — Stage 8E Captum Integrated Gradients")
     print("="*100)
-    hdr = f"{'Fixture':<16} {'Genes':>6} {'Mods':>5}  {'member_auc':>10}  {'mem_large':>9}  {'switch_vae':>10}  {'switch_r':>10}  {'sign_agree':>10}  {'prec@filt':>9}"
+    hdr = f"{'Fixture':<16} {'Genes':>6} {'Mods':>5}  {'member_auc':>10}  {'mem_large':>9}  {'switch_ig':>10}  {'switch_r':>10}  {'sign_agree':>10}  {'prec@filt':>9}"
     print(hdr)
     print("-"*100)
     for r in results:
@@ -409,7 +416,7 @@ def _print_summary(results: list[AccuracyResult]):
             f"{r.n_genes:>6}  {r.n_fitted_modules:>4}  "
             f"  {r.member_auc:>10.3f}"
             f"  {ml}"
-            f"  {r.switch_auc_vae:>10.3f}"
+            f"  {r.switch_auc_ig:>10.3f}"
             f"  {r.switch_auc_r:>10.3f}"
             f"  {r.sign_agree:>10.3f}"
             f"  {r.precision_at_filter:>9.3f}"
@@ -417,11 +424,12 @@ def _print_summary(results: list[AccuracyResult]):
         print(row)
     print("-"*100)
     print("  * = all genes are switching (toy/medium); switch_auc uninformative")
-    print("  member_auc: AUC of |decoded_delta| distinguishing module genes from all other genes")
-    print("  switch_vae: AUC of |decoded_delta| predicting truth_switch, within module genes")
-    print("  switch_r:   AUC of |r| predicting truth_switch (Stage 8A baseline)")
-    print("  sign_agree: fraction of module genes where sign(decoded_delta) == sign(r)")
-    print("  prec@filt:  precision of passes_filter=True (FDR≤0.05 & top-10% & sign agree)")
+    print("  member_auc:   AUC of |ig_score_abs_mean| distinguishing module genes from all genes")
+    print(f"  mem_large:    member_auc restricted to modules with ≥{_MIN_MODULE_GENES_LARGE} genes (excludes over-segmentation noise)")
+    print("  switch_ig:    AUC of |ig_score_abs_mean| predicting truth_switch, within module genes")
+    print("  switch_r:     AUC of |r| predicting truth_switch (Stage 8A baseline)")
+    print("  sign_agree:   fraction of module genes where sign(ig_score_corrected) == sign(r)")
+    print("  prec@filt:    precision of passing genes (FDR≤0.05 & top-10% |IG|)")
 
 
 if __name__ == "__main__":

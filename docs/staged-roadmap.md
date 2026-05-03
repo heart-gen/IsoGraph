@@ -551,10 +551,10 @@ correlation.
 | Stage | Scope | Status |
 |-------|-------|--------|
 | 8A | Backend-agnostic tables + CLI + gate tests | **complete** |
-| 8B | Publication-ready plots | blocked on 8A |
-| 8C | Annotation/consequence table integration | blocked on 8A |
-| 8D | VAE decoder attribution (optional, checkpoint required) | blocked on 8C |
-| 8E | Captum integrated gradients (optional, `isograph[torch-explain]`) | blocked on 8A |
+| 8B | Publication-ready plots | **complete** |
+| 8C | Annotation/consequence table integration | **complete** |
+| 8D | VAE decoder attribution (optional, checkpoint required) | **complete** |
+| 8E | Captum integrated gradients (optional, `isograph[torch-explain]`) | **complete** |
 
 ### Stage 8A: Module Explanation MVP
 
@@ -708,9 +708,10 @@ pytest tests/test_stage8a_gates.py -v -m slow
 
 | 2026-05-02 | 8A | — | N/A | — | — | Module explanation MVP: explain_module() API, isograph explain-module CLI, gene_driver/transcript_polarity/high_vs_low tables, 28 gate tests + 7 accuracy tests all pass; gene-driver AUC=1.000 and switch_strength AUC=1.000 on realistic_v1 baseline fit |
 | 2026-05-02 | 8D | — | N/A | scripts/eval_stage8d_accuracy.py | attr_time ≤ 0.08s per run | VAE decoder attribution: compute_decoder_jacobian + filter_vae_drivers; 34 gate tests pass; member_auc 0.786–0.984 on linear fixtures; switch_vae=1.000 on realistic/xlarge (vs switch_r=0.758 on xlarge); nonlinear member_auc=0.438 (expected: single-dim perturbation cannot capture distributed nonlinear modules); sign fix: direction-corrected by latent_r sign |
+| 2026-05-03 | 8E | — | N/A | — | — | Captum Integrated Gradients encoder attribution: compute_integrated_gradients; 30 gate tests pass; IG completeness axiom verified; batched IG exploits sample independence in encoder; shared _select_module_latent_dim helper extracted from 8D; torch-explain optional group added to pyproject.toml |
 
 ## Current Recommendation
 
 Stage 7 (gpu_latent) has been removed. See the Stage 7 section above for details.
 VAE (Stage 4/6) is the current recommended default backend.
-Stage 8 (module explanation) is in progress; Stages 8A-8D are complete.
+Stage 8 (module explanation) is in progress; Stages 8A-8E are complete.

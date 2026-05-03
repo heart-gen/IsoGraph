@@ -20,6 +20,9 @@ class ExplainConfig:
     vae_fdr_threshold: float = 0.05
     vae_percentile_threshold: float = 90.0
     vae_perturbation_eps: float = 1.0
+    integrated_gradients: bool = False
+    ig_n_steps: int = 50
+    ig_baseline: str = "zero"
 
 
 @dataclass
@@ -32,3 +35,4 @@ class ExplainResult:
     n_module_genes: int
     sample_ids: list[str] = field(default_factory=list)
     vae_drivers: pd.DataFrame | None = field(default=None)
+    ig_attributions: pd.DataFrame | None = field(default=None)
