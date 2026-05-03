@@ -10,6 +10,33 @@ import pandas as pd
 from isograph.explain.config import ExplainConfig
 
 
+def _select_module_latent_dim(
+    encoder: "torch.nn.Module",
+    X: "torch.Tensor",
+    eigengene: np.ndarray,
+) -> tuple[int, np.ndarray]:
+    """Return (j_star, latent_r) where j_star is the latent dim most correlated with eigengene."""
+    import torch
+
+    with torch.no_grad():
+        z_mu, _ = encoder(X)
+    z_mu_np: np.ndarray = z_mu.numpy()
+    latent_dim = z_mu_np.shape[1]
+
+    eg = eigengene - eigengene.mean()
+    eg_std = eg.std()
+    latent_r = np.zeros(latent_dim)
+    if eg_std > 0:
+        for j in range(latent_dim):
+            col = z_mu_np[:, j]
+            col_std = col.std()
+            if col_std > 0:
+                latent_r[j] = float(np.dot(eg / eg_std, (col - col.mean()) / col_std) / len(eg))
+
+    j_star: int = int(np.argmax(np.abs(latent_r)))
+    return j_star, latent_r
+
+
 def compute_decoder_jacobian(
     checkpoint_path: Path | str,
     eigengene: np.ndarray,
@@ -66,25 +93,11 @@ def compute_decoder_jacobian(
 
     X = torch.tensor(scores_df.T.values, dtype=torch.float32)  # (n_samples, n_genes)
 
-    with torch.no_grad():
-        z_mu, _ = encoder(X)  # (n_samples, latent_dim)
-
-    z_mu_np: np.ndarray = z_mu.numpy()  # (n_samples, latent_dim)
-
-    # Find the latent dim most correlated with the module eigengene
-    eg = eigengene - eigengene.mean()
-    eg_std = eg.std()
-    latent_r = np.zeros(latent_dim)
-    if eg_std > 0:
-        for j in range(latent_dim):
-            col = z_mu_np[:, j]
-            col_std = col.std()
-            if col_std > 0:
-                latent_r[j] = float(np.dot(eg / eg_std, (col - col.mean()) / col_std) / len(eg))
-
-    j_star: int = int(np.argmax(np.abs(latent_r)))
+    j_star, latent_r = _select_module_latent_dim(encoder, X, eigengene)
 
     # Baseline: mean latent vector across samples
+    with torch.no_grad():
+        z_mu_np = encoder(X)[0].numpy()
     z_bar = torch.tensor(z_mu_np.mean(axis=0), dtype=torch.float32)  # (latent_dim,)
 
     e_j = torch.zeros(latent_dim)

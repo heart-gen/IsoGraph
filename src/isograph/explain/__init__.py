@@ -1,4 +1,4 @@
-"""Module explanation (Stage 7A / 8B / 8C / 8D)."""
+"""Module explanation (Stage 7A / 8B / 8C / 8D / 8E)."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from isograph.explain.annotation import (
     annotate_transcript_table,
     load_annotation_table,
 )
+from isograph.explain.captum_attribution import compute_integrated_gradients
 from isograph.explain.config import ExplainConfig, ExplainResult
 from isograph.explain.core import explain_module
 from isograph.explain.plots import (
@@ -40,4 +41,5 @@ __all__ = [
     "summarize_module",
     "compute_decoder_jacobian",
     "filter_vae_drivers",
+    "compute_integrated_gradients",
 ]

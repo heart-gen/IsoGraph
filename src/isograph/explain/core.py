@@ -126,6 +126,15 @@ def explain_module(
             )
             vae_drivers = filter_vae_drivers(jacobian_df, gene_driver_table, config)
 
+        # Stage 8E: Captum integrated gradients
+        ig_attributions: pd.DataFrame | None = None
+        if config.integrated_gradients and _checkpoint.exists():
+            from isograph.explain.captum_attribution import compute_integrated_gradients
+            ig_attributions = compute_integrated_gradients(
+                _checkpoint, eigengene, feature_scores,
+                config.ig_n_steps, config.ig_baseline,
+            )
+
         results[module_id] = ExplainResult(
             module_id=module_id,
             gene_driver_table=gene_driver_table,
@@ -135,6 +144,7 @@ def explain_module(
             n_module_genes=len(module_genes),
             sample_ids=list(sample_ids),
             vae_drivers=vae_drivers,
+            ig_attributions=ig_attributions,
         )
 
     if output_dir is not None:
@@ -158,6 +168,8 @@ def _write_outputs(
         result.high_vs_low_table.to_parquet(module_dir / "high_vs_low_table.parquet", index=False)
         if result.vae_drivers is not None:
             result.vae_drivers.to_parquet(module_dir / "vae_drivers.parquet", index=False)
+        if result.ig_attributions is not None:
+            result.ig_attributions.to_parquet(module_dir / "ig_attributions.parquet", index=False)
 
     plot_files: list[str] = []
     if config.plot:
@@ -185,6 +197,7 @@ def _write_outputs(
         "annotation_provided": annotation_table is not None,
         "annotation_columns": annotation_columns,
         "vae_attribution_available": any(r.vae_drivers is not None for r in results.values()),
+        "ig_attribution_available": any(r.ig_attributions is not None for r in results.values()),
     }
     write_json(output_dir / "module_explanation_manifest.json", manifest)
 

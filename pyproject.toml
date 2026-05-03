@@ -51,6 +51,9 @@ docs = [
     "sphinx-autodoc-typehints>=2,<3",
     "sphinx-rtd-theme>=3,<4",
 ]
+torch-explain = [
+    "captum>=0.7",
+]
 
 [project.urls]
 Homepage = "https://github.com/heart-gen/IsoGraph"

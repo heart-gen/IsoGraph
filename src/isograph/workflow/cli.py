@@ -97,6 +97,22 @@ def build_parser() -> argparse.ArgumentParser:
         "--vae-percentile-threshold", type=float, default=90.0, dest="vae_percentile_threshold",
         help="Percentile threshold for |decoded_delta| in VAE driver filter (default: 90.0).",
     )
+    explain.add_argument(
+        "--integrated-gradients", action="store_true", default=False, dest="integrated_gradients",
+        help=(
+            "Enable Captum Integrated Gradients encoder attribution (Stage 8E). "
+            "Requires a vae_checkpoint.pt in artifact_dir and captum installed "
+            "(pip install isograph[torch-explain])."
+        ),
+    )
+    explain.add_argument(
+        "--ig-n-steps", type=int, default=50, dest="ig_n_steps",
+        help="Number of IG interpolation steps (default: 50). Higher values reduce approximation error.",
+    )
+    explain.add_argument(
+        "--ig-baseline", default="zero", choices=["zero", "mean"], dest="ig_baseline",
+        help="IG baseline: 'zero' (no isoform switching, default) or 'mean' (per-sample gene mean).",
+    )
 
     ann = subparsers.add_parser("annotate-structure")
     ann.add_argument("--gtf", required=True, dest="gtf",
@@ -234,6 +250,9 @@ def main(argv: list[str] | None = None) -> None:
             vae_attribution=args.vae_attribution,
             vae_fdr_threshold=args.vae_fdr_threshold,
             vae_percentile_threshold=args.vae_percentile_threshold,
+            integrated_gradients=args.integrated_gradients,
+            ig_n_steps=args.ig_n_steps,
+            ig_baseline=args.ig_baseline,
         )
         explain_module(
             artifact_dir=Path(args.artifact_dir),
