@@ -112,6 +112,20 @@ def explain_module(
             transcript_polarity_table = annotate_transcript_table(
                 transcript_polarity_table, _annotation
             )
+
+        # Stage 8D: VAE decoder attribution
+        vae_drivers: pd.DataFrame | None = None
+        _checkpoint = artifact_dir / "vae_checkpoint.pt"
+        if config.vae_attribution and _checkpoint.exists():
+            from isograph.explain.vae_attribution import (
+                compute_decoder_jacobian,
+                filter_vae_drivers,
+            )
+            jacobian_df = compute_decoder_jacobian(
+                _checkpoint, eigengene, feature_scores, config.vae_perturbation_eps
+            )
+            vae_drivers = filter_vae_drivers(jacobian_df, gene_driver_table, config)
+
         results[module_id] = ExplainResult(
             module_id=module_id,
             gene_driver_table=gene_driver_table,
@@ -120,6 +134,7 @@ def explain_module(
             eigengene=eigengene,
             n_module_genes=len(module_genes),
             sample_ids=list(sample_ids),
+            vae_drivers=vae_drivers,
         )
 
     if output_dir is not None:
@@ -141,6 +156,8 @@ def _write_outputs(
         result.gene_driver_table.to_parquet(module_dir / "gene_driver_table.parquet", index=False)
         result.transcript_polarity_table.to_parquet(module_dir / "transcript_polarity_table.parquet", index=False)
         result.high_vs_low_table.to_parquet(module_dir / "high_vs_low_table.parquet", index=False)
+        if result.vae_drivers is not None:
+            result.vae_drivers.to_parquet(module_dir / "vae_drivers.parquet", index=False)
 
     plot_files: list[str] = []
     if config.plot:
@@ -167,6 +184,7 @@ def _write_outputs(
         "plot_files": plot_files,
         "annotation_provided": annotation_table is not None,
         "annotation_columns": annotation_columns,
+        "vae_attribution_available": any(r.vae_drivers is not None for r in results.values()),
     }
     write_json(output_dir / "module_explanation_manifest.json", manifest)
 

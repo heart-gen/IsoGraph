@@ -1,4 +1,4 @@
-"""Module explanation (Stage 7A / 8B / 8C)."""
+"""Module explanation (Stage 7A / 8B / 8C / 8D)."""
 
 from __future__ import annotations
 
@@ -19,8 +19,8 @@ from isograph.explain.plots import (
     plot_transcript_polarity_heatmap,
     summarize_module,
 )
-
 from isograph.explain.structure import annotate_switch_pairs
+from isograph.explain.vae_attribution import compute_decoder_jacobian, filter_vae_drivers
 
 __all__ = [
     "ExplainConfig",
@@ -38,4 +38,6 @@ __all__ = [
     "plot_switch_pair",
     "plot_transcript_polarity_heatmap",
     "summarize_module",
+    "compute_decoder_jacobian",
+    "filter_vae_drivers",
 ]

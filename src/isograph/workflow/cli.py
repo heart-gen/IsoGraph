@@ -81,6 +81,22 @@ def build_parser() -> argparse.ArgumentParser:
             "Merges structural labels into gene_driver_table and transcript_polarity_table."
         ),
     )
+    explain.add_argument(
+        "--vae-attribution", action="store_true", default=False, dest="vae_attribution",
+        help=(
+            "Enable VAE decoder attribution (Stage 8D). Requires a vae_checkpoint.pt in "
+            "artifact_dir. Perturbs the module-associated latent dimension and decodes back "
+            "into gene space to identify high-confidence drivers."
+        ),
+    )
+    explain.add_argument(
+        "--vae-fdr-threshold", type=float, default=0.05, dest="vae_fdr_threshold",
+        help="FDR threshold for VAE high-confidence driver filter (default: 0.05).",
+    )
+    explain.add_argument(
+        "--vae-percentile-threshold", type=float, default=90.0, dest="vae_percentile_threshold",
+        help="Percentile threshold for |decoded_delta| in VAE driver filter (default: 90.0).",
+    )
 
     ann = subparsers.add_parser("annotate-structure")
     ann.add_argument("--gtf", required=True, dest="gtf",
@@ -215,6 +231,9 @@ def main(argv: list[str] | None = None) -> None:
             fdr_method=args.fdr_method,
             plot=args.plot,
             output_format=output_format,
+            vae_attribution=args.vae_attribution,
+            vae_fdr_threshold=args.vae_fdr_threshold,
+            vae_percentile_threshold=args.vae_percentile_threshold,
         )
         explain_module(
             artifact_dir=Path(args.artifact_dir),
