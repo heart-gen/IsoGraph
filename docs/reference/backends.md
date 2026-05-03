@@ -76,7 +76,8 @@ Use it when you want:
 Requires R with the `WGCNA` package installed and `Rscript` on `PATH`. The backend
 calls R via subprocess — no Python R bridge is needed.
 
-## Important Current Boundary
+## Important Notes
 
-The `benchmark` command can drive all five backends on the bundled suites. The `fit`
-command currently runs only the baseline backend on custom bundles.
+The `benchmark` and `fit` commands can both drive all five backends. VAE is the default
+for both. For `fit` with Hydra overrides, append `--` followed by `<backend>.<field>=<value>`
+(e.g. `-- vae.hidden_dim=256`).

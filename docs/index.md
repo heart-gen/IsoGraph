@@ -15,6 +15,7 @@ installation
 quickstart
 usage/cli
 usage/own-data
+usage/explain
 reference/configuration
 reference/artifacts
 reference/backends

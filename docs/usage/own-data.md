@@ -108,7 +108,9 @@ bundle = DatasetBundle(
 save_dataset_bundle(bundle, Path("benchmarks/datasets/custom/my_cohort_v1"))
 ```
 
-## Running the Baseline Backend from the CLI
+## Running the VAE Backend from the CLI
+
+VAE is the default backend for `isograph fit`:
 
 ```bash
 isograph fit \
@@ -116,7 +118,16 @@ isograph fit \
   --output-dir artifacts/fits/my_cohort_v1
 ```
 
-## Running Other Backends from Python
+To use a different backend, pass `--backend <name>`:
+
+```bash
+isograph fit \
+  --dataset-path benchmarks/datasets/custom/my_cohort_v1 \
+  --backend baseline \
+  --output-dir artifacts/fits/my_cohort_v1_baseline
+```
+
+## Running Backends from Python
 
 ```python
 from pathlib import Path

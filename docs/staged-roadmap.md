@@ -53,9 +53,11 @@ isograph compare \
   --candidate artifacts/current_run
 ```
 
-## Next Unlocked Stage
+## Current Status
 
-`Stage 5`: WGCNA comparison benchmark on simulated data for manuscript.
+Stages 0–6 and 8A–8E are complete. Stage 7 (gpu_latent) was removed. See the Milestone
+Log for details. Stage 8 (module explanation) is complete through sub-stage 8E (Captum
+Integrated Gradients).
 
 ---
 

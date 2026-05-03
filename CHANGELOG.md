@@ -5,7 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.3] -- 2026-05-03
+
+### Added
+
+- **`isograph explain-module` CLI** (Stage 8A) — explain fitted modules at
+  transcript-feature resolution. Produces `gene_driver_table.parquet`,
+  `transcript_polarity_table.parquet`, and `high_vs_low_table.parquet` per module, plus a
+  shared `module_explanation_manifest.json`. Python API: `isograph.explain.explain_module`.
+- **Publication-ready explanation plots** (Stage 8B) — top-driver barplot, transcript
+  usage gradient plot, and positive/negative driver heatmap. Enabled with `--plot`;
+  format controlled by `--output-format png|pdf`.
+- **`isograph annotate-structure` CLI** (Stage 8C) — annotate transcript switch pairs
+  with GTF-derived structural labels (first/last exon changes, CDS/UTR shifts, biotype
+  switches, shared exon fraction). Supports GENCODE and Ensembl GTF conventions; GTF
+  parse cache (`--gtf-cache`) avoids re-parsing on repeated runs. Output integrates with
+  `isograph explain-module --annotation-table`.
+- **VAE decoder attribution** (Stage 8D) — `--vae-attribution` flag on `explain-module`
+  computes a finite-difference Jacobian via the VAE decoder to identify high-confidence
+  module drivers. Requires a `vae_checkpoint.pt` in the artifact directory. Writes
+  `vae_drivers.parquet` per module.
+- **Captum Integrated Gradients attribution** (Stage 8E) — `--integrated-gradients` flag
+  attributes module eigengene prediction to transcript features via the VAE encoder using
+  Captum IG. Requires `pip install isograph[torch-explain]`. Writes `ig_attributions.parquet`
+  per module. Baseline options: `zero` (default) or `mean`.
 
 ### Removed
 
@@ -15,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`fit` command now supports all backends** — `isograph fit` accepts `--backend
+  baseline|latent|graph|vae|wgcna`; VAE is the default (`backend: vae` in `fit.yaml`).
+  Previously documented as baseline-only.
 - **Latent backend memory warning** — documentation now notes that the CPU latent
   backend forms a p×p covariance matrix and becomes memory-prohibitive for datasets
   with >> features (> ~1 000 genes); VAE is recommended for large feature spaces.

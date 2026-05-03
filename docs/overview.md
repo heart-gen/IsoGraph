@@ -25,10 +25,12 @@ IsoGraph currently includes:
   early stopping, posterior-collapse diagnostics, and optional checkpointing. Requires PyTorch.
 - A **WGCNA** backend wrapping R's `blockwiseModules` for direct comparison with WGCNA,
   including blockwise mode for datasets above 5 000 genes.
-- A **GPU-latent** backend using the Woodbury identity for memory-efficient Factor Analysis
-  (avoids forming the p×p covariance matrix) with BIC-based component selection. Requires PyTorch.
 - Synthetic fixture suites: `core_v1` (24–800 genes) and `scale_v1` (6 000–12 000 genes).
 - A real-data fixture freeze workflow for BrainSeq-style bulk RNA-seq inputs.
+- A **module explanation** module (`isograph.explain`) with `isograph explain-module` and
+  `isograph annotate-structure` CLI subcommands for transcript-feature-level driver tables,
+  publication-ready plots, VAE decoder attribution (Stage 8D), Captum Integrated Gradients
+  encoder attribution (Stage 8E), and GTF-based structural annotation of switch pairs.
 
 The development roadmap in `docs/staged-roadmap.md` records stage history and planned
 next work.

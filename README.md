@@ -10,10 +10,15 @@ trait associations, and reproducible benchmark artifacts.
 - Generate and benchmark against the permanent `core_v1` fixture suite and the large-scale
   `scale_v1` suite (6k–12k genes, 25:1–50:1 genes-to-samples ratios).
 - Freeze the bundled `real_caudate_aa_v1` real-data fixture from local BrainSeq inputs.
-- Fit the deterministic baseline backend from the command line on a prepared dataset bundle.
+- Fit any backend on a prepared dataset bundle via `isograph fit` (VAE default).
 - Run `baseline`, `latent`, `graph`, `vae`, or `wgcna` backends programmatically or
   through the benchmark runner.
 - Export reproducible artifacts, benchmark reports, calibration summaries, and snapshot comparisons.
+- Explain discovered modules at transcript-feature resolution using `isograph explain-module`:
+  gene drivers, transcript polarity, high-vs-low contrasts, publication-ready plots, optional
+  VAE decoder attribution, and Captum Integrated Gradients encoder attribution.
+- Annotate transcript switch pairs with GTF-derived structural labels (exon changes, CDS/UTR
+  shifts, biotype switches) using `isograph annotate-structure`.
 
 ## Installation
 
@@ -57,8 +62,8 @@ JSON reports under `artifacts/reports/`.
 ## Using Your Own Data
 
 IsoGraph expects a prepared dataset bundle containing a `manifest.json`, aligned sample
-metadata, feature tables, and dense count matrices. The current command-line path for
-custom data is:
+metadata, feature tables, and dense count matrices. The `fit` command supports all
+backends; VAE is the default:
 
 ```bash
 isograph fit \
@@ -66,9 +71,35 @@ isograph fit \
   --output-dir artifacts/fits/my_dataset
 ```
 
-At present, `fit` runs the deterministic baseline backend. For latent, graph, or VAE
-backends on your own bundle, use the Python API directly. The detailed walkthroughs live
-in the Wiki, and the formal data model is documented in the RTD source tree.
+To switch backends or pass Hydra overrides:
+
+```bash
+isograph fit \
+  --dataset-path path/to/my_dataset_bundle \
+  --backend baseline \
+  --output-dir artifacts/fits/my_dataset_baseline
+
+isograph fit \
+  --dataset-path path/to/my_dataset_bundle \
+  --backend vae \
+  --output-dir artifacts/fits/my_dataset_vae \
+  -- vae.hidden_dim=256 vae.n_epochs=400
+```
+
+After fitting, explain one or more modules:
+
+```bash
+isograph explain-module \
+  --artifact-dir artifacts/fits/my_dataset \
+  --feature-table features.parquet \
+  --feature-meta feature_metadata.parquet \
+  --module-ids M000 M001 \
+  --plot \
+  --output-dir artifacts/explain/my_dataset
+```
+
+The detailed walkthroughs live in the Wiki, and the formal data model is documented
+in the RTD source tree.
 
 ## Documentation
 
@@ -103,8 +134,10 @@ award `R00 MD0169640` and the Alzheimer's Association award `25AARG-1413315`.
 
 - The benchmark CLI is optimized for the bundled fixture suite rather than arbitrary
   user-defined suites.
-- The `fit` CLI currently exposes only the baseline backend for custom datasets.
 - The VAE backend requires a separate PyTorch installation.
 - The WGCNA backend requires R with the `WGCNA` package installed.
-- The bundled `freeze-real` workflow depends on local BrainSeq-style source files and is
-  not a generic data-ingestion command for arbitrary cohorts.
+- The `freeze-real` workflow depends on local BrainSeq-style source files and is not a
+  generic data-ingestion command for arbitrary cohorts.
+- VAE decoder attribution (`--vae-attribution`) and Captum Integrated Gradients
+  (`--integrated-gradients`) require a VAE checkpoint in the fit artifact directory and,
+  for Integrated Gradients, `pip install isograph[torch-explain]`.

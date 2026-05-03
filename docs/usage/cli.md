@@ -6,7 +6,8 @@ IsoGraph exposes a single CLI entry point:
 isograph --help
 ```
 
-The current subcommands are `benchmark`, `freeze-real`, `fit`, `compare`, and `export`.
+The current subcommands are `benchmark`, `freeze-real`, `fit`, `compare`, `export`,
+`explain-module`, and `annotate-structure`.
 
 ## Overrides
 
@@ -59,7 +60,7 @@ caches intermediate selections under `benchmarks/cache/real_data/`.
 
 ## `fit`
 
-Fit any backend on a prepared dataset bundle.
+Fit any backend on a prepared dataset bundle. VAE is the default.
 
 ```bash
 # VAE (default)
@@ -94,6 +95,132 @@ Outputs:
 
 Default config values for all backends live in `configs/fit.yaml` and can be
 overridden with Hydra syntax after `--`.
+
+## `explain-module`
+
+Explain one or more fitted modules at transcript-feature resolution.
+
+```bash
+isograph explain-module \
+  --artifact-dir artifacts/fits/my_dataset \
+  --feature-table features.parquet \
+  --feature-meta feature_metadata.parquet \
+  --module-ids M000 M001 \
+  --output-dir artifacts/explain/run1
+```
+
+With plots and VAE decoder attribution:
+
+```bash
+isograph explain-module \
+  --artifact-dir artifacts/fits/my_dataset \
+  --feature-table features.parquet \
+  --feature-meta feature_metadata.parquet \
+  --plot --output-format png pdf \
+  --vae-attribution \
+  --output-dir artifacts/explain/run1
+```
+
+With Captum Integrated Gradients (requires `pip install isograph[torch-explain]`):
+
+```bash
+isograph explain-module \
+  --artifact-dir artifacts/fits/my_dataset \
+  --feature-table features.parquet \
+  --feature-meta feature_metadata.parquet \
+  --integrated-gradients --ig-n-steps 100 \
+  --output-dir artifacts/explain/run1
+```
+
+With a structural annotation table (from `annotate-structure`):
+
+```bash
+isograph explain-module \
+  --artifact-dir artifacts/fits/my_dataset \
+  --feature-table features.parquet \
+  --feature-meta feature_metadata.parquet \
+  --annotation-table transcript_structure_annotations.tsv \
+  --output-dir artifacts/explain/run1
+```
+
+**Inputs:**
+
+- `--artifact-dir` must contain `modules.parquet` and `feature_scores.parquet`.
+- `--feature-table`: Parquet with sample IDs as index (or `sample_id` column), feature IDs
+  as columns.
+- `--feature-meta`: Parquet or TSV with columns `feature_id`, `gene_id`, `feature_type`
+  (required); `gene_name`, `transcript_id`, `exon_id`, `event_id` (optional).
+
+**Outputs per module** in `{output_dir}/{module_id}/`:
+
+- `gene_driver_table.parquet` — gene-level drivers sorted by |r|
+- `transcript_polarity_table.parquet` — transcript-level correlations with `switch_strength`
+- `high_vs_low_table.parquet` — mean usage contrast between high- and low-module samples
+- `vae_drivers.parquet` — high-confidence VAE decoder attribution (with `--vae-attribution`)
+- `ig_attributions.parquet` — per-feature IG scores (with `--integrated-gradients`)
+- Plot files (`*.png`, `*.pdf`) when `--plot` is given
+
+**Shared manifest:** `{output_dir}/module_explanation_manifest.json`
+
+Key flags:
+
+| Flag | Default | Description |
+|---|---|---|
+| `--module-ids` | all | Module IDs to explain |
+| `--plot` | off | Write publication-ready plot files |
+| `--output-format` | png | `png`, `pdf`, or both |
+| `--annotation-table` | none | Structural annotation TSV from `annotate-structure` |
+| `--vae-attribution` | off | VAE decoder Jacobian attribution (needs checkpoint) |
+| `--vae-fdr-threshold` | 0.05 | FDR cutoff for high-confidence VAE drivers |
+| `--vae-percentile-threshold` | 90.0 | `\|decoded_delta\|` percentile for VAE drivers |
+| `--integrated-gradients` | off | Captum IG encoder attribution (needs checkpoint + captum) |
+| `--ig-n-steps` | 50 | IG interpolation steps |
+| `--ig-baseline` | zero | IG baseline: `zero` or `mean` |
+
+## `annotate-structure`
+
+Annotate transcript switch pairs with structural labels from a GTF file.
+
+```bash
+isograph annotate-structure \
+  --gtf gencode.v47.annotation.gtf.gz \
+  --switch-pairs switch_pairs.tsv \
+  --output transcript_structure_annotations.tsv
+```
+
+Cache the parsed GTF to avoid re-parsing on repeated runs (raw GENCODE v47 ≈ 20 min on NFS;
+cached ≈ seconds):
+
+```bash
+isograph annotate-structure \
+  --gtf gencode.v47.annotation.gtf.gz \
+  --switch-pairs switch_pairs.tsv \
+  --gtf-cache gencode_v47_cache.parquet \
+  --output transcript_structure_annotations.tsv
+```
+
+**Inputs:**
+
+- `--gtf`: GTF or GTF.gz annotation file (GENCODE or Ensembl conventions supported).
+- `--switch-pairs`: TSV with columns `gene_id`, `transcript_id_1`, `transcript_id_2`.
+
+**Output** (`--output`): TSV with structural labels per switch pair:
+
+| Label | Type | Description |
+|---|---|---|
+| `first_exon_changed` | bool | First exon differs between transcripts |
+| `last_exon_changed` | bool | Last exon differs |
+| `internal_exon_diff` | bool | Internal exon composition differs |
+| `cds_changed` | bool | CDS coordinates differ |
+| `utr_changed` | bool | UTR coordinates differ |
+| `biotype_switch` | bool | Transcript biotype differs |
+| `coding_status_change` | bool | One transcript is coding, the other is not |
+| `tx_length_delta` | float | Transcript length difference (bp) |
+| `cds_length_delta` | float | CDS length difference (bp) |
+| `shared_exon_fraction` | float | Fraction of exons shared between the two transcripts |
+
+Pass the output to `isograph explain-module --annotation-table` to merge these labels
+into the driver tables.
 
 ## `compare`
 
