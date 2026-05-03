@@ -713,4 +713,4 @@ pytest tests/test_stage8a_gates.py -v -m slow
 
 Stage 7 (gpu_latent) has been removed. See the Stage 7 section above for details.
 VAE (Stage 4/6) is the current recommended default backend.
-Stage 8 (module explanation) is in progress; Stage 8A is complete.
+Stage 8 (module explanation) is in progress; Stages 8A-8D are complete.
