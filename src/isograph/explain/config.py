@@ -16,6 +16,10 @@ class ExplainConfig:
     transcript_usage_feature_type: str = "transcript_usage"
     plot: bool = False
     output_format: str | list[str] = "png"
+    vae_attribution: bool = False
+    vae_fdr_threshold: float = 0.05
+    vae_percentile_threshold: float = 90.0
+    vae_perturbation_eps: float = 1.0
 
 
 @dataclass
@@ -27,3 +31,4 @@ class ExplainResult:
     eigengene: np.ndarray
     n_module_genes: int
     sample_ids: list[str] = field(default_factory=list)
+    vae_drivers: pd.DataFrame | None = field(default=None)
