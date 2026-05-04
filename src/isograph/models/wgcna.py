@@ -12,9 +12,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from isograph.features.channels import feature_sample_columns, gene_feature_channels, make_feature_scores
 from isograph.features.residualize import build_design_matrix, residualize_rows
-from isograph.features.switch import gene_switch_coordinates
-from isograph.models.base import FitArtifacts, NetworkModel
+from isograph.models.base import FitArtifacts, NetworkModel, compute_module_gene_roles
 from isograph.workflow.config import WgcnaModelConfig
 
 _RUNNER_R = Path(__file__).parent / "wgcna_runner.R"
@@ -36,15 +36,19 @@ class WgcnaNetworkModel(NetworkModel):
         transcript_counts: np.ndarray,
         transcript_table: pd.DataFrame,
         sample_table: pd.DataFrame,
+        gene_counts: np.ndarray | None = None,
+        gene_table: pd.DataFrame | None = None,
     ) -> FitArtifacts:
         _check_rscript()
 
-        switch_matrix, feature_info = gene_switch_coordinates(transcript_counts, transcript_table)
+        switch_matrix, feature_info = gene_feature_channels(
+            transcript_counts, transcript_table, gene_counts, gene_table
+        )
         if switch_matrix.size:
             design = build_design_matrix(sample_table, self.config.residualize_covariates)
             switch_matrix = residualize_rows(switch_matrix, design)
 
-        gene_ids = feature_info["gene_id"].tolist()
+        feature_ids = feature_info["feature_id"].tolist()
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
@@ -52,8 +56,8 @@ class WgcnaNetworkModel(NetworkModel):
             output_json = tmp / "wgcna_result.json"
 
             # Write genes x samples CSV (first column = gene_id)
-            df = pd.DataFrame(switch_matrix, index=gene_ids)
-            df.index.name = "gene_id"
+            df = pd.DataFrame(switch_matrix, index=feature_ids)
+            df.index.name = "feature_id"
             df.to_csv(input_csv)
 
             power_str = (
@@ -92,25 +96,38 @@ class WgcnaNetworkModel(NetworkModel):
         module_table = pd.DataFrame(result["modules"])
         if module_table.empty:
             module_table = pd.DataFrame(columns=["gene_id", "module_id"])
+        else:
+            feature_to_gene = feature_info.set_index("feature_id")["gene_id"].to_dict()
+            module_table = module_table.rename(columns={"gene_id": "feature_id"})
+            module_table["gene_id"] = module_table["feature_id"].map(feature_to_gene)
+            module_table = module_table.dropna(subset=["gene_id"])
+            module_table = module_table[["gene_id", "module_id"]].drop_duplicates().reset_index(drop=True)
 
         edge_table = pd.DataFrame(result["edges"])
         if edge_table.empty:
             edge_table = pd.DataFrame(columns=["source", "target", "weight"])
+        else:
+            feature_to_gene = feature_info.set_index("feature_id")["gene_id"].to_dict()
+            edge_table = edge_table.rename(columns={"source": "source_feature_id", "target": "target_feature_id"})
+            edge_table["source"] = edge_table["source_feature_id"].map(feature_to_gene)
+            edge_table["target"] = edge_table["target_feature_id"].map(feature_to_gene)
+            edge_table = edge_table.dropna(subset=["source", "target"])
+            edge_table = edge_table.loc[edge_table["source"] != edge_table["target"]].reset_index(drop=True)
 
         trait_table = pd.DataFrame(columns=["module_id", "trait", "effect", "pvalue"])
 
-        feature_scores = pd.DataFrame(switch_matrix, index=gene_ids)
-        feature_scores = feature_scores.reset_index().rename(columns={"index": "gene_id"})
+        feature_scores = make_feature_scores(switch_matrix, feature_info, sample_table)
 
         calibration = result.get("calibration", {})
 
         sample_ids = sample_table["sample_id"].tolist() if "sample_id" in sample_table.columns else list(range(len(sample_table)))
+        score_sample_ids = feature_sample_columns(feature_scores)
         if not module_table.empty:
             eigengene_rows: dict[str, list] = {}
             for module_id in sorted(module_table["module_id"].unique()):
                 genes = module_table.loc[module_table["module_id"] == module_id, "gene_id"]
                 subset = feature_scores.loc[feature_scores["gene_id"].isin(genes)]
-                vec = subset.drop(columns=["gene_id"]).to_numpy(dtype=float).mean(axis=0)
+                vec = subset[score_sample_ids].to_numpy(dtype=float).mean(axis=0)
                 eigengene_rows[module_id] = vec.tolist()
             eigengene_table: pd.DataFrame = (
                 pd.DataFrame(eigengene_rows, index=sample_ids)
@@ -119,6 +136,7 @@ class WgcnaNetworkModel(NetworkModel):
             )
         else:
             eigengene_table = pd.DataFrame(columns=["module_id"] + sample_ids)
+        module_gene_roles = compute_module_gene_roles(module_table, feature_scores, sample_table)
 
         return FitArtifacts(
             module_table=module_table,
@@ -127,4 +145,5 @@ class WgcnaNetworkModel(NetworkModel):
             feature_scores=feature_scores,
             calibration=calibration,
             eigengene_table=eigengene_table,
+            module_gene_roles=module_gene_roles,
         )

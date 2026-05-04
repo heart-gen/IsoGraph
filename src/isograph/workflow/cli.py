@@ -172,6 +172,8 @@ def main(argv: list[str] | None = None) -> None:
             transcript_counts=bundle.matrices["transcript_counts"],
             transcript_table=bundle.feature_tables["transcript"],
             sample_table=bundle.sample_table,
+            gene_counts=bundle.matrices.get("gene_counts"),
+            gene_table=bundle.feature_tables.get("gene"),
         )
         if config.backend == "baseline":
             model = BaselineNetworkModel(config.model)
@@ -195,6 +197,8 @@ def main(argv: list[str] | None = None) -> None:
         artifacts.edge_table.to_parquet(output_dir / "edges.parquet", index=False)
         artifacts.trait_table.to_parquet(output_dir / "traits.parquet", index=False)
         artifacts.feature_scores.to_parquet(output_dir / "feature_scores.parquet", index=False)
+        if artifacts.module_gene_roles is not None:
+            artifacts.module_gene_roles.to_parquet(output_dir / "module_gene_roles.parquet", index=False)
         write_json(output_dir / "fit_config.json", dataclass_to_jsonable(config))
         if artifacts.calibration:
             write_json(output_dir / "calibration.json", artifacts.calibration)

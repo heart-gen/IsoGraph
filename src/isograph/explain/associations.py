@@ -20,10 +20,9 @@ def compute_eigengene(
 ) -> np.ndarray:
     """Compute module eigengene as the sign-aligned mean switch coordinate.
 
-    Gene switch coordinates from gene_switch_coordinates() have per-gene arbitrary
-    sign (from the SVD stable_sign convention). A naive mean can cancel to near-zero
-    when signs are inconsistent across genes in the same module. This function
-    bootstraps sign orientation from the first gene, then iterates to convergence.
+    Feature channels can include abundance and switch rows. Switch coordinates have
+    per-gene arbitrary sign, so this function bootstraps sign orientation from the
+    first feature row, then iterates to convergence.
 
     This is the correct formula for module explanation; compute_trait_associations
     in models/base.py uses the naive mean for historical reasons (it is only used
@@ -113,24 +112,45 @@ def compute_gene_driver_table(
     Columns: gene_id, r, pvalue, qvalue, n_samples, missing_fraction.
     Sorted descending by |r|.
     """
-    _empty = pd.DataFrame(columns=["gene_id", "r", "pvalue", "qvalue", "n_samples", "missing_fraction"])
+    _empty = pd.DataFrame(
+        columns=[
+            "gene_id",
+            "feature_id",
+            "feature_type",
+            "r",
+            "pvalue",
+            "qvalue",
+            "n_samples",
+            "missing_fraction",
+        ]
+    )
     subset = feature_scores.loc[feature_scores["gene_id"].isin(module_genes)].copy()
     if subset.empty:
         return _empty
     gene_ids = subset["gene_id"].tolist()
+    feature_ids = subset["feature_id"].tolist() if "feature_id" in subset.columns else gene_ids
+    feature_types = subset["feature_type"].tolist() if "feature_type" in subset.columns else ["switch"] * len(subset)
     matrix = subset[sample_ids].to_numpy(dtype=float)
     r, pvalue, n_complete, missing_frac = pearson_r_with_missing(matrix, eigengene, config.min_complete_pairs)
     qvalue = apply_fdr(pvalue, method=config.fdr_method)
-    df = pd.DataFrame({
+    channel_df = pd.DataFrame({
         "gene_id": gene_ids,
+        "feature_id": feature_ids,
+        "feature_type": feature_types,
         "r": r,
         "pvalue": pvalue,
         "qvalue": qvalue,
         "n_samples": n_complete,
         "missing_fraction": missing_frac,
     })
-    sort_key = np.where(np.isfinite(r), np.abs(r), 0.0)
-    df = df.iloc[np.argsort(-sort_key)].reset_index(drop=True)
+    channel_df["_sort_key"] = np.where(np.isfinite(r), np.abs(r), 0.0)
+    df = (
+        channel_df.sort_values(["gene_id", "_sort_key"], ascending=[True, False])
+        .drop_duplicates("gene_id", keep="first")
+        .sort_values("_sort_key", ascending=False)
+        .drop(columns=["_sort_key"])
+        .reset_index(drop=True)
+    )
     return df
 
 

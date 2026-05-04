@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import gzip
+import hashlib
 from io import StringIO
 import json
 import os
@@ -34,7 +35,7 @@ from isograph.io.artifacts import (
 )
 from isograph.utils import ensure_dir, write_json
 from isograph.validation import DatasetManifest, FreezeSelectionConfig
-from isograph.workflow.config import RealDataFreezeConfig
+from isograph.workflow.config import RealDataFilterTerm, RealDataFreezeConfig
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GENE_CACHE_METADATA_COLUMNS = ["Geneid", "Chr", "Start", "End", "Strand", "Length"]
@@ -112,6 +113,87 @@ def _panel_score(gene_counts: pd.DataFrame, sample_cols: list[str]) -> np.ndarra
     return totals.mean(axis=1) * (1.0 + totals.var(axis=1))
 
 
+def filter_by_expr(
+    y: np.ndarray,
+    design: np.ndarray | None = None,
+    group: pd.Series | np.ndarray | list[object] | None = None,
+    lib_size: np.ndarray | None = None,
+    min_count: float = 10,
+    min_total_count: float = 15,
+    large_n: float = 10,
+    min_prop: float = 0.7,
+) -> np.ndarray:
+    """Python implementation of edgeR::filterByExpr.default."""
+    counts = np.asarray(y, dtype=float)
+    if counts.ndim != 2:
+        raise ValueError("y must be a 2-D numeric matrix")
+    if lib_size is None:
+        lib_size = counts.sum(axis=0)
+    lib_size = np.asarray(lib_size, dtype=float)
+
+    if group is None:
+        if design is None:
+            min_sample_size = counts.shape[1]
+        else:
+            design = np.asarray(design, dtype=float)
+            hat_diag = np.diag(design @ np.linalg.pinv(design))
+            max_hat = float(np.max(hat_diag))
+            min_sample_size = 1.0 / max_hat if max_hat > 0 else counts.shape[1]
+    else:
+        group_series = pd.Series(group).astype("category")
+        sizes = group_series.value_counts()
+        positive = sizes[sizes > 0]
+        min_sample_size = float(positive.min()) if len(positive) else counts.shape[1]
+
+    if min_sample_size > large_n:
+        min_sample_size = large_n + (min_sample_size - large_n) * min_prop
+
+    median_lib_size = float(np.median(lib_size))
+    cpm_cutoff = min_count / median_lib_size * 1e6
+    cpm = counts / np.clip(lib_size, 1e-12, None)[None, :] * 1e6
+    tol = 1e-14
+    keep_cpm = (cpm >= cpm_cutoff).sum(axis=1) >= (min_sample_size - tol)
+    keep_total = counts.sum(axis=1) >= (min_total_count - tol)
+    return keep_cpm & keep_total
+
+
+def _standardized_numeric(series: pd.Series) -> np.ndarray:
+    values = series.to_numpy(dtype=float)
+    fill = float(np.nanmean(values)) if np.isnan(values).any() else 0.0
+    values = np.nan_to_num(values, nan=fill)
+    scale = values.std()
+    return (values - values.mean()) / scale if scale > 1e-12 else values - values.mean()
+
+
+def _build_filter_design(sample_df: pd.DataFrame, terms: list[RealDataFilterTerm]) -> np.ndarray | None:
+    if not terms:
+        return None
+    parts = [np.ones((len(sample_df), 1), dtype=float)]
+    for term in terms:
+        if term.column not in sample_df.columns:
+            continue
+        series = sample_df[term.column]
+        if term.kind == "numeric":
+            values = _standardized_numeric(series) if term.standardize else series.to_numpy(dtype=float)
+            parts.append(values[:, None])
+        elif term.kind == "categorical":
+            dummies = pd.get_dummies(series.fillna("missing"), prefix=term.column, drop_first=True, dtype=float)
+            if not dummies.empty:
+                parts.append(dummies.to_numpy(dtype=float))
+        elif term.kind == "natural_spline":
+            try:
+                from patsy import dmatrix
+            except ImportError as exc:  # pragma: no cover
+                raise ImportError("patsy is required for natural_spline real-data filters") from exc
+            values = _standardized_numeric(series) if term.standardize else series.to_numpy(dtype=float)
+            df = int(term.df or 3)
+            basis = dmatrix(f"cr(x, df={df}) - 1", {"x": values}, return_type="dataframe")
+            parts.append(basis.to_numpy(dtype=float))
+        else:
+            raise ValueError(f"Unknown real-data filter term kind: {term.kind!r}")
+    return np.hstack(parts)
+
+
 def _resolve_repo_path(path: Path) -> Path:
     return path if path.is_absolute() else REPO_ROOT / path
 
@@ -127,8 +209,22 @@ def _selection_key(config: RealDataFreezeConfig) -> str:
     return f"caudate_aa_adult_{diagnoses}"
 
 
+def _filter_cache_payload(config: RealDataFreezeConfig) -> dict[str, object]:
+    return {
+        "gene_panel_size": config.gene_panel_size,
+        "filter_min_count": config.filter_min_count,
+        "filter_min_total_count": config.filter_min_total_count,
+        "filter_large_n": config.filter_large_n,
+        "filter_min_prop": config.filter_min_prop,
+        "filter_design_terms": [term.__dict__ for term in config.filter_design_terms],
+    }
+
+
 def _fixture_cache_key(config: RealDataFreezeConfig) -> str:
-    return f"{config.output_name}_genes{config.gene_panel_size}"
+    payload = json.dumps(_filter_cache_payload(config), sort_keys=True)
+    digest = hashlib.sha1(payload.encode("utf-8")).hexdigest()[:10]
+    size = "all" if config.gene_panel_size is None else str(config.gene_panel_size)
+    return f"{config.output_name}_genes{size}_filter{digest}"
 
 
 def _transcript_cache_dir(source_cache_dir: Path) -> Path:
@@ -611,15 +707,31 @@ def freeze_real_dataset(config: RealDataFreezeConfig, suite_dir: Path) -> Path:
     started_at = perf_counter()
     gene_counts, sample_cols = _load_or_cache_gene_projection(config, samples, counts_root, source_cache_dir)
     samples = samples.loc[samples["RNum"].isin(sample_cols)].copy().reset_index(drop=True)
-    ranked_genes = gene_counts.sort_values("panel_score", ascending=False, kind="mergesort")
-    selected_gene_ids = list(ranked_genes["Geneid"].head(config.gene_panel_size))
+    design = _build_filter_design(samples, config.filter_design_terms)
+    keep_expr = filter_by_expr(
+        gene_counts[sample_cols].to_numpy(dtype=float),
+        design=design,
+        lib_size=gene_counts[sample_cols].to_numpy(dtype=float).sum(axis=0),
+        min_count=config.filter_min_count,
+        min_total_count=config.filter_min_total_count,
+        large_n=config.filter_large_n,
+        min_prop=config.filter_min_prop,
+    )
+    expressed_gene_counts = gene_counts.loc[keep_expr].copy()
+    ranked_genes = expressed_gene_counts.sort_values("panel_score", ascending=False, kind="mergesort")
+    selected_gene_ids = (
+        list(ranked_genes["Geneid"])
+        if config.gene_panel_size is None
+        else list(ranked_genes["Geneid"].head(config.gene_panel_size))
+    )
     gene_subset = gene_counts.set_index("Geneid").loc[selected_gene_ids].reset_index()
     selected_genes = set(selected_gene_ids)
     gene_matrix = gene_subset[sample_cols].to_numpy(dtype=float)
     _log_phase(
         "gene-panel",
         started_at,
-        f"gene_rows={len(gene_counts)}, n_selected_genes={len(selected_genes)}, n_samples={len(sample_cols)}",
+        f"gene_rows={len(gene_counts)}, n_expressed_genes={len(expressed_gene_counts)}, "
+        f"n_selected_genes={len(selected_genes)}, n_samples={len(sample_cols)}",
     )
 
     started_at = perf_counter()
@@ -689,6 +801,16 @@ def freeze_real_dataset(config: RealDataFreezeConfig, suite_dir: Path) -> Path:
             "source_cache_dir": str(source_cache_dir),
             "fixture_cache_dir": str(fixture_cache_dir),
             "transcript_cache_metadata": str(_transcript_cache_metadata_path(source_cache_dir)),
+            "filter_by_expr": json.dumps(
+                {
+                    **_filter_cache_payload(config),
+                    "n_input_genes": int(len(gene_counts)),
+                    "n_expressed_genes": int(len(expressed_gene_counts)),
+                    "n_selected_genes": int(len(selected_genes)),
+                    "design_columns": int(0 if design is None else design.shape[1]),
+                },
+                sort_keys=True,
+            ),
         },
         truth_tables=[],
     )

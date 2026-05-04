@@ -121,7 +121,8 @@ def test_gene_driver_table_schema(tmp_path):
     artifact_dir = _write_artifact(tmp_path, modules, feature_scores)
     results = explain_module(artifact_dir, feature_table, feature_meta, module_ids=["M000"])
     df = results["M000"].gene_driver_table
-    assert set(df.columns) == {"gene_id", "r", "pvalue", "qvalue", "n_samples", "missing_fraction"}
+    assert set(df.columns) >= {"gene_id", "r", "pvalue", "qvalue", "n_samples", "missing_fraction"}
+    assert {"feature_id", "feature_type"}.issubset(df.columns)
 
 
 def test_gene_driver_table_only_module_genes(tmp_path):

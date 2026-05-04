@@ -21,7 +21,16 @@ class MatrixSpec(BaseModel):
 class FeatureTableSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    kind: Literal["gene", "transcript", "psi", "junction", "truth_module", "truth_switch"]
+    kind: Literal[
+        "gene",
+        "transcript",
+        "psi",
+        "junction",
+        "truth_module",
+        "truth_switch",
+        "truth_abundance",
+        "truth_channel_role",
+    ]
     filename: str
     n_rows: int = Field(ge=0)
 
@@ -60,7 +69,7 @@ class AssayBundle(BaseModel):
 class FreezeSelectionConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    gene_panel_size: int = Field(gt=0)
+    gene_panel_size: int | None = Field(default=None, gt=0)
     allowed_diagnoses: list[str]
 
     @field_validator("allowed_diagnoses")

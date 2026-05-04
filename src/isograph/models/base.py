@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from isograph.features.channels import feature_sample_columns
+
 
 @dataclass
 class FitArtifacts:
@@ -19,6 +21,45 @@ class FitArtifacts:
     calibration: dict | None = None
     checkpoint_path: Path | None = None
     eigengene_table: pd.DataFrame | None = None
+    module_gene_roles: pd.DataFrame | None = None
+
+
+def _module_feature_subset(feature_scores: pd.DataFrame, genes: pd.Series | list[str]) -> pd.DataFrame:
+    return feature_scores.loc[feature_scores["gene_id"].isin(set(genes))]
+
+
+def _feature_matrix(frame: pd.DataFrame, sample_ids: list[str]) -> np.ndarray:
+    return frame[sample_ids].to_numpy(dtype=float)
+
+
+def _safe_corr(left: np.ndarray, right: np.ndarray) -> float:
+    mask = np.isfinite(left) & np.isfinite(right)
+    if mask.sum() < 2:
+        return 0.0
+    left = left[mask]
+    right = right[mask]
+    if np.std(left) <= 1e-12 or np.std(right) <= 1e-12:
+        return 0.0
+    value = float(np.corrcoef(left, right)[0, 1])
+    return value if np.isfinite(value) else 0.0
+
+
+def _first_component_reference(matrix: np.ndarray) -> np.ndarray:
+    matrix = np.asarray(matrix, dtype=float)
+    if not np.isfinite(matrix).all():
+        row_means = np.nanmean(np.where(np.isfinite(matrix), matrix, np.nan), axis=1)
+        row_means = np.where(np.isfinite(row_means), row_means, 0.0)
+        matrix = np.where(np.isfinite(matrix), matrix, row_means[:, None])
+    if matrix.shape[0] == 1:
+        return matrix[0]
+    centered = matrix - matrix.mean(axis=1, keepdims=True)
+    if np.all(np.std(centered, axis=1) <= 1e-12):
+        return centered.mean(axis=0)
+    try:
+        _, _, vh = np.linalg.svd(centered, full_matrices=False)
+    except np.linalg.LinAlgError:
+        return centered.mean(axis=0)
+    return vh[0]
 
 
 def compute_trait_associations(
@@ -48,8 +89,8 @@ def compute_trait_associations(
     eigengene_rows: dict[str, list] = {}
     for module_id in sorted(module_table["module_id"].unique()):
         genes = module_table.loc[module_table["module_id"] == module_id, "gene_id"]
-        subset = feature_scores.loc[feature_scores["gene_id"].isin(genes)]
-        eigengene = subset.drop(columns=["gene_id"]).to_numpy(dtype=float).mean(axis=0)
+        subset = _module_feature_subset(feature_scores, genes)
+        eigengene = _feature_matrix(subset, sample_ids).mean(axis=0)
         eigengene_rows[module_id] = eigengene.tolist()
         for col in trait_columns:
             if col not in sample_table.columns:
@@ -80,6 +121,83 @@ def compute_trait_associations(
         .rename(columns={"index": "module_id"})
     )
     return pd.DataFrame(rows), eigengene_table
+
+
+def compute_module_gene_roles(
+    module_table: pd.DataFrame,
+    feature_scores: pd.DataFrame,
+    sample_table: pd.DataFrame,
+    min_abs_r: float = 0.2,
+) -> pd.DataFrame:
+    """Classify each module gene by switch/abundance channel participation."""
+    sample_ids = feature_sample_columns(feature_scores)
+    if module_table.empty or not sample_ids:
+        return pd.DataFrame(
+            columns=[
+                "module_id",
+                "gene_id",
+                "module_role",
+                "switch_r",
+                "abundance_r",
+                "switch_abundance_r",
+                "switch_active",
+                "abundance_active",
+            ]
+        )
+
+    rows: list[dict[str, object]] = []
+    for module_id in sorted(module_table["module_id"].unique()):
+        genes = module_table.loc[module_table["module_id"] == module_id, "gene_id"]
+        subset = _module_feature_subset(feature_scores, genes)
+        if subset.empty:
+            continue
+        channel_references: dict[str, np.ndarray] = {}
+        for feature_type, frame in subset.groupby("feature_type"):
+            channel_references[str(feature_type)] = _first_component_reference(
+                _feature_matrix(frame, sample_ids)
+            )
+        for gene_id in sorted(set(genes)):
+            gene_features = subset.loc[subset["gene_id"] == gene_id]
+            channel_r: dict[str, float] = {}
+            channel_values: dict[str, np.ndarray] = {}
+            for feature_type, frame in gene_features.groupby("feature_type"):
+                values = _feature_matrix(frame, sample_ids).mean(axis=0)
+                key = str(feature_type)
+                channel_values[key] = values
+                reference = channel_references.get(key)
+                channel_r[key] = 0.0 if reference is None else _safe_corr(values, reference)
+            switch_r = channel_r.get("switch", np.nan)
+            abundance_r = channel_r.get("abundance", np.nan)
+            switch_abundance_r = np.nan
+            if "switch" in channel_values and "abundance" in channel_values:
+                switch_abundance_r = _safe_corr(channel_values["switch"], channel_values["abundance"])
+            switch_active = bool(np.isfinite(switch_r) and abs(switch_r) >= min_abs_r)
+            abundance_active = bool(np.isfinite(abundance_r) and abs(abundance_r) >= min_abs_r)
+            if switch_active and abundance_active:
+                role = (
+                    "coupled"
+                    if np.isfinite(switch_abundance_r) and switch_abundance_r >= min_abs_r
+                    else "discordant"
+                )
+            elif switch_active:
+                role = "switch_only"
+            elif abundance_active:
+                role = "abundance_only"
+            else:
+                role = "inactive"
+            rows.append(
+                {
+                    "module_id": module_id,
+                    "gene_id": gene_id,
+                    "module_role": role,
+                    "switch_r": switch_r,
+                    "abundance_r": abundance_r,
+                    "switch_abundance_r": switch_abundance_r,
+                    "switch_active": switch_active,
+                    "abundance_active": abundance_active,
+                }
+            )
+    return pd.DataFrame(rows)
 
 
 class NetworkModel:

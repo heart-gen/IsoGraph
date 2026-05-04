@@ -9,9 +9,15 @@ import numpy as np
 import pandas as pd
 from sklearn.covariance import LedoitWolf
 
+from isograph.features.channels import gene_feature_channels, make_feature_scores
 from isograph.features.residualize import build_design_matrix, residualize_rows
-from isograph.features.switch import gene_switch_coordinates
-from isograph.models.base import FitArtifacts, NetworkModel, compute_trait_associations
+from isograph.models.base import (
+    FitArtifacts,
+    NetworkModel,
+    compute_module_gene_roles,
+    compute_trait_associations,
+)
+from isograph.models.multiplex import project_feature_similarity_to_gene_graph
 from isograph.workflow.config import BaselineModelConfig
 
 
@@ -50,31 +56,28 @@ class BaselineNetworkModel(NetworkModel):
         transcript_counts: np.ndarray,
         transcript_table: pd.DataFrame,
         sample_table: pd.DataFrame,
+        gene_counts: np.ndarray | None = None,
+        gene_table: pd.DataFrame | None = None,
     ) -> FitArtifacts:
-        switch_matrix, feature_info = gene_switch_coordinates(transcript_counts, transcript_table)
+        switch_matrix, feature_info = gene_feature_channels(
+            transcript_counts, transcript_table, gene_counts, gene_table
+        )
         if switch_matrix.size:
             design = build_design_matrix(sample_table, self.config.residualize_covariates)
             switch_matrix = residualize_rows(switch_matrix, design)
-        graph = nx.Graph()
-        graph.add_nodes_from(feature_info["gene_id"].tolist())
         partial = self._partial_correlation(switch_matrix)
-        edge_rows = []
-        for i, source in enumerate(feature_info["gene_id"]):
-            for j in range(i + 1, len(feature_info)):
-                weight = float(partial[i, j])
-                if abs(weight) < self.config.alpha:
-                    continue
-                target = feature_info.iloc[j]["gene_id"]
-                graph.add_edge(source, target, weight=weight)
-                edge_rows.append({"source": source, "target": target, "weight": weight})
+        graph, edge_rows = project_feature_similarity_to_gene_graph(
+            partial, feature_info, self.config.alpha
+        )
         module_table = self._module_table(graph)
-        feature_scores = pd.DataFrame(switch_matrix, index=feature_info["gene_id"])
-        feature_scores = feature_scores.reset_index().rename(columns={"index": "gene_id"})
+        feature_scores = make_feature_scores(switch_matrix, feature_info, sample_table)
         trait_table, eigengene_table = self._trait_associations(module_table, feature_scores, sample_table)
+        module_gene_roles = compute_module_gene_roles(module_table, feature_scores, sample_table)
         return FitArtifacts(
             module_table=module_table,
             edge_table=pd.DataFrame(edge_rows),
             trait_table=trait_table,
             feature_scores=feature_scores,
             eigengene_table=eigengene_table,
+            module_gene_roles=module_gene_roles,
         )

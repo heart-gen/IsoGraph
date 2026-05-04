@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from isograph.features.channels import FEATURE_SCORE_METADATA_COLUMNS, feature_sample_columns
+
 
 _REQUIRED_FEATURE_META_COLS = ["feature_id", "gene_id", "feature_type"]
 _OPTIONAL_FEATURE_META_COLS = ["gene_name", "transcript_id", "exon_id", "event_id", "source_coordinate"]
@@ -61,6 +63,12 @@ def load_explain_inputs(
             )
     modules = pd.read_parquet(modules_path)
     feature_scores = pd.read_parquet(scores_path)
+    if "feature_id" not in feature_scores.columns:
+        feature_scores = feature_scores.copy()
+        feature_scores.insert(0, "feature_id", feature_scores["gene_id"].astype(str) + "::switch")
+    if "feature_type" not in feature_scores.columns:
+        insert_at = 2 if "gene_id" in feature_scores.columns else 1
+        feature_scores.insert(insert_at, "feature_type", "switch")
 
     # --- Validate feature_meta ---
     _check_required_columns(feature_meta, _REQUIRED_FEATURE_META_COLS, "feature_meta")
@@ -79,7 +87,7 @@ def load_explain_inputs(
     feature_table = _normalize_sample_index(feature_table.copy(), "feature_table")
 
     # --- Extract sample IDs from feature_scores ---
-    score_sample_ids = [c for c in feature_scores.columns if c != "gene_id"]
+    score_sample_ids = feature_sample_columns(feature_scores)
 
     # --- Sample alignment ---
     overlap = sorted(set(score_sample_ids) & set(feature_table.index.astype(str)))
@@ -105,7 +113,8 @@ def load_explain_inputs(
 
     sample_ids = overlap
     # Align feature_scores columns (keep gene_id + sample_ids in order)
-    feature_scores_aligned = feature_scores[["gene_id"] + sample_ids].copy()
+    metadata_columns = [column for column in FEATURE_SCORE_METADATA_COLUMNS if column in feature_scores.columns]
+    feature_scores_aligned = feature_scores[metadata_columns + sample_ids].copy()
     feature_table_aligned = feature_table.loc[sample_ids].copy()
 
     # --- Resolve module IDs ---

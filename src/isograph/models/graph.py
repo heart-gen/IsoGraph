@@ -19,10 +19,16 @@ from sklearn.decomposition import FactorAnalysis
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.model_selection import KFold
 
-from isograph.features.graph import build_gene_graph, graph_laplacian, laplacian_smooth
+from isograph.features.channels import gene_feature_channels, make_feature_scores
+from isograph.features.graph import graph_laplacian, laplacian_smooth
 from isograph.features.residualize import build_design_matrix, residualize_rows
-from isograph.features.switch import gene_switch_coordinates
-from isograph.models.base import FitArtifacts, NetworkModel, compute_trait_associations
+from isograph.models.base import (
+    FitArtifacts,
+    NetworkModel,
+    compute_module_gene_roles,
+    compute_trait_associations,
+)
+from isograph.models.multiplex import project_feature_similarity_to_gene_graph
 from isograph.workflow.config import GraphModelConfig
 
 _log = logging.getLogger(__name__)
@@ -94,16 +100,20 @@ class GraphNetworkModel(NetworkModel):
         transcript_counts: np.ndarray,
         transcript_table: pd.DataFrame,
         sample_table: pd.DataFrame,
+        gene_counts: np.ndarray | None = None,
+        gene_table: pd.DataFrame | None = None,
     ) -> FitArtifacts:
-        switch_matrix, feature_info = gene_switch_coordinates(transcript_counts, transcript_table)
+        switch_matrix, feature_info = gene_feature_channels(
+            transcript_counts, transcript_table, gene_counts, gene_table
+        )
         if switch_matrix.size:
             design = build_design_matrix(sample_table, self.config.residualize_covariates)
             switch_matrix = residualize_rows(switch_matrix, design)
 
-        n_genes = switch_matrix.shape[0]
-        gene_ids = feature_info["gene_id"].tolist()
+        n_features = switch_matrix.shape[0]
+        feature_ids = feature_info["feature_id"].tolist()
         net_graph = nx.Graph()
-        net_graph.add_nodes_from(gene_ids)
+        net_graph.add_nodes_from(sorted(feature_info["gene_id"].astype(str).unique()))
 
         calibration: dict = {
             "mean_log_likelihood": None,
@@ -112,7 +122,7 @@ class GraphNetworkModel(NetworkModel):
             "n_components_used": 0,
             "n_iter": 0,
             "converged": True,
-            "graph_n_nodes": n_genes,
+            "graph_n_nodes": n_features,
             "graph_n_edges": 0,
             "graph_mean_degree": 0.0,
             "graph_edge_types_used": list(self.config.edge_types),
@@ -122,16 +132,24 @@ class GraphNetworkModel(NetworkModel):
         }
         edge_rows: list[dict] = []
 
-        if n_genes >= 2:
-            # Build gene graph from residualized switch coordinates
-            gene_graph = build_gene_graph(
-                switch_matrix,
-                gene_ids,
-                transcript_table,
-                self.config.edge_types,
-                self.config.corr_threshold,
-            )
-            L = graph_laplacian(gene_graph, gene_ids, self.config.normalized_laplacian)
+        if n_features >= 2:
+            # Build feature-channel graph from residualized feature coordinates.
+            feature_graph = nx.Graph()
+            feature_graph.add_nodes_from(feature_ids)
+            if "corr" in self.config.edge_types and switch_matrix.shape[1] >= 2:
+                corr = np.corrcoef(switch_matrix)
+                np.fill_diagonal(corr, 0.0)
+                rows, cols = np.where(np.abs(corr) >= self.config.corr_threshold)
+                for i, j in zip(rows, cols):
+                    if i < j:
+                        feature_graph.add_edge(feature_ids[i], feature_ids[j], weight=float(abs(corr[i, j])))
+            if "same_gene" in self.config.edge_types:
+                for _, frame in feature_info.groupby("gene_id"):
+                    ids = frame["feature_id"].tolist()
+                    for i, source in enumerate(ids):
+                        for target in ids[i + 1 :]:
+                            feature_graph.add_edge(source, target, weight=1.0)
+            L = graph_laplacian(feature_graph, feature_ids, self.config.normalized_laplacian)
 
             # Apply Laplacian smoothing; gamma=0 returns switch_matrix unchanged
             smoothed = laplacian_smooth(switch_matrix, L, self.config.gamma)
@@ -139,16 +157,16 @@ class GraphNetworkModel(NetworkModel):
                 np.sqrt(np.mean((smoothed - switch_matrix) ** 2))
             ) if self.config.gamma > 0 else 0.0
 
-            degrees = dict(gene_graph.degree())
+            degrees = dict(feature_graph.degree())
             calibration.update({
-                "graph_n_nodes": gene_graph.number_of_nodes(),
-                "graph_n_edges": gene_graph.number_of_edges(),
+                "graph_n_nodes": feature_graph.number_of_nodes(),
+                "graph_n_edges": feature_graph.number_of_edges(),
                 "graph_mean_degree": float(np.mean(list(degrees.values()))),
                 "graph_smoothing_rmse": smoothing_rmse,
             })
 
             # FA on smoothed matrix (same CV-selection logic as Stage 2)
-            X = smoothed.T  # (n_samples, n_genes)
+            X = smoothed.T  # (n_samples, n_features)
             if self.config.n_components_grid:
                 k = _cv_select_n_components(
                     X,
@@ -174,10 +192,10 @@ class GraphNetworkModel(NetworkModel):
                     converged = False
                     _log.warning(
                         "FactorAnalysis did not converge in %d iterations "
-                        "(n_genes=%d, n_samples=%d, n_components=%d). "
+                        "(n_features=%d, n_samples=%d, n_components=%d). "
                         "Consider increasing max_iter or tol.",
                         self.config.max_iter,
-                        n_genes,
+                        n_features,
                         X.shape[0],
                         k,
                     )
@@ -199,19 +217,14 @@ class GraphNetworkModel(NetworkModel):
             })
 
             partial = self._partial_correlation(denoised_switch)
-            for i, source in enumerate(gene_ids):
-                for j in range(i + 1, n_genes):
-                    weight = float(partial[i, j])
-                    if abs(weight) < self.config.alpha:
-                        continue
-                    target = gene_ids[j]
-                    net_graph.add_edge(source, target, weight=weight)
-                    edge_rows.append({"source": source, "target": target, "weight": weight})
+            net_graph, edge_rows = project_feature_similarity_to_gene_graph(
+                partial, feature_info, self.config.alpha
+            )
 
         module_table = self._module_table(net_graph)
-        feature_scores = pd.DataFrame(switch_matrix, index=feature_info["gene_id"])
-        feature_scores = feature_scores.reset_index().rename(columns={"index": "gene_id"})
+        feature_scores = make_feature_scores(switch_matrix, feature_info, sample_table)
         trait_table, eigengene_table = self._trait_associations(module_table, feature_scores, sample_table)
+        module_gene_roles = compute_module_gene_roles(module_table, feature_scores, sample_table)
 
         return FitArtifacts(
             module_table=module_table,
@@ -220,4 +233,5 @@ class GraphNetworkModel(NetworkModel):
             feature_scores=feature_scores,
             calibration=calibration,
             eigengene_table=eigengene_table,
+            module_gene_roles=module_gene_roles,
         )

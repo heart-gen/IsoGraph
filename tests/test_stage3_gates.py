@@ -248,7 +248,7 @@ def test_graph_api_compatibility(tmp_path: Path) -> None:
 
 
 def test_graph_single_isoform_handling(tmp_path: Path) -> None:
-    """A gene with only one transcript is excluded without crashing."""
+    """A gene with one transcript keeps abundance but has no switch channel."""
     n_samples = 30
     rng = np.random.default_rng(0)
 
@@ -278,8 +278,10 @@ def test_graph_single_isoform_handling(tmp_path: Path) -> None:
     )
 
     gene_ids_in_scores = set(artifacts.feature_scores["gene_id"].tolist())
-    assert "GeneB" not in gene_ids_in_scores, "Single-isoform GeneB should be excluded"
+    assert "GeneB" in gene_ids_in_scores
     assert "GeneA" in gene_ids_in_scores, "GeneA (2 transcripts) should be present"
+    gene_b = artifacts.feature_scores.loc[artifacts.feature_scores["gene_id"] == "GeneB"]
+    assert set(gene_b["feature_type"]) == {"abundance"}
 
 
 # ---------------------------------------------------------------------------
