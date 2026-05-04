@@ -21,9 +21,15 @@ from sklearn.decomposition import FactorAnalysis
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.model_selection import KFold
 
+from isograph.features.channels import gene_feature_channels, make_feature_scores
 from isograph.features.residualize import build_design_matrix, residualize_rows
-from isograph.features.switch import gene_switch_coordinates
-from isograph.models.base import FitArtifacts, NetworkModel, compute_trait_associations
+from isograph.models.base import (
+    FitArtifacts,
+    NetworkModel,
+    compute_module_gene_roles,
+    compute_trait_associations,
+)
+from isograph.models.multiplex import project_feature_similarity_to_gene_graph
 from isograph.workflow.config import LatentModelConfig
 
 _log = logging.getLogger(__name__)
@@ -103,15 +109,19 @@ class LatentNetworkModel(NetworkModel):
         transcript_counts: np.ndarray,
         transcript_table: pd.DataFrame,
         sample_table: pd.DataFrame,
+        gene_counts: np.ndarray | None = None,
+        gene_table: pd.DataFrame | None = None,
     ) -> FitArtifacts:
-        switch_matrix, feature_info = gene_switch_coordinates(transcript_counts, transcript_table)
+        switch_matrix, feature_info = gene_feature_channels(
+            transcript_counts, transcript_table, gene_counts, gene_table
+        )
         if switch_matrix.size:
             design = build_design_matrix(sample_table, self.config.residualize_covariates)
             switch_matrix = residualize_rows(switch_matrix, design)
 
-        n_genes = switch_matrix.shape[0]
+        n_features = switch_matrix.shape[0]
         graph = nx.Graph()
-        graph.add_nodes_from(feature_info["gene_id"].tolist())
+        graph.add_nodes_from(sorted(feature_info["gene_id"].astype(str).unique()))
 
         calibration: dict = {
             "mean_log_likelihood": None,
@@ -123,8 +133,8 @@ class LatentNetworkModel(NetworkModel):
         }
         edge_rows: list[dict] = []
 
-        if n_genes >= 2:
-            # X is (n_samples, n_genes) — standard orientation for sklearn
+        if n_features >= 2:
+            # X is (n_samples, n_features) — standard orientation for sklearn
             X = switch_matrix.T
             if self.config.n_components_grid:
                 k = _cv_select_n_components(
@@ -150,10 +160,10 @@ class LatentNetworkModel(NetworkModel):
                     converged = False
                     _log.warning(
                         "FactorAnalysis did not converge in %d iterations "
-                        "(n_genes=%d, n_samples=%d, n_components=%d). "
+                        "(n_features=%d, n_samples=%d, n_components=%d). "
                         "Consider increasing max_iter or tol.",
                         self.config.max_iter,
-                        n_genes,
+                        n_features,
                         X.shape[0],
                         k,
                     )
@@ -176,22 +186,16 @@ class LatentNetworkModel(NetworkModel):
                 "converged": converged,
             }
 
-            # Gene network: partial correlation on FA-denoised switch matrix
+            # Gene network: strongest feature-channel evidence per gene pair
             partial = self._partial_correlation(denoised_switch)
-            gene_ids = feature_info["gene_id"].tolist()
-            for i, source in enumerate(gene_ids):
-                for j in range(i + 1, n_genes):
-                    weight = float(partial[i, j])
-                    if abs(weight) < self.config.alpha:
-                        continue
-                    target = gene_ids[j]
-                    graph.add_edge(source, target, weight=weight)
-                    edge_rows.append({"source": source, "target": target, "weight": weight})
+            graph, edge_rows = project_feature_similarity_to_gene_graph(
+                partial, feature_info, self.config.alpha
+            )
 
         module_table = self._module_table(graph)
-        feature_scores = pd.DataFrame(switch_matrix, index=feature_info["gene_id"])
-        feature_scores = feature_scores.reset_index().rename(columns={"index": "gene_id"})
+        feature_scores = make_feature_scores(switch_matrix, feature_info, sample_table)
         trait_table, eigengene_table = self._trait_associations(module_table, feature_scores, sample_table)
+        module_gene_roles = compute_module_gene_roles(module_table, feature_scores, sample_table)
 
         return FitArtifacts(
             module_table=module_table,
@@ -200,4 +204,5 @@ class LatentNetworkModel(NetworkModel):
             feature_scores=feature_scores,
             calibration=calibration,
             eigengene_table=eigengene_table,
+            module_gene_roles=module_gene_roles,
         )

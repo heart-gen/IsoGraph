@@ -33,6 +33,7 @@ dependencies = [
     "pandas>=2.2,<3",
     "pyarrow>=17,<25",
     "pydantic>=2.8,<3",
+    "patsy>=0.5,<1",
     "PyYAML>=6,<7",
     "matplotlib>=3.5,<4",
     "scikit-learn>=1.5,<2",

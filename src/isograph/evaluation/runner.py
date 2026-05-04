@@ -11,7 +11,11 @@ from time import perf_counter
 
 import pandas as pd
 
-from isograph.benchmarks.synthetic import generate_core_suite, generate_scale_suite
+from isograph.benchmarks.synthetic import (
+    generate_core_suite,
+    generate_multiplex_suite,
+    generate_scale_suite,
+)
 from isograph.evaluation.metrics import calibration_metrics, module_recovery_score
 from isograph.evaluation.selection import stability_selection
 from isograph.evaluation.snapshots import save_snapshot
@@ -34,6 +38,14 @@ from isograph.workflow.config import BenchmarkCommandConfig
 
 _SYNTHETIC_FIXTURES = frozenset({"toy_v1", "medium_v1", "realistic_v1", "realistic_unequal_v1"})
 _SCALE_FIXTURES = frozenset({"xlarge_v1", "xxlarge_v1"})
+_MULTIPLEX_FIXTURES = frozenset(
+    {
+        "toy_multiplex_v1",
+        "medium_multiplex_v1",
+        "noisy_multiplex_v1",
+        "large_multiplex_v1",
+    }
+)
 
 
 def prepare_core_suite(config: BenchmarkCommandConfig) -> list[Path]:
@@ -51,6 +63,15 @@ def prepare_scale_suite(config: BenchmarkCommandConfig) -> list[Path]:
     dataset_root = ensure_dir(config.dataset_root)
     f = config.fixture_filter
     paths: list[Path] = list(generate_scale_suite(dataset_root, config.seed))
+    if f:
+        paths = [p for p in paths if p.name == f]
+    return paths
+
+
+def prepare_multiplex_suite(config: BenchmarkCommandConfig) -> list[Path]:
+    dataset_root = ensure_dir(config.dataset_root)
+    f = config.fixture_filter
+    paths: list[Path] = list(generate_multiplex_suite(dataset_root, config.seed))
     if f:
         paths = [p for p in paths if p.name == f]
     return paths
@@ -86,6 +107,8 @@ def _make_model(config: BenchmarkCommandConfig, dataset_name: str):
 def benchmark(config: BenchmarkCommandConfig) -> dict[str, Path]:
     if config.dataset_suite == "scale_v1":
         paths = prepare_scale_suite(config)
+    elif config.dataset_suite == "multiplex_v1":
+        paths = prepare_multiplex_suite(config)
     else:
         paths = prepare_core_suite(config)
     report_rows = []
@@ -115,6 +138,8 @@ def benchmark(config: BenchmarkCommandConfig) -> dict[str, Path]:
                     transcript_counts=bundle.matrices["transcript_counts"],
                     transcript_table=bundle.feature_tables["transcript"],
                     sample_table=bundle.sample_table,
+                    gene_counts=bundle.matrices.get("gene_counts"),
+                    gene_table=bundle.feature_tables.get("gene"),
                 )
             finally:
                 elapsed = perf_counter() - start
@@ -139,6 +164,8 @@ def benchmark(config: BenchmarkCommandConfig) -> dict[str, Path]:
                     transcript_counts=bundle.matrices["transcript_counts"],
                     transcript_table=bundle.feature_tables["transcript"],
                     sample_table=bundle.sample_table,
+                    gene_counts=bundle.matrices.get("gene_counts"),
+                    gene_table=bundle.feature_tables.get("gene"),
                     alpha_grid=sel_cfg.alpha_grid,
                     n_iterations=sel_cfg.n_iterations,
                     subsample_fraction=sel_cfg.subsample_fraction,

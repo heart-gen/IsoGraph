@@ -132,15 +132,30 @@ class WgcnaModelConfig:
 
 
 @dataclass
+class RealDataFilterTerm:
+    kind: str
+    column: str
+    df: int | None = None
+    standardize: bool = True
+
+
+@dataclass
 class RealDataFreezeConfig:
     counts_root: Path = Path("data/counts")
     annotations_root: Path = Path("data/annotations")
     phenotype_tsv: Path = Path("data/phenotypes.tsv")
     ancestry_tsv: Path = Path("data/ancestry.txt")
     output_name: str = "real_caudate_aa_v1"
-    gene_panel_size: int = 256
+    gene_panel_size: int | None = 256
     allowed_diagnoses: list[str] = field(default_factory=lambda: ["Control", "SCZD"])
     cache_root: Path = Path("benchmarks/cache/real_data")
+    filter_min_count: float = 10.0
+    filter_min_total_count: float = 15.0
+    filter_large_n: float = 10.0
+    filter_min_prop: float = 0.7
+    filter_design_terms: list[RealDataFilterTerm] = field(
+        default_factory=lambda: [RealDataFilterTerm(kind="natural_spline", column="Age", df=3)]
+    )
 
 
 @dataclass

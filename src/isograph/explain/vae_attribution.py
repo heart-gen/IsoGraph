@@ -79,9 +79,22 @@ def compute_decoder_jacobian(
     decoder.load_state_dict(data["decoder"])
     decoder.eval()
 
-    # Build (n_samples × n_genes) input from feature_scores
-    scores_df = feature_scores.set_index("gene_id") if "gene_id" in feature_scores.columns else feature_scores
-    gene_ids: list[str] = list(scores_df.index)
+    # Build (n_samples × n_features) input from feature_scores
+    if "feature_id" in feature_scores.columns:
+        scores_df = feature_scores.set_index("feature_id").drop(columns=[c for c in ("gene_id", "feature_type") if c in feature_scores.columns])
+        feature_ids: list[str] = list(scores_df.index)
+        gene_ids = feature_scores["gene_id"].astype(str).tolist()
+        feature_types = feature_scores.get("feature_type", pd.Series(["switch"] * len(feature_scores))).astype(str).tolist()
+    elif "gene_id" in feature_scores.columns:
+        scores_df = feature_scores.set_index("gene_id")
+        feature_ids = list(scores_df.index)
+        gene_ids = list(scores_df.index)
+        feature_types = ["switch"] * len(scores_df)
+    else:
+        scores_df = feature_scores
+        feature_ids = list(scores_df.index)
+        gene_ids = list(scores_df.index)
+        feature_types = ["switch"] * len(scores_df)
     sample_ids = list(scores_df.columns)
 
     # eigengene must align with sample_ids
@@ -112,6 +125,8 @@ def compute_decoder_jacobian(
     return pd.DataFrame(
         {
             "gene_id": gene_ids,
+            "feature_id": feature_ids,
+            "feature_type": feature_types,
             "decoded_delta": decoded_delta.astype(np.float64),
             "latent_dim_idx": j_star,
             "latent_r": float(latent_r[j_star]),
@@ -145,8 +160,19 @@ def filter_vae_drivers(
             ]
         )
 
+    jacobian_gene = (
+        jacobian_df.assign(_abs_delta=jacobian_df["decoded_delta"].abs())
+        .sort_values("_abs_delta", ascending=False)
+        .drop_duplicates("gene_id", keep="first")
+        .drop(columns=["_abs_delta"])
+    )
+    keep_cols = [
+        column
+        for column in ["gene_id", "feature_id", "feature_type", "decoded_delta", "latent_dim_idx", "latent_r"]
+        if column in jacobian_gene.columns
+    ]
     merged = gene_driver_table[["gene_id", "r", "qvalue"]].merge(
-        jacobian_df[["gene_id", "decoded_delta", "latent_dim_idx", "latent_r"]],
+        jacobian_gene[keep_cols],
         on="gene_id",
         how="left",
     )

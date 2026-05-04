@@ -12,6 +12,7 @@
 | 5 | complete | WGCNA comparison benchmark on simulated data | IsoGraph (best backend) matches or exceeds WGCNA module recovery on `core_v1` synthetic fixtures | Side-by-side recovery table, runtime comparison, manuscript-ready figures | kynon | — |
 | 6 | complete | Large-scale fixtures (xlarge_v1 6k, xxlarge_v1 12k, xxlarge_stress_v1 12k); VAE architecture scaling; WGCNA blockwise upgrade | VAE recovers modules ≥ 0.90 on xlarge and xxlarge fixtures; VAE default backend | Benchmark reports, gate tests locked | kynon | — |
 | 7 | removed | GPU-accelerated FA backend (Woodbury identity + BIC selection) — removed after benchmarking showed poor module recovery (0.089–0.241) vs. VAE (0.960–0.972) with no runtime advantage | N/A — backend removed | N/A | kynon | — |
+| 9 | planned | Multiplex switch/abundance module calibration: channel edge policies, role-aware metrics, tuned configs, and first-class `multiplex_v1` gates | VAE/graph/latent multiplex benchmarks clear role-aware recovery gates without giant-component or edge-density failures | Multiplex benchmark reports, role-specific recall tables, config ablations, WGCNA calibration comparison | kynon | — |
 
 ## Promotion Rule
 
@@ -57,7 +58,8 @@ isograph compare \
 
 Stages 0–6 and 8A–8E are complete. Stage 7 (gpu_latent) was removed. See the Milestone
 Log for details. Stage 8 (module explanation) is complete through sub-stage 8E (Captum
-Integrated Gradients).
+Integrated Gradients). Stage 9 is planned to harden mixed switch/abundance module
+inference and benchmark reporting.
 
 ---
 
@@ -692,6 +694,71 @@ pytest tests/test_stage8a_gates.py -v -m slow
 
 ---
 
+## Stage 9 — Multiplex Switch/Abundance Calibration
+
+### Objective
+
+Make mixed switch/abundance module discovery a first-class, calibrated workflow rather
+than an incidental consequence of adding abundance channels. Stage 9 focuses on the
+remaining gap exposed by `multiplex_v1`: latent/graph models under-include
+abundance-only genes unless the graph becomes dense, while WGCNA can over-include
+abundance genes and fail its own soft-threshold calibration.
+
+### Deliverables
+
+- Configurable channel edge policies for `switch-switch`, `switch-abundance`,
+  `abundance-switch`, and `abundance-abundance` edges.
+- Backend-specific defaults for multiplex channel weights and edge inclusion rules.
+- Role-aware benchmark metrics:
+  - role-specific recall for `switch_only`, `abundance_only`, `coupled`, and `discordant`.
+  - module purity by role and truth module.
+  - edge-density and giant-component penalties.
+  - WGCNA soft-threshold fit warnings in benchmark reports.
+- Tuned `multiplex_v1` configs for VAE, graph, and latent backends.
+- First-class benchmark configs and gates for `multiplex_v1`.
+
+### Recommended Checklist
+
+- [ ] Add typed config fields for channel edge weights and edge-type inclusion policies.
+- [ ] Apply the edge policy consistently across baseline, latent, graph, VAE, and WGCNA projections.
+- [ ] Add role-specific recall, abundance recall, switch recall, module purity, and edge-density metrics.
+- [ ] Include WGCNA soft-threshold diagnostics in benchmark reports and gate warnings.
+- [ ] Add `configs/stage9_multiplex_vae.yaml`.
+- [ ] Add `configs/stage9_multiplex_graph.yaml`.
+- [ ] Add `configs/stage9_multiplex_latent.yaml`.
+- [ ] Tune `n_components`, `alpha`, and channel weights on `toy_multiplex_v1`,
+  `medium_multiplex_v1`, `noisy_multiplex_v1`, and `large_multiplex_v1`.
+- [ ] Lock role-aware gates once the tuned configs are stable.
+
+### Candidate Promotion Gates
+
+- `medium_multiplex_v1` recovery ≥ 0.70 for VAE and graph.
+- `noisy_multiplex_v1` recovery ≥ 0.70 for VAE and graph.
+- `large_multiplex_v1` recovery ≥ 0.80 for VAE.
+- Abundance recall ≥ 0.70 on medium/noisy/large multiplex fixtures for VAE.
+- No fixture has an uncontrolled giant component under the tuned default configs.
+- Benchmark reports include role-specific recall and WGCNA soft-threshold diagnostics.
+
+### Recommended Commands
+
+```bash
+isograph benchmark --config-name stage9_multiplex_vae
+isograph benchmark --config-name stage9_multiplex_graph
+isograph benchmark --config-name stage9_multiplex_latent
+pytest tests/test_multiplex_features.py tests/test_multiplex_synthetic_fixtures.py -v
+```
+
+### Expected Artifacts
+
+- `benchmarks/datasets/multiplex_v1/`
+- `artifacts/reports/stage9_multiplex_vae-benchmark.json`
+- `artifacts/reports/stage9_multiplex_graph-benchmark.json`
+- `artifacts/reports/stage9_multiplex_latent-benchmark.json`
+- `artifacts/reports/stage9-multiplex-role-metrics.json`
+- `artifacts/reports/stage9-multiplex-config-ablation.json`
+
+---
+
 ## Milestone Log
 
 | Date | Stage | Commit | MLflow Run | Benchmark Report | Runtime/Memory | Notes |
@@ -717,3 +784,6 @@ pytest tests/test_stage8a_gates.py -v -m slow
 Stage 7 (gpu_latent) has been removed. See the Stage 7 section above for details.
 VAE (Stage 4/6) is the current recommended default backend.
 Stage 8 (module explanation) is in progress; Stages 8A-8E are complete.
+Stage 9 should be the next development focus before further real-data interpretation:
+calibrate multiplex switch/abundance edge policies, role-aware metrics, and
+`multiplex_v1` benchmark gates.

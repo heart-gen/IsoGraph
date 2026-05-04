@@ -67,8 +67,21 @@ def compute_integrated_gradients(
     encoder.load_state_dict(data["encoder"])
     encoder.eval()
 
-    scores_df = feature_scores.set_index("gene_id") if "gene_id" in feature_scores.columns else feature_scores
-    gene_ids: list[str] = list(scores_df.index)
+    if "feature_id" in feature_scores.columns:
+        scores_df = feature_scores.set_index("feature_id").drop(columns=[c for c in ("gene_id", "feature_type") if c in feature_scores.columns])
+        feature_ids: list[str] = list(scores_df.index)
+        gene_ids = feature_scores["gene_id"].astype(str).tolist()
+        feature_types = feature_scores.get("feature_type", pd.Series(["switch"] * len(feature_scores))).astype(str).tolist()
+    elif "gene_id" in feature_scores.columns:
+        scores_df = feature_scores.set_index("gene_id")
+        feature_ids = list(scores_df.index)
+        gene_ids = list(scores_df.index)
+        feature_types = ["switch"] * len(scores_df)
+    else:
+        scores_df = feature_scores
+        feature_ids = list(scores_df.index)
+        gene_ids = list(scores_df.index)
+        feature_types = ["switch"] * len(scores_df)
     sample_ids = list(scores_df.columns)
 
     if len(eigengene) != len(sample_ids):
@@ -113,6 +126,8 @@ def compute_integrated_gradients(
     return pd.DataFrame(
         {
             "gene_id": gene_ids,
+            "feature_id": feature_ids,
+            "feature_type": feature_types,
             "ig_score": ig_score,
             "ig_score_corrected": ig_score_corrected,
             "ig_score_abs_mean": ig_score_abs_mean,
@@ -151,8 +166,26 @@ def filter_ig_drivers(
             ]
         )
 
+    ig_gene = (
+        ig_df.sort_values("ig_score_abs_mean", ascending=False)
+        .drop_duplicates("gene_id", keep="first")
+    )
+    keep_cols = [
+        column
+        for column in [
+            "gene_id",
+            "feature_id",
+            "feature_type",
+            "ig_score",
+            "ig_score_corrected",
+            "ig_score_abs_mean",
+            "latent_dim_idx",
+            "latent_r",
+        ]
+        if column in ig_gene.columns
+    ]
     merged = gene_driver_table[["gene_id", "r", "qvalue"]].merge(
-        ig_df[["gene_id", "ig_score", "ig_score_corrected", "ig_score_abs_mean", "latent_dim_idx", "latent_r"]],
+        ig_gene[keep_cols],
         on="gene_id",
         how="left",
     )

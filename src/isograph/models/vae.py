@@ -10,9 +10,15 @@ from pathlib import Path
 import networkx as nx
 import numpy as np
 import pandas as pd
+from isograph.features.channels import gene_feature_channels, make_feature_scores
 from isograph.features.residualize import build_design_matrix, residualize_rows
-from isograph.features.switch import gene_switch_coordinates
-from isograph.models.base import FitArtifacts, NetworkModel, compute_trait_associations
+from isograph.models.base import (
+    FitArtifacts,
+    NetworkModel,
+    compute_module_gene_roles,
+    compute_trait_associations,
+)
+from isograph.models.multiplex import project_feature_similarity_to_gene_graph
 from isograph.workflow.config import VaeModelConfig
 
 _log = logging.getLogger(__name__)
@@ -274,21 +280,24 @@ class VaeNetworkModel(NetworkModel):
         transcript_counts: np.ndarray,
         transcript_table: pd.DataFrame,
         sample_table: pd.DataFrame,
+        gene_counts: np.ndarray | None = None,
+        gene_table: pd.DataFrame | None = None,
     ) -> FitArtifacts:
         if not _TORCH_AVAILABLE:
             raise ImportError(
                 "PyTorch is required for the vae backend. Install it with: pip install torch"
             )
 
-        switch_matrix, feature_info = gene_switch_coordinates(transcript_counts, transcript_table)
+        switch_matrix, feature_info = gene_feature_channels(
+            transcript_counts, transcript_table, gene_counts, gene_table
+        )
         if switch_matrix.size:
             design = build_design_matrix(sample_table, self.config.residualize_covariates)
             switch_matrix = residualize_rows(switch_matrix, design)
 
-        n_genes = switch_matrix.shape[0]
-        gene_ids = feature_info["gene_id"].tolist()
+        n_features = switch_matrix.shape[0]
         net_graph = nx.Graph()
-        net_graph.add_nodes_from(gene_ids)
+        net_graph.add_nodes_from(sorted(feature_info["gene_id"].astype(str).unique()))
 
         calibration: dict = {
             "reconstruction_rmse": None,
@@ -309,21 +318,21 @@ class VaeNetworkModel(NetworkModel):
         }
         edge_rows: list[dict] = []
 
-        if n_genes >= 2:
+        if n_features >= 2:
             cfg = self.config
             device = cfg.device or ("cuda" if __import__("torch").cuda.is_available() else "cpu")
             _log.info("VaeNetworkModel using device=%s", device)
             n_samples_total = switch_matrix.shape[1]
-            if cfg.batch_size is None and n_genes > 2000:
+            if cfg.batch_size is None and n_features > 2000:
                 effective_bs = min(64, n_samples_total // 4)
                 _log.info(
-                    "Large-scale input detected (n_genes=%d > 2000): auto-setting "
+                    "Large-scale input detected (n_features=%d > 2000): auto-setting "
                     "batch_size=%d. Set VaeModelConfig(batch_size=<value>) to override.",
-                    n_genes, effective_bs,
+                    n_features, effective_bs,
                 )
                 cfg = dataclasses.replace(cfg, batch_size=effective_bs)
 
-            X_np = switch_matrix.T.astype(np.float32)  # (n_samples, n_genes)
+            X_np = switch_matrix.T.astype(np.float32)  # (n_samples, n_features)
             n_samples = X_np.shape[0]
 
             n_val = max(1, int(n_samples * cfg.val_fraction))
@@ -341,7 +350,7 @@ class VaeNetworkModel(NetworkModel):
 
             for k in k_grid:
                 x_recon_np, cal_partial, enc, dec = _train_single_vae(
-                    X_train, X_val, X_all, X_np, n_genes, cfg, k, device
+                    X_train, X_val, X_all, X_np, n_features, cfg, k, device
                 )
                 grid_rmses.append(cal_partial["reconstruction_rmse"])
                 grid_results.append((x_recon_np, cal_partial, enc, dec))
@@ -370,14 +379,9 @@ class VaeNetworkModel(NetworkModel):
             calibration.update(cal_partial)
 
             partial = self._gene_similarity(x_recon_np)
-            for i, source in enumerate(gene_ids):
-                for j in range(i + 1, n_genes):
-                    weight = float(partial[i, j])
-                    if abs(weight) < cfg.alpha:
-                        continue
-                    target = gene_ids[j]
-                    net_graph.add_edge(source, target, weight=weight)
-                    edge_rows.append({"source": source, "target": target, "weight": weight})
+            net_graph, edge_rows = project_feature_similarity_to_gene_graph(
+                partial, feature_info, cfg.alpha
+            )
 
             if cfg.checkpoint_dir is not None:
                 chk_dir = Path(cfg.checkpoint_dir)
@@ -387,7 +391,10 @@ class VaeNetworkModel(NetworkModel):
                     {
                         "encoder": encoder.state_dict(),
                         "decoder": decoder.state_dict(),
-                        "n_genes": n_genes,
+                        "n_genes": n_features,
+                        "feature_ids": feature_info["feature_id"].astype(str).tolist(),
+                        "gene_ids": feature_info["gene_id"].astype(str).tolist(),
+                        "feature_types": feature_info["feature_type"].astype(str).tolist(),
                         "latent_dim": selected_k,
                         "hidden_dim": cfg.hidden_dim,
                         "n_hidden_layers": cfg.n_hidden_layers,
@@ -397,12 +404,12 @@ class VaeNetworkModel(NetworkModel):
                 _log.info("Saved VAE checkpoint to %s", chk_path)
 
         module_table = self._module_table(net_graph)
-        feature_scores = pd.DataFrame(switch_matrix, index=feature_info["gene_id"])
-        feature_scores = feature_scores.reset_index().rename(columns={"index": "gene_id"})
+        feature_scores = make_feature_scores(switch_matrix, feature_info, sample_table)
         trait_table, eigengene_table = self._trait_associations(module_table, feature_scores, sample_table)
+        module_gene_roles = compute_module_gene_roles(module_table, feature_scores, sample_table)
 
         checkpoint_path: Path | None = None
-        if n_genes >= 2 and self.config.checkpoint_dir is not None:
+        if n_features >= 2 and self.config.checkpoint_dir is not None:
             checkpoint_path = Path(self.config.checkpoint_dir) / "vae_checkpoint.pt"
 
         return FitArtifacts(
@@ -413,6 +420,7 @@ class VaeNetworkModel(NetworkModel):
             calibration=calibration,
             checkpoint_path=checkpoint_path,
             eigengene_table=eigengene_table,
+            module_gene_roles=module_gene_roles,
         )
 
 

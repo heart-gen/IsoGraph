@@ -7,8 +7,9 @@ trait associations, and reproducible benchmark artifacts.
 
 ## Core Capabilities
 
-- Generate and benchmark against the permanent `core_v1` fixture suite and the large-scale
-  `scale_v1` suite (6k–12k genes, 25:1–50:1 genes-to-samples ratios).
+- Generate and benchmark against the permanent `core_v1` fixture suite, the abundance-aware
+  `multiplex_v1` suite, and the large-scale `scale_v1` suite (6k–12k genes,
+  25:1–50:1 genes-to-samples ratios).
 - Freeze the bundled `real_caudate_aa_v1` real-data fixture from local BrainSeq inputs.
 - Fit any backend on a prepared dataset bundle via `isograph fit` (VAE default).
 - Run `baseline`, `latent`, `graph`, `vae`, or `wgcna` backends programmatically or

@@ -39,6 +39,9 @@ Behavior:
 
 - For `dataset_suite: core_v1` — generates the synthetic `core_v1` fixtures as needed and
   freezes the real fixture unless `fixture_filter` targets only synthetic datasets.
+- For `dataset_suite: multiplex_v1` — generates abundance-aware toy, medium, noisy,
+  and large fixtures with explicit `truth_switch`, `truth_abundance`, and
+  `truth_channel_role` tables.
 - For `dataset_suite: scale_v1` — generates `xlarge_v1` (6 000 genes), `xxlarge_v1`
   (12 000 genes), and `xxlarge_stress_v1` (12 000 genes, stressed parameters).
 - Writes per-fixture artifacts under `artifacts/benchmarks/<stage_name>/`.

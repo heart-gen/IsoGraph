@@ -177,6 +177,15 @@ def _nb_counts(
     return rng.poisson(rates).astype(float)
 
 
+def _nb_counts_from_mean(
+    rng: np.random.Generator, mean: np.ndarray, dispersion: float
+) -> np.ndarray:
+    """Negative-binomial counts for a sample-specific mean vector."""
+    safe_mean = np.clip(np.asarray(mean, dtype=float), 1e-6, None)
+    rates = rng.gamma(shape=dispersion, scale=safe_mean / dispersion)
+    return rng.poisson(rates).astype(float)
+
+
 def _dirichlet_props(
     rng: np.random.Generator, alpha: np.ndarray
 ) -> np.ndarray:
@@ -657,6 +666,308 @@ def _generate_nonlinear_dataset(
 # Core suite
 # ---------------------------------------------------------------------------
 
+@dataclass
+class MultiplexDatasetSpec:
+    name: str
+    n_genes: int
+    n_samples: int
+    n_modules: int
+    seed: int
+    role_counts_per_module: dict[str, int] = field(
+        default_factory=lambda: {
+            "switch_only": 6,
+            "abundance_only": 6,
+            "coupled": 6,
+            "discordant": 6,
+        }
+    )
+    count_dispersion: float = 6.0
+    mean_gene_total: float = 300.0
+    confounder_weight: float = 0.25
+    switch_effect: float = 2.4
+    abundance_effect: float = 0.75
+    switching_concentration: float = 35.0
+    stable_concentration: float = 120.0
+    abundance_single_isoform_fraction: float = 0.30
+    background_single_isoform_fraction: float = 0.20
+    dx_effect_range: tuple[float, float] = (0.35, 0.95)
+    age_effect_range: tuple[float, float] = (0.15, 0.45)
+
+
+_MULTIPLEX_ROLES = ("switch_only", "abundance_only", "coupled", "discordant")
+
+
+def _multiplex_module_latent(
+    rng: np.random.Generator,
+    spec: MultiplexDatasetSpec,
+    dx: np.ndarray,
+    age_z: np.ndarray,
+) -> np.ndarray:
+    module_latent = rng.normal(size=(spec.n_modules, spec.n_samples))
+    dx_effects = rng.uniform(*spec.dx_effect_range, spec.n_modules)
+    age_effects = rng.uniform(*spec.age_effect_range, spec.n_modules)
+    z_confound = rng.normal(size=spec.n_samples)
+    module_latent += (dx == "SCZD")[None, :] * dx_effects[:, None]
+    module_latent += age_z[None, :] * age_effects[:, None]
+    module_latent += spec.confounder_weight * z_confound[None, :]
+    module_latent -= module_latent.mean(axis=1, keepdims=True)
+    scale = module_latent.std(axis=1, keepdims=True)
+    return module_latent / np.where(scale > 1e-12, scale, 1.0)
+
+
+def _stable_isoform_props(
+    rng: np.random.Generator,
+    k: int,
+    n_samples: int,
+    concentration: float,
+) -> np.ndarray:
+    if k == 1:
+        return np.ones((1, n_samples), dtype=float)
+    base = rng.dirichlet(np.ones(k) * 3.0)
+    alpha = np.tile(base[:, None], (1, n_samples)) * concentration
+    return _dirichlet_props(rng, alpha)
+
+
+def _switch_isoform_props(
+    rng: np.random.Generator,
+    k: int,
+    latent: np.ndarray,
+    effect: float,
+    concentration: float,
+) -> np.ndarray:
+    p1 = 1.0 / (1.0 + np.exp(-effect * latent))
+    if k == 2:
+        raw = np.stack([p1, 1.0 - p1], axis=0)
+    else:
+        p_rest = (1.0 - p1) / (k - 1)
+        raw = np.vstack([p1[None, :], np.tile(p_rest[None, :], (k - 1, 1))])
+    return _dirichlet_props(rng, raw * concentration)
+
+
+def _generate_multiplex_dataset(
+    spec: MultiplexDatasetSpec, suite_name: str, description: str
+) -> DatasetBundle:
+    rng = np.random.default_rng(spec.seed)
+    sample_ids = [f"S{i:03d}" for i in range(spec.n_samples)]
+    n_ctrl = spec.n_samples // 2
+    dx = np.array(["Control"] * n_ctrl + ["SCZD"] * (spec.n_samples - n_ctrl))
+    age = rng.normal(50, 12, spec.n_samples).clip(25, 85)
+    age_z = (age - age.mean()) / age.std()
+    sex = rng.choice(["F", "M"], size=spec.n_samples)
+    sample_table = pd.DataFrame(
+        {"sample_id": sample_ids, "Dx": dx, "Age": age, "Sex": sex}
+    )
+
+    missing_roles = set(_MULTIPLEX_ROLES) - set(spec.role_counts_per_module)
+    if missing_roles:
+        raise ValueError(f"role_counts_per_module missing roles: {sorted(missing_roles)}")
+    module_gene_count = spec.n_modules * sum(
+        int(spec.role_counts_per_module[role]) for role in _MULTIPLEX_ROLES
+    )
+    if module_gene_count > spec.n_genes:
+        raise ValueError(
+            f"role_counts_per_module assigns {module_gene_count} module genes "
+            f"but n_genes is {spec.n_genes}"
+        )
+
+    gene_ids = [f"G{i:04d}" for i in range(spec.n_genes)]
+    module_latent = _multiplex_module_latent(rng, spec, dx, age_z)
+
+    gene_plan: list[dict[str, object]] = []
+    gene_idx = 0
+    for module_id in range(spec.n_modules):
+        for role in _MULTIPLEX_ROLES:
+            for _ in range(int(spec.role_counts_per_module[role])):
+                gene_plan.append(
+                    {
+                        "gene_id": gene_ids[gene_idx],
+                        "module_id": module_id,
+                        "truth_role": role,
+                    }
+                )
+                gene_idx += 1
+    while gene_idx < spec.n_genes:
+        gene_plan.append(
+            {
+                "gene_id": gene_ids[gene_idx],
+                "module_id": pd.NA,
+                "truth_role": "background",
+            }
+        )
+        gene_idx += 1
+
+    rng.shuffle(gene_plan)
+
+    all_tx_rows: list[dict] = []
+    all_tx_counts: list[np.ndarray] = []
+    gene_counts = np.zeros((spec.n_genes, spec.n_samples), dtype=float)
+    psi = np.zeros((spec.n_genes, spec.n_samples), dtype=float)
+    truth_module_rows: list[dict] = []
+    truth_switch_rows: list[dict] = []
+    truth_abundance_rows: list[dict] = []
+    truth_role_rows: list[dict] = []
+
+    for output_idx, entry in enumerate(gene_plan):
+        gene_id = str(entry["gene_id"])
+        role = str(entry["truth_role"])
+        module_id = entry["module_id"]
+        has_switch = role in {"switch_only", "coupled", "discordant"}
+        has_abundance = role in {"abundance_only", "coupled", "discordant"}
+
+        if has_switch:
+            k = int(rng.choice(_ISOFORM_CHOICES, p=_ISOFORM_PROBS))
+        elif role == "abundance_only" and rng.random() < spec.abundance_single_isoform_fraction:
+            k = 1
+        elif role == "background" and rng.random() < spec.background_single_isoform_fraction:
+            k = 1
+        else:
+            k = int(rng.choice(_ISOFORM_CHOICES, p=_ISOFORM_PROBS))
+
+        base_mean = rng.lognormal(
+            mean=np.log(spec.mean_gene_total) - 0.5 * 0.35**2,
+            sigma=0.35,
+        )
+        if has_abundance:
+            latent = module_latent[int(module_id)]
+            sign = -1.0 if role == "discordant" else 1.0
+            abundance_linear = sign * spec.abundance_effect * latent
+            mean = base_mean * np.exp(abundance_linear)
+        else:
+            mean = np.full(spec.n_samples, base_mean, dtype=float)
+        total = _nb_counts_from_mean(rng, mean, spec.count_dispersion)
+        total = np.maximum(total, k)
+
+        if has_switch:
+            latent = module_latent[int(module_id)]
+            props = _switch_isoform_props(
+                rng,
+                k,
+                latent,
+                spec.switch_effect,
+                spec.switching_concentration,
+            )
+        else:
+            props = _stable_isoform_props(
+                rng,
+                k,
+                spec.n_samples,
+                spec.stable_concentration,
+            )
+
+        tx = np.zeros((k, spec.n_samples), dtype=float)
+        for j in range(k - 1):
+            tx[j] = np.floor(total * props[j])
+        tx[k - 1] = np.maximum(total - tx[: k - 1].sum(axis=0), 0.0)
+        all_tx_counts.append(tx)
+        gene_counts[output_idx] = tx.sum(axis=0)
+        psi[output_idx] = np.clip(tx[0] / np.maximum(gene_counts[output_idx], 1.0), 1e-4, 1 - 1e-4)
+
+        for j in range(k):
+            all_tx_rows.append(
+                {
+                    "transcript_id": f"{gene_id}_T{j + 1}",
+                    "gene_id": gene_id,
+                    "length": 1000 - j * 50,
+                }
+            )
+        if role != "background":
+            truth_module_rows.append({"gene_id": gene_id, "module_id": int(module_id)})
+        truth_switch_rows.append({"gene_id": gene_id, "has_switch": has_switch})
+        truth_abundance_rows.append({"gene_id": gene_id, "has_abundance": has_abundance})
+        truth_role_rows.append(
+            {
+                "gene_id": gene_id,
+                "module_id": module_id,
+                "truth_role": role,
+                "has_switch": has_switch,
+                "has_abundance": has_abundance,
+            }
+        )
+
+    transcript_counts = np.vstack(all_tx_counts)
+    transcript_table = pd.DataFrame(all_tx_rows)
+    gene_table = pd.DataFrame(
+        {
+            "gene_id": [str(entry["gene_id"]) for entry in gene_plan],
+            "chrom": "chrMultiplex",
+            "start": np.arange(spec.n_genes) * 1000,
+            "end": np.arange(spec.n_genes) * 1000 + 500,
+        }
+    )
+    psi_table = pd.DataFrame(
+        {
+            "psi_uid": [f"PSI_{gene_id}" for gene_id in gene_table["gene_id"]],
+            "gene_id": gene_table["gene_id"],
+        }
+    )
+    truth_modules_df = pd.DataFrame(truth_module_rows)
+    truth_switch_df = pd.DataFrame(truth_switch_rows)
+    truth_abundance_df = pd.DataFrame(truth_abundance_rows)
+    truth_role_df = pd.DataFrame(truth_role_rows)
+
+    truth_table_names = [
+        "truth_modules.parquet",
+        "truth_switch.parquet",
+        "truth_abundance.parquet",
+        "truth_channel_role.parquet",
+    ]
+    manifest = DatasetManifest(
+        dataset_name=spec.name,
+        suite_name=suite_name,
+        description=description,
+        sample_table="samples.parquet",
+        feature_tables=[
+            build_feature_spec("gene", "genes.parquet", gene_table),
+            build_feature_spec("transcript", "transcripts.parquet", transcript_table),
+            build_feature_spec("psi", "psi.parquet", psi_table),
+            build_feature_spec("truth_module", "truth_modules.parquet", truth_modules_df),
+            build_feature_spec("truth_switch", "truth_switch.parquet", truth_switch_df),
+            build_feature_spec("truth_abundance", "truth_abundance.parquet", truth_abundance_df),
+            build_feature_spec("truth_channel_role", "truth_channel_role.parquet", truth_role_df),
+        ],
+        matrices=[
+            build_matrix_spec("gene_counts", "gene_counts.npz", gene_counts),
+            build_matrix_spec("transcript_counts", "transcript_counts.npz", transcript_counts),
+            build_matrix_spec("psi", "psi.npz", psi),
+        ],
+        provenance={
+            "generator": "multiplex_v1",
+            "seed": str(spec.seed),
+            "role_counts_per_module": str(spec.role_counts_per_module),
+            "count_dispersion": str(spec.count_dispersion),
+            "confounder_weight": str(spec.confounder_weight),
+            "switch_effect": str(spec.switch_effect),
+            "abundance_effect": str(spec.abundance_effect),
+        },
+        truth_tables=truth_table_names,
+    )
+    truth_tables = {
+        "truth_modules.parquet": truth_modules_df,
+        "truth_switch.parquet": truth_switch_df,
+        "truth_abundance.parquet": truth_abundance_df,
+        "truth_channel_role.parquet": truth_role_df,
+    }
+    return DatasetBundle(
+        manifest=manifest,
+        sample_table=sample_table,
+        feature_tables={
+            "gene": gene_table,
+            "transcript": transcript_table,
+            "psi": psi_table,
+            "truth_module": truth_modules_df,
+            "truth_switch": truth_switch_df,
+            "truth_abundance": truth_abundance_df,
+            "truth_channel_role": truth_role_df,
+        },
+        matrices={
+            "gene_counts": gene_counts,
+            "transcript_counts": transcript_counts,
+            "psi": psi,
+        },
+        truth_tables=truth_tables,
+    )
+
+
 def generate_core_suite(root: Path, seed: int) -> list[Path]:
     suite_dir = root / "core_v1"
 
@@ -847,6 +1158,117 @@ def generate_core_suite(root: Path, seed: int) -> list[Path]:
         save_dataset_bundle(noisy,             suite_dir / "noisy_v1"),
         save_dataset_bundle(large,             suite_dir / "large_v1"),
         save_dataset_bundle(nonlinear,         suite_dir / "nonlinear_v1"),
+    ]
+
+
+def generate_multiplex_suite(root: Path, seed: int) -> list[Path]:
+    """Generate fixtures with explicit switch and gene-abundance truth."""
+    suite_dir = root / "multiplex_v1"
+
+    toy = _generate_multiplex_dataset(
+        MultiplexDatasetSpec(
+            name="toy_multiplex_v1",
+            n_genes=40,
+            n_samples=64,
+            n_modules=2,
+            role_counts_per_module={
+                "switch_only": 5,
+                "abundance_only": 5,
+                "coupled": 5,
+                "discordant": 5,
+            },
+            switch_effect=2.8,
+            abundance_effect=0.9,
+            count_dispersion=4.0,
+            confounder_weight=0.1,
+            seed=seed,
+        ),
+        suite_name="multiplex_v1",
+        description=(
+            "Toy multiplex simulation with switch-only, abundance-only, coupled, "
+            "and discordant genes in each truth module."
+        ),
+    )
+    medium = _generate_multiplex_dataset(
+        MultiplexDatasetSpec(
+            name="medium_multiplex_v1",
+            n_genes=320,
+            n_samples=180,
+            n_modules=6,
+            role_counts_per_module={
+                "switch_only": 8,
+                "abundance_only": 8,
+                "coupled": 8,
+                "discordant": 8,
+            },
+            switch_effect=2.4,
+            abundance_effect=0.75,
+            count_dispersion=6.0,
+            confounder_weight=0.25,
+            seed=seed + 1,
+        ),
+        suite_name="multiplex_v1",
+        description=(
+            "Medium multiplex simulation with mixed module roles and background genes."
+        ),
+    )
+    noisy = _generate_multiplex_dataset(
+        MultiplexDatasetSpec(
+            name="noisy_multiplex_v1",
+            n_genes=360,
+            n_samples=110,
+            n_modules=6,
+            role_counts_per_module={
+                "switch_only": 7,
+                "abundance_only": 7,
+                "coupled": 7,
+                "discordant": 7,
+            },
+            switch_effect=1.8,
+            abundance_effect=0.55,
+            count_dispersion=14.0,
+            confounder_weight=0.55,
+            switching_concentration=18.0,
+            stable_concentration=80.0,
+            dx_effect_range=(0.20, 0.60),
+            age_effect_range=(0.08, 0.25),
+            seed=seed + 2,
+        ),
+        suite_name="multiplex_v1",
+        description=(
+            "Noisy multiplex stress test with weak abundance and switching effects, "
+            "high overdispersion, and many background genes."
+        ),
+    )
+    large = _generate_multiplex_dataset(
+        MultiplexDatasetSpec(
+            name="large_multiplex_v1",
+            n_genes=900,
+            n_samples=140,
+            n_modules=10,
+            role_counts_per_module={
+                "switch_only": 12,
+                "abundance_only": 10,
+                "coupled": 12,
+                "discordant": 10,
+            },
+            switch_effect=2.2,
+            abundance_effect=0.65,
+            count_dispersion=7.0,
+            confounder_weight=0.35,
+            seed=seed + 3,
+        ),
+        suite_name="multiplex_v1",
+        description=(
+            "Large multiplex scale test with mixed switch and abundance truth modules."
+        ),
+    )
+
+    return [
+        save_dataset_bundle(toy, suite_dir / "toy_multiplex_v1"),
+        save_dataset_bundle(medium, suite_dir / "medium_multiplex_v1"),
+        save_dataset_bundle(noisy, suite_dir / "noisy_multiplex_v1"),
+        save_dataset_bundle(large, suite_dir / "large_multiplex_v1"),
     ]
 
 

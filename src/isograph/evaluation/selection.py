@@ -50,6 +50,8 @@ def stability_selection(
     transcript_table: pd.DataFrame,
     sample_table: pd.DataFrame,
     alpha_grid: list[float],
+    gene_counts: np.ndarray | None = None,
+    gene_table: pd.DataFrame | None = None,
     n_iterations: int = 50,
     subsample_fraction: float = 0.8,
     stability_threshold: float = 0.6,
@@ -102,6 +104,8 @@ def stability_selection(
             transcript_counts=transcript_counts,
             transcript_table=transcript_table,
             sample_table=sample_table,
+            gene_counts=gene_counts,
+            gene_table=gene_table,
         )
         k_fixed = probe.calibration["n_components_used"]
         model = type(model)(
@@ -121,6 +125,7 @@ def stability_selection(
             idx_sorted = np.sort(idx)
 
             sub_counts = transcript_counts[:, idx_sorted]
+            sub_gene_counts = gene_counts[:, idx_sorted] if gene_counts is not None else None
             sub_samples = sample_table.iloc[idx_sorted].reset_index(drop=True)
 
             try:
@@ -128,6 +133,8 @@ def stability_selection(
                     transcript_counts=sub_counts,
                     transcript_table=transcript_table,
                     sample_table=sub_samples,
+                    gene_counts=sub_gene_counts,
+                    gene_table=gene_table,
                 )
             except Exception:
                 continue
