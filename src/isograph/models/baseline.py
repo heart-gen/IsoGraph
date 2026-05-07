@@ -17,7 +17,7 @@ from isograph.models.base import (
     compute_module_gene_roles,
     compute_trait_associations,
 )
-from isograph.models.multiplex import project_feature_similarity_to_gene_graph
+from isograph.models.multiplex import project_feature_similarity_to_gene_graph, select_alpha_abundance
 from isograph.workflow.config import BaselineModelConfig
 
 
@@ -66,18 +66,32 @@ class BaselineNetworkModel(NetworkModel):
             design = build_design_matrix(sample_table, self.config.residualize_covariates)
             switch_matrix = residualize_rows(switch_matrix, design)
         partial = self._partial_correlation(switch_matrix)
+        cfg = self.config
+        resolved_alpha_abundance = cfg.alpha_abundance
+        if cfg.alpha_abundance_grid is not None:
+            resolved_alpha_abundance = select_alpha_abundance(
+                partial, feature_info, cfg.alpha, cfg.alpha_abundance_grid,
+                alpha_switch=cfg.alpha_switch,
+            )
         graph, edge_rows = project_feature_similarity_to_gene_graph(
-            partial, feature_info, self.config.alpha
+            partial, feature_info, cfg.alpha,
+            allow_abundance_abundance=cfg.allow_abundance_abundance,
+            alpha_switch=cfg.alpha_switch,
+            alpha_abundance=resolved_alpha_abundance,
         )
         module_table = self._module_table(graph)
         feature_scores = make_feature_scores(switch_matrix, feature_info, sample_table)
         trait_table, eigengene_table = self._trait_associations(module_table, feature_scores, sample_table)
         module_gene_roles = compute_module_gene_roles(module_table, feature_scores, sample_table)
+        calibration: dict | None = None
+        if cfg.allow_abundance_abundance or cfg.alpha_abundance_grid is not None:
+            calibration = {"selected_alpha_abundance": resolved_alpha_abundance}
         return FitArtifacts(
             module_table=module_table,
             edge_table=pd.DataFrame(edge_rows),
             trait_table=trait_table,
             feature_scores=feature_scores,
+            calibration=calibration,
             eigengene_table=eigengene_table,
             module_gene_roles=module_gene_roles,
         )

@@ -25,6 +25,10 @@ class LatentModelConfig:
         default_factory=lambda: ["RIN", "PMI", "mito_mapping_rate", "percent_assigned"]
     )
     trait_columns: list[str] = field(default_factory=lambda: ["Age"])
+    allow_abundance_abundance: bool = False
+    alpha_switch: float | None = None
+    alpha_abundance: float | None = None
+    alpha_abundance_grid: list[float] | None = None
 
 
 @dataclass
@@ -37,6 +41,10 @@ class BaselineModelConfig:
         default_factory=lambda: ["RIN", "PMI", "mito_mapping_rate", "percent_assigned"]
     )
     trait_columns: list[str] = field(default_factory=lambda: ["Age"])
+    allow_abundance_abundance: bool = False
+    alpha_switch: float | None = None
+    alpha_abundance: float | None = None
+    alpha_abundance_grid: list[float] | None = None
 
 
 @dataclass
@@ -59,6 +67,10 @@ class GraphModelConfig:
     edge_types: list[str] = field(default_factory=lambda: ["corr"])
     corr_threshold: float = 0.3
     normalized_laplacian: bool = True
+    allow_abundance_abundance: bool = False
+    alpha_switch: float | None = None
+    alpha_abundance: float | None = None
+    alpha_abundance_grid: list[float] | None = None
 
 
 @dataclass
@@ -112,6 +124,10 @@ class VaeModelConfig:
     )
     trait_columns: list[str] = field(default_factory=lambda: ["Age"])
     checkpoint_dir: Path | None = None
+    allow_abundance_abundance: bool = False
+    alpha_switch: float | None = None
+    alpha_abundance: float | None = None
+    alpha_abundance_grid: list[float] | None = None
 
 
 @dataclass

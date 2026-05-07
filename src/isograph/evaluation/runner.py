@@ -16,7 +16,12 @@ from isograph.benchmarks.synthetic import (
     generate_multiplex_suite,
     generate_scale_suite,
 )
-from isograph.evaluation.metrics import calibration_metrics, module_recovery_score
+from isograph.evaluation.metrics import (
+    calibration_metrics,
+    giant_component_fraction,
+    module_recovery_score,
+    role_aware_recall,
+)
 from isograph.evaluation.selection import stability_selection
 from isograph.evaluation.snapshots import save_snapshot
 from isograph.evaluation.tracking import tracking_run
@@ -155,6 +160,15 @@ def benchmark(config: BenchmarkCommandConfig) -> dict[str, Path]:
             n_modules = 0 if artifacts.module_table.empty else artifacts.module_table["module_id"].nunique()
             n_edges = len(artifacts.edge_table)
 
+            role_recall: dict | None = None
+            giant_frac: float | None = None
+            if config.dataset_suite == "multiplex_v1":
+                truth_role = bundle.truth_tables.get("truth_channel_role.parquet", pd.DataFrame())
+                if not truth_role.empty:
+                    role_recall = role_aware_recall(artifacts.module_table, truth_role)
+                n_genes = len(bundle.feature_tables.get("gene", pd.DataFrame()))
+                giant_frac = giant_component_fraction(artifacts.edge_table, n_genes)
+
             # Stability selection: run only for real-data fixtures (no ground truth).
             recommended_alpha: float | None = None
             if config.run_stability_selection and truth.empty:
@@ -201,18 +215,27 @@ def benchmark(config: BenchmarkCommandConfig) -> dict[str, Path]:
                 dataset_name=dataset_name,
             )
 
-            report_rows.append(
-                {
-                    "dataset": dataset_name,
-                    "n_samples": len(bundle.sample_table),
-                    "n_genes": len(bundle.feature_tables.get("gene", [])),
-                    "n_modules": n_modules,
-                    "n_edges": n_edges,
-                    "recovery": recovery,
-                    "runtime_seconds": elapsed,
-                    "recommended_alpha": recommended_alpha,
-                }
-            )
+            selected_alpha_abundance: float | None = None
+            if artifacts.calibration is not None:
+                selected_alpha_abundance = artifacts.calibration.get("selected_alpha_abundance")
+
+            report_row: dict = {
+                "dataset": dataset_name,
+                "n_samples": len(bundle.sample_table),
+                "n_genes": len(bundle.feature_tables.get("gene", [])),
+                "n_modules": n_modules,
+                "n_edges": n_edges,
+                "recovery": recovery,
+                "runtime_seconds": elapsed,
+                "recommended_alpha": recommended_alpha,
+            }
+            if role_recall is not None:
+                report_row["role_recall"] = role_recall
+            if giant_frac is not None:
+                report_row["giant_component_fraction"] = giant_frac
+            if selected_alpha_abundance is not None:
+                report_row["selected_alpha_abundance"] = selected_alpha_abundance
+            report_rows.append(report_row)
             rt_rows.append(
                 {
                     "dataset": dataset_name,

@@ -1,0 +1,86 @@
+{
+  "backend": "graph",
+  "calibration_by_fixture": [
+    {
+      "converged": true,
+      "fixture": "toy_multiplex_v1",
+      "graph_corr_threshold": 0.3,
+      "graph_edge_types_used": [
+        "corr"
+      ],
+      "graph_gamma": 0.5,
+      "graph_mean_degree": 29.82051282051282,
+      "graph_n_edges": 1163,
+      "graph_n_nodes": 78,
+      "graph_smoothing_rmse": 0.48532584739925855,
+      "mean_log_likelihood": -29.569421325463292,
+      "mean_noise_variance": 0.13201864591382445,
+      "n_components_selected_by": "cv",
+      "n_components_used": 3,
+      "n_iter": 8,
+      "reconstruction_rmse": 0.3569608871265684,
+      "selected_alpha_abundance": 0.05
+    },
+    {
+      "converged": true,
+      "fixture": "medium_multiplex_v1",
+      "graph_corr_threshold": 0.3,
+      "graph_edge_types_used": [
+        "corr"
+      ],
+      "graph_gamma": 0.5,
+      "graph_mean_degree": 30.86189683860233,
+      "graph_n_edges": 9274,
+      "graph_n_nodes": 601,
+      "graph_smoothing_rmse": 0.3617996425020564,
+      "mean_log_likelihood": -195.07253630242735,
+      "mean_noise_variance": 0.18388525852392057,
+      "n_components_selected_by": "cv",
+      "n_components_used": 7,
+      "n_iter": 6,
+      "reconstruction_rmse": 0.4270534803555015,
+      "selected_alpha_abundance": 0.05
+    },
+    {
+      "converged": true,
+      "fixture": "noisy_multiplex_v1",
+      "graph_corr_threshold": 0.3,
+      "graph_edge_types_used": [
+        "corr"
+      ],
+      "graph_gamma": 0.5,
+      "graph_mean_degree": 35.8375939849624,
+      "graph_n_edges": 11916,
+      "graph_n_nodes": 665,
+      "graph_smoothing_rmse": 0.32267689268808125,
+      "mean_log_likelihood": -273.9043481893808,
+      "mean_noise_variance": 0.21873925078952833,
+      "n_components_selected_by": "cv",
+      "n_components_used": 6,
+      "n_iter": 7,
+      "reconstruction_rmse": 0.4664630211371596,
+      "selected_alpha_abundance": 0.05
+    },
+    {
+      "converged": true,
+      "fixture": "large_multiplex_v1",
+      "graph_corr_threshold": 0.3,
+      "graph_edge_types_used": [
+        "corr"
+      ],
+      "graph_gamma": 0.5,
+      "graph_mean_degree": 57.07414104882459,
+      "graph_n_edges": 47343,
+      "graph_n_nodes": 1659,
+      "graph_smoothing_rmse": 0.3459690403688639,
+      "mean_log_likelihood": -557.6565990053163,
+      "mean_noise_variance": 0.20652935979686932,
+      "n_components_selected_by": "cv",
+      "n_components_used": 10,
+      "n_iter": 7,
+      "reconstruction_rmse": 0.4537564687086185,
+      "selected_alpha_abundance": 0.05
+    }
+  ],
+  "stage": "stage9_multiplex_graph"
+}

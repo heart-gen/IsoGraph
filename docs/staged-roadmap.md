@@ -12,7 +12,8 @@
 | 5 | complete | WGCNA comparison benchmark on simulated data | IsoGraph (best backend) matches or exceeds WGCNA module recovery on `core_v1` synthetic fixtures | Side-by-side recovery table, runtime comparison, manuscript-ready figures | kynon | — |
 | 6 | complete | Large-scale fixtures (xlarge_v1 6k, xxlarge_v1 12k, xxlarge_stress_v1 12k); VAE architecture scaling; WGCNA blockwise upgrade | VAE recovers modules ≥ 0.90 on xlarge and xxlarge fixtures; VAE default backend | Benchmark reports, gate tests locked | kynon | — |
 | 7 | removed | GPU-accelerated FA backend (Woodbury identity + BIC selection) — removed after benchmarking showed poor module recovery (0.089–0.241) vs. VAE (0.960–0.972) with no runtime advantage | N/A — backend removed | N/A | kynon | — |
-| 9 | planned | Multiplex switch/abundance module calibration: channel edge policies, role-aware metrics, tuned configs, and first-class `multiplex_v1` gates | VAE/graph/latent multiplex benchmarks clear role-aware recovery gates without giant-component or edge-density failures | Multiplex benchmark reports, role-specific recall tables, config ablations, WGCNA calibration comparison | kynon | — |
+| 9A | complete | Multi-channel (multiplex) module discovery: abundance channel, typed multiplex graph projection, gene role classification (switch_only/abundance_only/coupled/discordant), `multiplex_v1` synthetic suite (4 fixtures), VAE/WGCNA initial benchmark results | VAE multiplex benchmarks run; switch and abundance recall reported; gene role classification working; `multiplex_v1` suite generated | Benchmark results (commit 5e257bc), `multiplex_v1` fixtures, `test_multiplex_features.py` + `test_multiplex_synthetic_fixtures.py` passing | kynon | 5e257bc |
+| 9B | planned | Calibrate multiplex edge policies, role-aware metrics, tuned backend configs, and first-class `multiplex_v1` promotion gates | VAE/graph/latent multiplex benchmarks clear role-aware recovery gates without giant-component or edge-density failures | Multiplex benchmark reports, role-specific recall tables, config ablations, WGCNA calibration comparison | kynon | — |
 
 ## Promotion Rule
 
@@ -56,10 +57,12 @@ isograph compare \
 
 ## Current Status
 
-Stages 0–6 and 8A–8E are complete. Stage 7 (gpu_latent) was removed. See the Milestone
+Stages 0–6, 8A–8E, and 9A are complete. Stage 7 (gpu_latent) was removed. See the Milestone
 Log for details. Stage 8 (module explanation) is complete through sub-stage 8E (Captum
-Integrated Gradients). Stage 9 is planned to harden mixed switch/abundance module
-inference and benchmark reporting.
+Integrated Gradients). Stage 9A (multi-channel module discovery) is complete: abundance and
+switch channels are now first-class features, gene roles are classified, and the `multiplex_v1`
+benchmark suite is operational. Stage 9B is planned to calibrate edge policies, add role-aware
+metrics, and lock promotion gates.
 
 ---
 
@@ -694,49 +697,112 @@ pytest tests/test_stage8a_gates.py -v -m slow
 
 ---
 
-## Stage 9 — Multiplex Switch/Abundance Calibration
+## Stage 9A — Multi-Channel Module Discovery
 
 ### Objective
 
-Make mixed switch/abundance module discovery a first-class, calibrated workflow rather
-than an incidental consequence of adding abundance channels. Stage 9 focuses on the
-remaining gap exposed by `multiplex_v1`: latent/graph models under-include
-abundance-only genes unless the graph becomes dense, while WGCNA can over-include
-abundance genes and fail its own soft-threshold calibration.
+Make gene abundance a first-class feature channel alongside isoform-switch coordinates,
+enabling IsoGraph to discover four distinct module types: switch-dominant, abundance-dominant,
+coupled (both channels correlated), and discordant (channels anti-correlated). Each gene
+contributes switch evidence, abundance evidence, or both, and module inference operates on a
+typed multiplex feature graph rather than collapsing signals into one score.
 
 ### Deliverables
 
-- Configurable channel edge policies for `switch-switch`, `switch-abundance`,
-  `abundance-switch`, and `abundance-abundance` edges.
-- Backend-specific defaults for multiplex channel weights and edge inclusion rules.
-- Role-aware benchmark metrics:
-  - role-specific recall for `switch_only`, `abundance_only`, `coupled`, and `discordant`.
-  - module purity by role and truth module.
-  - edge-density and giant-component penalties.
-  - WGCNA soft-threshold fit warnings in benchmark reports.
-- Tuned `multiplex_v1` configs for VAE, graph, and latent backends.
-- First-class benchmark configs and gates for `multiplex_v1`.
+- Abundance channel construction (`features/channels.py`): log₂(CPM+0.5), z-score normalized;
+  all genes get an abundance channel. Switch channel added only for genes with ≥ 2 transcripts.
+- Typed multiplex graph projection (`models/multiplex.py`): configurable edge policies for
+  switch–switch, switch–abundance, and abundance–abundance edges; best-weight deduplication per
+  gene pair.
+- Gene channel role classification (`models/base.py`): `compute_module_gene_roles()` classifies
+  each module gene as `switch_only`, `abundance_only`, `coupled`, or `discordant` using
+  per-channel eigengene correlations and cross-channel correlation.
+- `multiplex_v1` benchmark suite: 4 fixtures with ground-truth module, switch, abundance, and
+  channel-role tables; generated by `generate_multiplex_suite()`.
+- Benchmark runner integration: `multiplex_v1` dispatched by `prepare_multiplex_suite()`; reports
+  overall recovery, switch recall, and abundance recall per fixture.
+- Stage 8 explain-module compatibility: `gene_driver_table`, VAE decoder attribution, and Captum
+  IG attribution all carry `feature_id` and `feature_type` columns; per-gene deduplication keeps
+  best-scoring channel.
 
 ### Recommended Checklist
 
-- [ ] Add typed config fields for channel edge weights and edge-type inclusion policies.
-- [ ] Apply the edge policy consistently across baseline, latent, graph, VAE, and WGCNA projections.
-- [ ] Add role-specific recall, abundance recall, switch recall, module purity, and edge-density metrics.
-- [ ] Include WGCNA soft-threshold diagnostics in benchmark reports and gate warnings.
-- [ ] Add `configs/stage9_multiplex_vae.yaml`.
+- [x] `gene_feature_channels()` constructs abundance + switch channels with correct shapes.
+- [x] Single-transcript genes receive abundance channel only.
+- [x] `project_feature_similarity_to_gene_graph()` applies channel filtering and deduplication.
+- [x] `compute_module_gene_roles()` correctly classifies coupled vs discordant genes.
+- [x] `multiplex_v1` suite (toy/medium/noisy/large) generates truth tables without errors.
+- [x] Benchmark runner dispatches `multiplex_v1` and reports switch/abundance recall.
+- [x] All backends (baseline, latent, graph, VAE, WGCNA) integrate multi-channel inputs.
+- [x] Stage 8 gate tests (`test_stage8a_gates.py`, `test_stage8e_gates.py`) pass without regression.
+- [x] Multiplex unit tests (`test_multiplex_features.py`, `test_multiplex_synthetic_fixtures.py`) pass.
+
+### Initial Benchmark Results (VAE backend)
+
+| Fixture | Recovery | Switch Recall | Abundance Recall |
+|---------|:--------:|:-------------:|:----------------:|
+| toy_multiplex_v1 | 0.831 | 1.000 | 0.833 |
+| medium_multiplex_v1 | 0.812 | 1.000 | 0.750 |
+| noisy_multiplex_v1 | 0.815 | 1.000 | 0.754 |
+| large_multiplex_v1 | 0.848 | 1.000 | 0.791 |
+
+Switch recall is perfect across all fixtures; abundance recall is 0.75–0.83. The gap is
+structural: `allow_abundance_abundance=False` (the current default) drops all edges between
+two abundance-only genes, leaving abundance-only gene clusters without a connection path unless
+they co-express with switch-active genes. Closing this gap is the primary motivation for Stage 9B.
+
+### Promotion Gate
+
+- [x] Stage 8 gate tests pass without regression.
+- [x] Multiplex unit tests pass.
+- [x] `FitArtifacts.module_gene_roles` populated on all backends.
+- [x] Benchmark runner reports switch/abundance recall in benchmark JSON.
+
+---
+
+## Stage 9B — Multiplex Calibration
+
+### Objective
+
+Close the abundance recall gap exposed by Stage 9A (`allow_abundance_abundance=False` leaves
+abundance-only genes without a module path unless they co-express with switch-active genes).
+Harden multiplex module discovery into a first-class, calibrated workflow by making edge policies
+configurable, implementing role-aware metrics, tuning backend configs, and locking promotion gates.
+
+Stage 9B is organized in three dependency-ordered phases:
+
+### Phase 1 — Edge Policy Configuration (unblocks abundance-only module detection)
+
+- [ ] Add `allow_abundance_abundance: bool` and separate `alpha_switch`, `alpha_abundance` fields
+      to the model config (or a `MultiplexConfig` subconfig).
+- [ ] Propagate config through all backends into `project_feature_similarity_to_gene_graph()`.
+- [ ] Add `configs/stage9_multiplex_vae.yaml` with tuned edge policy and alpha.
 - [ ] Add `configs/stage9_multiplex_graph.yaml`.
 - [ ] Add `configs/stage9_multiplex_latent.yaml`.
-- [ ] Tune `n_components`, `alpha`, and channel weights on `toy_multiplex_v1`,
-  `medium_multiplex_v1`, `noisy_multiplex_v1`, and `large_multiplex_v1`.
-- [ ] Lock role-aware gates once the tuned configs are stable.
+- [ ] Verify that enabling `allow_abundance_abundance=True` improves abundance recall without
+      producing a giant component on noisy fixtures.
+
+### Phase 2 — Role-Aware Metrics
+
+- [ ] Implement `role_aware_recall(predicted_modules, truth_channel_role)` in
+      `evaluation/metrics.py` — returns per-role recall: `switch_only`, `abundance_only`,
+      `coupled`, `discordant`.
+- [ ] Implement `giant_component_fraction(edge_table, n_genes)` — flag if > 0.50.
+- [ ] Add WGCNA soft-threshold fit diagnostic to benchmark runner output.
+- [ ] Report all new metrics in benchmark JSON.
+
+### Phase 3 — Gate Locking
+
+- [ ] Tune `n_components`/`alpha`/channel weights on all four `multiplex_v1` fixtures.
+- [ ] Lock recovery and role-aware recall gates in `tests/test_stage9_gates.py`.
 
 ### Candidate Promotion Gates
 
 - `medium_multiplex_v1` recovery ≥ 0.70 for VAE and graph.
 - `noisy_multiplex_v1` recovery ≥ 0.70 for VAE and graph.
 - `large_multiplex_v1` recovery ≥ 0.80 for VAE.
-- Abundance recall ≥ 0.70 on medium/noisy/large multiplex fixtures for VAE.
-- No fixture has an uncontrolled giant component under the tuned default configs.
+- Abundance recall ≥ 0.70 on medium/noisy/large for VAE.
+- No fixture has an uncontrolled giant component under tuned default configs.
 - Benchmark reports include role-specific recall and WGCNA soft-threshold diagnostics.
 
 ### Recommended Commands
@@ -745,7 +811,7 @@ abundance genes and fail its own soft-threshold calibration.
 isograph benchmark --config-name stage9_multiplex_vae
 isograph benchmark --config-name stage9_multiplex_graph
 isograph benchmark --config-name stage9_multiplex_latent
-pytest tests/test_multiplex_features.py tests/test_multiplex_synthetic_fixtures.py -v
+pytest tests/test_stage9_gates.py -v
 ```
 
 ### Expected Artifacts
@@ -778,12 +844,21 @@ pytest tests/test_multiplex_features.py tests/test_multiplex_synthetic_fixtures.
 | 2026-05-02 | 8A | — | N/A | — | — | Module explanation MVP: explain_module() API, isograph explain-module CLI, gene_driver/transcript_polarity/high_vs_low tables, 28 gate tests + 7 accuracy tests all pass; gene-driver AUC=1.000 and switch_strength AUC=1.000 on realistic_v1 baseline fit |
 | 2026-05-02 | 8D | — | N/A | scripts/eval_stage8d_accuracy.py | attr_time ≤ 0.08s per run | VAE decoder attribution: compute_decoder_jacobian + filter_vae_drivers; 34 gate tests pass; member_auc 0.786–0.984 on linear fixtures; switch_vae=1.000 on realistic/xlarge (vs switch_r=0.758 on xlarge); nonlinear member_auc=0.438 (expected: single-dim perturbation cannot capture distributed nonlinear modules); sign fix: direction-corrected by latent_r sign |
 | 2026-05-03 | 8E | — | N/A | — | — | Captum Integrated Gradients encoder attribution: compute_integrated_gradients; 30 gate tests pass; IG completeness axiom verified; batched IG exploits sample independence in encoder; shared _select_module_latent_dim helper extracted from 8D; torch-explain optional group added to pyproject.toml |
+| 2026-05-04 | 9A | 5e257bc | N/A | — | — | Multi-channel module discovery: abundance channel (log₂ CPM+0.5, z-score), typed multiplex graph projection (switch–switch, switch–abundance, abundance–abundance edge policies), gene role classification (switch_only/abundance_only/coupled/discordant), multiplex_v1 4-fixture suite (toy/medium/noisy/large); VAE results: toy=0.831/sw_r=1.00/ab_r=0.833, medium=0.812/1.00/0.750, noisy=0.815/1.00/0.754, large=0.848/1.00/0.791; Stage 8 gate tests pass without regression |
 
 ## Current Recommendation
 
 Stage 7 (gpu_latent) has been removed. See the Stage 7 section above for details.
 VAE (Stage 4/6) is the current recommended default backend.
-Stage 8 (module explanation) is in progress; Stages 8A-8E are complete.
-Stage 9 should be the next development focus before further real-data interpretation:
-calibrate multiplex switch/abundance edge policies, role-aware metrics, and
-`multiplex_v1` benchmark gates.
+Stage 8 (module explanation) is complete through Stage 8E (Captum Integrated Gradients).
+Stage 9A (multi-channel module discovery) is complete: IsoGraph now infers modules on a typed
+multiplex feature graph combining isoform-switch and abundance channels, and classifies each
+gene's channel role.
+
+Stage 9B is the next development focus:
+- Add configurable edge policies (`allow_abundance_abundance`, per-channel alpha thresholds)
+  to close the abundance recall gap (currently 0.75–0.83 vs switch recall 1.00). The gap
+  arises because abundance-only genes have no path to modules when `allow_abundance_abundance=False`.
+- Implement role-aware recall metrics and giant-component penalty.
+- Create tuned benchmark configs (`stage9_multiplex_{vae,graph,latent}.yaml`).
+- Lock `multiplex_v1` promotion gates in `tests/test_stage9_gates.py`.

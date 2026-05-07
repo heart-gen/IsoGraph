@@ -1,0 +1,26 @@
+{
+  "results": [
+    {
+      "dataset": "toy_multiplex_v1",
+      "peak_memory_bytes": 87114721,
+      "runtime_seconds": 23.553465934935957
+    },
+    {
+      "dataset": "medium_multiplex_v1",
+      "peak_memory_bytes": 9431505,
+      "runtime_seconds": 304.8334504920058
+    },
+    {
+      "dataset": "noisy_multiplex_v1",
+      "peak_memory_bytes": 9016419,
+      "runtime_seconds": 344.37130004982464
+    },
+    {
+      "dataset": "large_multiplex_v1",
+      "peak_memory_bytes": 38280225,
+      "runtime_seconds": 587.7068484809715
+    }
+  ],
+  "stage": "stage9_multiplex_vae",
+  "suite": "multiplex_v1"
+}

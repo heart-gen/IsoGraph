@@ -1,0 +1,36 @@
+# @package _global_
+command: benchmark
+dataset_suite: multiplex_v1
+stage_name: stage9_multiplex_vae
+backend: vae
+seed: 7
+recovery_thresholds: {}    # set after calibration run; see tests/test_stage9_gates.py
+vae:
+  allow_abundance_abundance: true
+  alpha: 0.70
+  alpha_switch: 0.70
+  alpha_abundance_grid: [0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90]
+  latent_dim: 8
+  hidden_dim: 128
+  n_hidden_layers: 2
+  n_epochs: 500
+  beta: 0.5
+  random_state: 7
+  min_module_size: 2
+fixture_vae_overrides:
+  toy_multiplex_v1:
+    latent_dim: 4
+    hidden_dim: 64
+    n_epochs: 500
+  medium_multiplex_v1:
+    latent_dim: 12
+    hidden_dim: 128
+    n_epochs: 500
+  noisy_multiplex_v1:
+    latent_dim: 8
+    hidden_dim: 128
+    n_epochs: 500
+  large_multiplex_v1:
+    latent_dim: 10
+    hidden_dim: 128
+    n_epochs: 500

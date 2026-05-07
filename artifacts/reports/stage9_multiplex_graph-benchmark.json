@@ -1,0 +1,80 @@
+{
+  "backend": "graph",
+  "gate_failures": [],
+  "results": [
+    {
+      "dataset": "toy_multiplex_v1",
+      "giant_component_fraction": 0.8,
+      "n_edges": 245,
+      "n_genes": 40,
+      "n_modules": 1,
+      "n_samples": 64,
+      "recommended_alpha": null,
+      "recovery": 0.4444444444444444,
+      "role_recall": {
+        "abundance_only": 0.2,
+        "coupled": 1.0,
+        "discordant": 1.0,
+        "switch_only": 1.0
+      },
+      "runtime_seconds": 4.141179657075554,
+      "selected_alpha_abundance": 0.05
+    },
+    {
+      "dataset": "medium_multiplex_v1",
+      "giant_component_fraction": 0.0875,
+      "n_edges": 1618,
+      "n_genes": 320,
+      "n_modules": 6,
+      "n_samples": 180,
+      "recommended_alpha": null,
+      "recovery": 0.8020833333333334,
+      "role_recall": {
+        "abundance_only": 0.22916666666666666,
+        "coupled": 1.0,
+        "discordant": 0.9791666666666666,
+        "switch_only": 1.0
+      },
+      "runtime_seconds": 178.22133214678615,
+      "selected_alpha_abundance": 0.05
+    },
+    {
+      "dataset": "noisy_multiplex_v1",
+      "giant_component_fraction": 0.06944444444444445,
+      "n_edges": 1379,
+      "n_genes": 360,
+      "n_modules": 6,
+      "n_samples": 110,
+      "recommended_alpha": null,
+      "recovery": 0.8154761904761904,
+      "role_recall": {
+        "abundance_only": 0.2619047619047619,
+        "coupled": 1.0,
+        "discordant": 1.0,
+        "switch_only": 1.0
+      },
+      "runtime_seconds": 187.98401539004408,
+      "selected_alpha_abundance": 0.05
+    },
+    {
+      "dataset": "large_multiplex_v1",
+      "giant_component_fraction": 0.03777777777777778,
+      "n_edges": 3605,
+      "n_genes": 900,
+      "n_modules": 10,
+      "n_samples": 140,
+      "recommended_alpha": null,
+      "recovery": 0.6749999999999999,
+      "role_recall": {
+        "abundance_only": 0.0,
+        "coupled": 0.9416666666666667,
+        "discordant": 0.81,
+        "switch_only": 0.8583333333333333
+      },
+      "runtime_seconds": 671.9758171089925,
+      "selected_alpha_abundance": 0.05
+    }
+  ],
+  "stage": "stage9_multiplex_graph",
+  "suite": "multiplex_v1"
+}

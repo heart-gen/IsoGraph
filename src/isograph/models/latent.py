@@ -29,7 +29,7 @@ from isograph.models.base import (
     compute_module_gene_roles,
     compute_trait_associations,
 )
-from isograph.models.multiplex import project_feature_similarity_to_gene_graph
+from isograph.models.multiplex import project_feature_similarity_to_gene_graph, select_alpha_abundance
 from isograph.workflow.config import LatentModelConfig
 
 _log = logging.getLogger(__name__)
@@ -188,8 +188,18 @@ class LatentNetworkModel(NetworkModel):
 
             # Gene network: strongest feature-channel evidence per gene pair
             partial = self._partial_correlation(denoised_switch)
+            resolved_alpha_abundance = self.config.alpha_abundance
+            if self.config.alpha_abundance_grid is not None:
+                resolved_alpha_abundance = select_alpha_abundance(
+                    partial, feature_info, self.config.alpha, self.config.alpha_abundance_grid,
+                    alpha_switch=self.config.alpha_switch,
+                )
+                calibration["selected_alpha_abundance"] = resolved_alpha_abundance
             graph, edge_rows = project_feature_similarity_to_gene_graph(
-                partial, feature_info, self.config.alpha
+                partial, feature_info, self.config.alpha,
+                allow_abundance_abundance=self.config.allow_abundance_abundance,
+                alpha_switch=self.config.alpha_switch,
+                alpha_abundance=resolved_alpha_abundance,
             )
 
         module_table = self._module_table(graph)

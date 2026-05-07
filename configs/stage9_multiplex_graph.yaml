@@ -1,0 +1,28 @@
+# @package _global_
+command: benchmark
+dataset_suite: multiplex_v1
+stage_name: stage9_multiplex_graph
+backend: graph
+seed: 7
+recovery_thresholds: {}    # set after calibration run; see tests/test_stage9_gates.py
+graph:
+  allow_abundance_abundance: true
+  alpha: 0.02
+  alpha_switch: 0.02
+  alpha_abundance_grid: [0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
+  n_components: 10
+  min_module_size: 2
+  gamma: 0.5
+  edge_types:
+    - corr
+  corr_threshold: 0.3
+  normalized_laplacian: true
+fixture_graph_overrides:
+  toy_multiplex_v1:
+    n_components: 4
+  medium_multiplex_v1:
+    n_components: 12
+  noisy_multiplex_v1:
+    n_components: 8
+  large_multiplex_v1:
+    n_components: 10
