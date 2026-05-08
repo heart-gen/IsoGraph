@@ -7,7 +7,11 @@ benchmark config or as a Hydra override on the CLI.
 
 `BaselineNetworkModel` is the deterministic regression target. It computes gene-level
 switch coordinates, optionally residualizes covariates, estimates a sparse partial
-correlation network, and extracts modules as connected components.
+correlation network, and extracts modules as connected components. By default, graph
+inference uses switch-channel partial correlations only. Abundance channels are computed
+and stored in `feature_scores` (for trait associations and role classification) but do
+not drive edge selection unless multiplex mode is enabled (`allow_abundance_abundance=True`
+or `alpha_abundance_grid`).
 
 Use it when you want:
 
@@ -18,9 +22,11 @@ Use it when you want:
 ## Latent
 
 `LatentNetworkModel` adds sklearn Factor Analysis denoising before partial-correlation
-network inference. Component count is selected by cross-validated log-likelihood (default)
-or fixed. Also records calibration metrics: held-out log-likelihood, reconstruction RMSE,
-mean noise variance, and convergence status.
+network inference. By default, FA denoising and partial-correlation inference operate on
+switch-only channels; abundance channels are in `feature_scores` but are not included in
+the network computation unless multiplex mode is enabled. Component count is selected by
+cross-validated log-likelihood (default) or fixed. Also records calibration metrics:
+held-out log-likelihood, reconstruction RMSE, mean noise variance, and convergence status.
 
 Use it when you want:
 
@@ -35,7 +41,9 @@ Use it when you want:
 ## Graph
 
 `GraphNetworkModel` extends the latent backend with graph-Laplacian smoothing over a
-gene graph prior to Factor Analysis.
+gene graph prior to Factor Analysis. Like the latent backend, Laplacian smoothing and FA
+operate on switch-only channels by default; set `allow_abundance_abundance=True` or
+`alpha_abundance_grid` to include abundance channels in network computation.
 
 Use it when you want:
 
@@ -90,7 +98,14 @@ The `benchmark` and `fit` commands can both drive all five backends. VAE is the 
 for both. For `fit` with Hydra overrides, append `--` followed by `<backend>.<field>=<value>`
 (e.g. `-- vae.hidden_dim=256`).
 
-All backends support the multiplex edge-policy fields when multiplex channels are present:
-`allow_abundance_abundance`, `alpha_switch`, `alpha_abundance`, `alpha_abundance_grid`.
-The VAE backend supports `vae_checkpoint.pt` saving for decoder and encoder attribution.
-All backends populate `module_gene_roles.parquet` when multiplex channels are detected.
+Linear backends (baseline, latent, graph) default to switch-only channel graph inference.
+Abundance channels are always computed and appear in `feature_scores`, but graph edges are
+inferred from switch partial correlations only unless multiplex mode is active. Set
+`allow_abundance_abundance=True` or `alpha_abundance_grid=[...]` to enable
+abundance-abundance edges; this activates the full multiplex edge-policy (cross-channel
+edges between dual-channel genes are always suppressed).
+
+All backends support the multiplex edge-policy fields: `allow_abundance_abundance`,
+`alpha_switch`, `alpha_abundance`, `alpha_abundance_grid`. The VAE backend supports
+`vae_checkpoint.pt` saving for decoder and encoder attribution. All backends populate
+`module_gene_roles.parquet` with channel role assignments.

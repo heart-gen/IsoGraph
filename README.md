@@ -87,8 +87,12 @@ isograph benchmark --config-name stress_multiplex_xxlarge_wgcna
 ### Step 2 — Fit your own data
 
 IsoGraph expects a prepared dataset bundle with a `manifest.json`, sample metadata,
-feature tables, and count matrices. Providing a `gene_counts` matrix activates the
-abundance channel alongside the isoform-switch channel.
+feature tables, and count matrices. Abundance channels are always computed (from
+`gene_counts` if provided, otherwise summed from `transcript_counts`) and appear in
+`feature_scores` for trait associations and role classification. Linear backends
+(baseline, latent, graph) use switch-only channels for graph edge inference by default;
+set `allow_abundance_abundance=True` or `alpha_abundance_grid=[...]` to enable
+abundance-abundance edges (multiplex mode).
 
 ```bash
 isograph fit \

@@ -61,14 +61,21 @@ Use them as stable entry points and supply Hydra overrides after `--` on the CLI
 
 ## Multiplex-Specific Fields
 
-VAE, graph, and latent configs can enable multiplex edge policies with:
+Linear backends (baseline, latent, graph) and the VAE backend all default to
+**switch-only graph inference**: abundance channels are computed and stored in
+`feature_scores` (trait associations, role classification) but do not drive graph edge
+selection. Enabling any of the fields below activates multiplex mode, where
+abundance-abundance edges can appear in the network.
 
-- `allow_abundance_abundance` — include abundance-abundance edges instead of requiring
-  abundance-only genes to connect through switch-active genes.
-- `alpha_switch` — threshold for switch-switch feature edges.
+- `allow_abundance_abundance` — include abundance-abundance edges between dual-channel
+  genes (those with a switch channel). Cross-channel (switch↔abundance) edges between
+  dual-channel genes are always suppressed regardless of this flag.
+- `alpha_switch` — threshold for switch-switch feature edges (overrides the global `alpha`
+  for switch pairs).
 - `alpha_abundance` — fixed threshold for abundance-abundance feature edges.
-- `alpha_abundance_grid` — optional grid used to select the smallest abundance threshold
-  that avoids merging baseline switch modules.
+- `alpha_abundance_grid` — grid used to auto-select the smallest abundance threshold that
+  avoids merging baseline switch-based modules. Setting this implicitly enables
+  abundance-abundance edges.
 
 For very large multiplex fixtures, prefer a fixed `alpha_abundance` because grid
 selection repeats the O(feature²) graph projection for each candidate threshold.
