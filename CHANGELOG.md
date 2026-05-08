@@ -5,11 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.4] — 2026-05-04
+## [0.1.4] — 2026-05-08
 
 ### Added
 
-- **Multi-channel (multiplex) module discovery** (Stage 9A) — IsoGraph now treats gene
+- **Multi-channel (multiplex) module discovery** (Stage 9A/9B) — IsoGraph now treats gene
   abundance as a distinct feature channel alongside isoform-switch coordinates. Genes with
   multiple isoforms contribute both channels; single-isoform genes contribute abundance only.
   Module inference operates on a typed multiplex feature graph that can express
@@ -26,10 +26,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multiplex benchmark runner integration** — `benchmark()` dispatches `multiplex_v1`
   fixtures and reports switch recall, abundance recall, and overall module recovery per
   fixture and backend.
+- **Calibrated multiplex edge policies** (Stage 9B) — VAE, graph, and latent configs now
+  support `allow_abundance_abundance`, `alpha_switch`, `alpha_abundance`, and
+  `alpha_abundance_grid` so switch and abundance channels can be thresholded separately.
+  Tuned configs are available as `stage9_multiplex_vae`, `stage9_multiplex_graph`, and
+  `stage9_multiplex_latent`.
+- **WGCNA multiplex comparison config and diagnostics** — added `stage9_multiplex_wgcna`
+  and WGCNA calibration reports with selected soft-threshold power, scale-free topology
+  fit R², module count, and unassigned-gene count.
+- **Role-aware recovery metrics** — multiplex benchmark JSON now reports per-role recall
+  for `switch_only`, `abundance_only`, `coupled`, and `discordant` genes, plus
+  giant-component diagnostics.
+- **Multiplex stress reporting scripts** — added `scripts/stress_multiplex_summary.py` for
+  backend-vs-WGCNA summaries and `scripts/stress_multiplex_explain.py` for Stage 8 explain
+  accuracy checks on multiplex artifacts.
+- **Extra-large multiplex stress fixture** — optional `xxlarge_multiplex_v1` fixture
+  generates 12,000 genes, 240 samples, and 16 planted multiplex modules only when explicitly
+  requested. Added `stress_multiplex_xxlarge_vae` and `stress_multiplex_xxlarge_wgcna`
+  configs.
 - **Per-channel attribution in explain-module** — `gene_driver_table`, VAE decoder
   attribution (`vae_drivers.parquet`), and Captum IG attribution (`ig_attributions.parquet`)
   now carry `feature_id` and `feature_type` columns; per-gene deduplication retains the
   channel with the strongest signal.
+- **Configurable WGCNA timeout** — `WgcnaModelConfig.timeout_seconds` supports long-running
+  large multiplex comparisons.
+
+### Changed
+
+- **Stage 8D/8E accuracy scripts are multiplex-aware** — they now use feature-score sample
+  column detection and collapse multiplex feature rows back to gene-level metrics before
+  scoring decoder Jacobian or Integrated Gradients outputs.
+- **Generated artifact policy** — bulky generated benchmark directories and dataset bundles
+  are ignored by git; compact benchmark evidence is retained as JSON under
+  `artifacts/reports/`.
+
+### Benchmarks
+
+- **Standard multiplex stress** — VAE recovers medium/noisy/large multiplex fixtures with
+  recovery `1.0`, `0.9885057471264368`, and `0.9977777777777778` respectively, with
+  role-aware recall `1.0` across all four roles on those fixtures. Graph and latent clear
+  the Stage 9 gates without giant-component failures; WGCNA is retained as the comparison
+  backend.
+- **Explain-module multiplex stress** — Stage 8 explain metrics remain accurate on multiplex
+  artifacts: VAE/graph/latent have `switch_strength_auc=1.0` wherever defined, and WGCNA
+  ranges from `0.993174484983867` to `1.0` across the stress fixtures.
+- **12k multiplex stress** — on `xxlarge_multiplex_v1`, VAE detects the correct `16`
+  modules with recovery `0.9266666666666667`; WGCNA detects `1898` modules with recovery
+  `0.9191666666666665`, indicating severe over-segmentation despite similar recovery.
+
+### Removed
+
+- **Tracked bulky generated artifacts** — previously tracked benchmark payload directories
+  and generated dataset bundles were removed from version control while leaving compact JSON
+  reports trackable.
 
 ---
 

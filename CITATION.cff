@@ -2,15 +2,16 @@ cff-version: 1.2.0
 message: "If you use IsoGraph in your research, please cite the software using the metadata in this file."
 title: "IsoGraph"
 type: software
-version: "0.1.0"
+version: "0.1.4"
 authors:
   - family-names: "Benjamin"
-    given-names: "Kynon J"
+    given-names: "Kynon J. M."
 abstract: "A Python research software package for discovering isoform-switch and splicing modules from bulk RNA-seq by combining gene-local compositional modeling with latent and graph-aware network inference."
 repository-code: "https://github.com/heart-gen/IsoGraph"
 url: "https://isograph.readthedocs.io/en/latest/"
 license: "Apache-2.0"
 license-url: "https://www.apache.org/licenses/LICENSE-2.0"
+doi: "10.5281/zenodo.20007826"
 keywords:
   - bulk RNA-seq
   - splicing

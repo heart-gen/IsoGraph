@@ -27,7 +27,7 @@ IsoGraph uses dataclass-based typed configuration models in
   optional checkpoint output. See the `hidden_dim` docstring for gene-count guidance.
 - `WgcnaModelConfig`
   WGCNA backend wrapping R's `blockwiseModules`. Configures soft-thresholding power,
-  minimum module size, merge cut height, and network type.
+  minimum module size, merge cut height, network type, and subprocess timeout.
 
 ## Real-Data and Stability Configs
 
@@ -48,10 +48,30 @@ The repository ships with these YAML entry points:
 | `configs/stage3_graph.yaml` | `core_v1` | `graph` |
 | `configs/stage4_vae.yaml` | `core_v1` | `vae` |
 | `configs/stage5_wgcna.yaml` | `core_v1` | `wgcna` |
-| `configs/stage6_vae_xlarge.yaml` | `core_v1` | `vae` |
+| `configs/stage6_vae_xlarge.yaml` | `scale_v1` | `vae` |
 | `configs/stage6_scale_comparison_vae.yaml` | `scale_v1` | `vae` |
 | `configs/stage6_scale_comparison_wgcna.yaml` | `scale_v1` | `wgcna` |
+| `configs/stage9_multiplex_vae.yaml` | `multiplex_v1` | `vae` |
+| `configs/stage9_multiplex_graph.yaml` | `multiplex_v1` | `graph` |
+| `configs/stage9_multiplex_latent.yaml` | `multiplex_v1` | `latent` |
+| `configs/stage9_multiplex_wgcna.yaml` | `multiplex_v1` | `wgcna` |
+| `configs/stress_multiplex_xxlarge_vae.yaml` | `multiplex_v1` | `vae` |
+| `configs/stress_multiplex_xxlarge_wgcna.yaml` | `multiplex_v1` | `wgcna` |
 Use them as stable entry points and supply Hydra overrides after `--` on the CLI.
+
+## Multiplex-Specific Fields
+
+VAE, graph, and latent configs can enable multiplex edge policies with:
+
+- `allow_abundance_abundance` — include abundance-abundance edges instead of requiring
+  abundance-only genes to connect through switch-active genes.
+- `alpha_switch` — threshold for switch-switch feature edges.
+- `alpha_abundance` — fixed threshold for abundance-abundance feature edges.
+- `alpha_abundance_grid` — optional grid used to select the smallest abundance threshold
+  that avoids merging baseline switch modules.
+
+For very large multiplex fixtures, prefer a fixed `alpha_abundance` because grid
+selection repeats the O(feature²) graph projection for each candidate threshold.
 
 ## Per-Fixture Overrides
 

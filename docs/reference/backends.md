@@ -47,16 +47,21 @@ Use it when you want:
 
 `VaeNetworkModel` is the default production backend and the most flexible option. It uses
 a variational autoencoder to learn a nonlinear low-dimensional representation of the
-switch-coordinate matrix, then infers modules from Pearson correlations on the decoded
-signal. Supports early stopping, posterior-collapse detection, latent-dimension grid
-search, and optional checkpoint saving.
+feature matrix, then infers modules from Pearson correlations on the decoded signal.
+For multiplex runs, the feature matrix includes abundance and switch channels. Supports
+early stopping, posterior-collapse detection, latent-dimension grid search, and optional
+checkpoint saving.
 
 Use it when you want:
 
 - the best out-of-the-box module recovery on realistic bulk RNA-seq fixtures
 - nonlinear latent representations
 - operation at 6 000–12 000 gene scale (25:1–50:1 genes-to-samples)
-- checkpointed model state
+- multi-channel multiplex discovery: abundance channel (all genes) + switch channel
+  (multi-isoform genes); per-channel thresholds (`alpha_switch`, `alpha_abundance`)
+  with auto-calibration via `alpha_abundance_grid`
+- checkpointed model state (`vae_checkpoint.pt`), required for VAE decoder attribution
+  (`--vae-attribution`) and Captum Integrated Gradients (`--integrated-gradients`)
 
 Requires PyTorch. Install a build appropriate for your CPU/GPU/CUDA stack before
 use. IsoGraph installs `mpmath` for modern SymPy compatibility, but it does not
@@ -66,12 +71,15 @@ install PyTorch automatically.
 
 `WgcnaNetworkModel` wraps R's `WGCNA::blockwiseModules` for direct benchmark comparison.
 For datasets above 5 000 genes the runner uses blockwise mode automatically (avoids full
-O(n²) TOM matrix). Edge tables are populated only in non-blockwise mode.
+O(n²) TOM matrix). Edge tables are populated only in non-blockwise mode. The subprocess
+timeout is configurable through `WgcnaModelConfig.timeout_seconds`.
 
 Use it when you want:
 
 - a standard community comparison baseline
 - signed or unsigned weighted correlation network analysis
+- a baseline comparison for multiplex stress runs, where over-segmentation should be
+  assessed alongside recovery
 
 Requires R with the `WGCNA` package installed and `Rscript` on `PATH`. The backend
 calls R via subprocess — no Python R bridge is needed.
@@ -81,3 +89,8 @@ calls R via subprocess — no Python R bridge is needed.
 The `benchmark` and `fit` commands can both drive all five backends. VAE is the default
 for both. For `fit` with Hydra overrides, append `--` followed by `<backend>.<field>=<value>`
 (e.g. `-- vae.hidden_dim=256`).
+
+All backends support the multiplex edge-policy fields when multiplex channels are present:
+`allow_abundance_abundance`, `alpha_switch`, `alpha_abundance`, `alpha_abundance_grid`.
+The VAE backend supports `vae_checkpoint.pt` saving for decoder and encoder attribution.
+All backends populate `module_gene_roles.parquet` when multiplex channels are detected.

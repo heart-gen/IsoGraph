@@ -16,6 +16,7 @@ quickstart
 usage/cli
 usage/own-data
 usage/explain
+usage/multiplex
 reference/configuration
 reference/artifacts
 reference/backends
