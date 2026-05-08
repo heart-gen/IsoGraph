@@ -1,0 +1,11 @@
+{
+  "results": [
+    {
+      "dataset": "toy_multiplex_v1",
+      "peak_memory_bytes": 2348820,
+      "runtime_seconds": 3.168710970086977
+    }
+  ],
+  "stage": "stress_multiplex_wgcna_smoke",
+  "suite": "multiplex_v1"
+}

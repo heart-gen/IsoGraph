@@ -1,6 +1,0 @@
-{
-  "dataset_name": "medium_v1",
-  "isograph_version": "0.1.0",
-  "model": "gpu_latent_network",
-  "snapshot_name": "stage7_gpu_latent_medium_v1_gpu_latent_v1_seed0007"
-}

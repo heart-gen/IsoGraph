@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from isograph.explain.config import ExplainConfig
+from isograph.features.channels import feature_sample_columns
 
 
 def compute_integrated_gradients(
@@ -67,13 +68,15 @@ def compute_integrated_gradients(
     encoder.load_state_dict(data["encoder"])
     encoder.eval()
 
+    sample_ids = feature_sample_columns(feature_scores)
     if "feature_id" in feature_scores.columns:
-        scores_df = feature_scores.set_index("feature_id").drop(columns=[c for c in ("gene_id", "feature_type") if c in feature_scores.columns])
+        scores_df = feature_scores.set_index("feature_id")[sample_ids]
         feature_ids: list[str] = list(scores_df.index)
         gene_ids = feature_scores["gene_id"].astype(str).tolist()
-        feature_types = feature_scores.get("feature_type", pd.Series(["switch"] * len(feature_scores))).astype(str).tolist()
+        default_types = pd.Series(["switch"] * len(feature_scores))
+        feature_types = feature_scores.get("feature_type", default_types).astype(str).tolist()
     elif "gene_id" in feature_scores.columns:
-        scores_df = feature_scores.set_index("gene_id")
+        scores_df = feature_scores.set_index("gene_id")[sample_ids]
         feature_ids = list(scores_df.index)
         gene_ids = list(scores_df.index)
         feature_types = ["switch"] * len(scores_df)
@@ -82,7 +85,6 @@ def compute_integrated_gradients(
         feature_ids = list(scores_df.index)
         gene_ids = list(scores_df.index)
         feature_types = ["switch"] * len(scores_df)
-    sample_ids = list(scores_df.columns)
 
     if len(eigengene) != len(sample_ids):
         raise ValueError(

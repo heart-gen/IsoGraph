@@ -130,3 +130,10 @@ data/
 
 # Real-data source cache (raw input files, not for version control)
 benchmarks/cache/real_data/sources/
+
+# Generated benchmark datasets and bulky artifacts are reproducible.
+benchmarks/datasets/
+artifacts/**
+!artifacts/
+!artifacts/reports/
+!artifacts/reports/*.json

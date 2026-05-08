@@ -1,0 +1,22 @@
+# @package _global_
+command: benchmark
+dataset_suite: multiplex_v1
+stage_name: stress_multiplex_xxlarge_vae
+backend: vae
+fixture_filter: xxlarge_multiplex_v1
+seed: 7
+recovery_thresholds: {}
+vae:
+  allow_abundance_abundance: true
+  alpha: 0.75
+  alpha_switch: 0.75
+  alpha_abundance: 0.90
+  latent_dim: 16
+  hidden_dim: 512
+  n_hidden_layers: 3
+  n_epochs: 1000
+  batch_size: 64
+  beta: 0.5
+  random_state: 7
+  min_module_size: 2
+fixture_vae_overrides: {}

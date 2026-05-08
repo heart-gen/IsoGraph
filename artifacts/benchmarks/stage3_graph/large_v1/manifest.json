@@ -1,6 +1,0 @@
-{
-  "dataset_name": "large_v1",
-  "isograph_version": "0.1.0",
-  "model": "graph_network",
-  "snapshot_name": "stage3_graph_large_v1_graph_v1_seed0007"
-}

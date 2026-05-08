@@ -1161,7 +1161,7 @@ def generate_core_suite(root: Path, seed: int) -> list[Path]:
     ]
 
 
-def generate_multiplex_suite(root: Path, seed: int) -> list[Path]:
+def generate_multiplex_suite(root: Path, seed: int, *, include_xxlarge: bool = False) -> list[Path]:
     """Generate fixtures with explicit switch and gene-abundance truth."""
     suite_dir = root / "multiplex_v1"
 
@@ -1264,12 +1264,43 @@ def generate_multiplex_suite(root: Path, seed: int) -> list[Path]:
         ),
     )
 
-    return [
+    paths = [
         save_dataset_bundle(toy, suite_dir / "toy_multiplex_v1"),
         save_dataset_bundle(medium, suite_dir / "medium_multiplex_v1"),
         save_dataset_bundle(noisy, suite_dir / "noisy_multiplex_v1"),
         save_dataset_bundle(large, suite_dir / "large_multiplex_v1"),
     ]
+
+    if include_xxlarge:
+        xxlarge = _generate_multiplex_dataset(
+            MultiplexDatasetSpec(
+                name="xxlarge_multiplex_v1",
+                n_genes=12000,
+                n_samples=240,
+                n_modules=16,
+                role_counts_per_module={
+                    "switch_only": 20,
+                    "abundance_only": 20,
+                    "coupled": 20,
+                    "discordant": 15,
+                },
+                switch_effect=2.2,
+                abundance_effect=0.65,
+                count_dispersion=7.0,
+                confounder_weight=0.4,
+                abundance_single_isoform_fraction=0.70,
+                background_single_isoform_fraction=0.98,
+                seed=seed + 9,
+            ),
+            suite_name="multiplex_v1",
+            description=(
+                "Extra-large multiplex stress test: 12 000 genes / 240 samples "
+                "with 16 planted mixed switch and abundance truth modules."
+            ),
+        )
+        paths.append(save_dataset_bundle(xxlarge, suite_dir / "xxlarge_multiplex_v1"))
+
+    return paths
 
 
 def generate_scale_suite(root: Path, seed: int) -> list[Path]:

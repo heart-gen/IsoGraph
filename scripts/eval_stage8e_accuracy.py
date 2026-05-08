@@ -44,6 +44,7 @@ from isograph.benchmarks.synthetic import (
 from isograph.explain.captum_attribution import compute_integrated_gradients
 from isograph.explain.config import ExplainConfig
 from isograph.explain.core import explain_module
+from isograph.features.channels import feature_sample_columns
 from isograph.models.vae import VaeNetworkModel
 from isograph.workflow.config import VaeModelConfig
 
@@ -152,10 +153,10 @@ def _fit_vae_and_write(bundle, artifact_dir: Path):
             transcript_counts=bundle.matrices["transcript_counts"],
             transcript_table=bundle.feature_tables["transcript"],
             sample_table=bundle.sample_table,
-        )
+    )
     fs = artifacts.feature_scores.copy()
-    int_cols = [c for c in fs.columns if c != "gene_id"]
-    fs = fs.rename(columns={old: new for old, new in zip(int_cols, sample_ids)})
+    sample_cols = feature_sample_columns(fs)
+    fs = fs.rename(columns={old: new for old, new in zip(sample_cols, sample_ids)})
     artifacts.module_table.to_parquet(artifact_dir / "modules.parquet", index=False)
     fs.to_parquet(artifact_dir / "feature_scores.parquet", index=False)
     return artifacts.module_table, fs
@@ -167,6 +168,17 @@ def _auc(scores: np.ndarray, labels: np.ndarray) -> float:
         return float("nan")
     count = sum((p > neg).sum() + 0.5 * (p == neg).sum() for p in pos)
     return float(count / (len(pos) * len(neg)))
+
+
+def _collapse_ig_by_gene(ig_df: pd.DataFrame) -> pd.DataFrame:
+    """Keep the strongest attribution row per gene for gene-level metrics."""
+    return (
+        ig_df.assign(_abs_ig=ig_df["ig_score_abs_mean"].abs())
+        .sort_values("_abs_ig", ascending=False)
+        .drop_duplicates("gene_id", keep="first")
+        .drop(columns=["_abs_ig"])
+        .reset_index(drop=True)
+    )
 
 
 # Modules with fewer than this many genes are excluded from member_auc_large.
@@ -227,7 +239,7 @@ def _compute_accuracy(
     r_scores, r_labels = [], []
 
     for module_id, result in explain_results.items():
-        ig_df = ig_maps[module_id].set_index("gene_id")
+        ig_df = _collapse_ig_by_gene(ig_maps[module_id]).set_index("gene_id")
         tbl = result.gene_driver_table
         finite = tbl["r"].notna()
         for _, row in tbl.loc[finite].iterrows():
@@ -246,7 +258,7 @@ def _compute_accuracy(
     member_aucs = []
     member_aucs_large = []
     for module_id, result in explain_results.items():
-        ig_df = ig_maps[module_id]
+        ig_df = _collapse_ig_by_gene(ig_maps[module_id])
         module_genes = set(result.gene_driver_table["gene_id"].tolist())
         labels = np.array([1 if g in module_genes else 0 for g in ig_df["gene_id"]])
         scores = ig_df["ig_score_abs_mean"].values
@@ -261,7 +273,7 @@ def _compute_accuracy(
     # Metric 3: direction-corrected sign agreement via ig_score_corrected
     sign_agreements = []
     for module_id, result in explain_results.items():
-        ig_df = ig_maps[module_id].set_index("gene_id")
+        ig_df = _collapse_ig_by_gene(ig_maps[module_id]).set_index("gene_id")
         tbl = result.gene_driver_table
         finite = tbl["r"].notna()
         for _, row in tbl.loc[finite].iterrows():
@@ -276,7 +288,7 @@ def _compute_accuracy(
     precision_vals = []
     if not all_switch:
         for module_id, result in explain_results.items():
-            ig_df = ig_maps[module_id].set_index("gene_id")
+            ig_df = _collapse_ig_by_gene(ig_maps[module_id]).set_index("gene_id")
             tbl = result.gene_driver_table[result.gene_driver_table["r"].notna()].copy()
             if tbl.empty:
                 continue

@@ -1,0 +1,17 @@
+# @package _global_
+command: benchmark
+dataset_suite: multiplex_v1
+stage_name: stress_multiplex_xxlarge_wgcna
+backend: wgcna
+fixture_filter: xxlarge_multiplex_v1
+seed: 7
+recovery_thresholds: {}
+wgcna:
+  network_type: signed
+  min_module_size: 2
+  sft_r2_threshold: 0.85
+  merge_cut_height: 0.25
+  deep_split: 2
+  random_state: 7
+  timeout_seconds: 3600
+fixture_wgcna_overrides: {}

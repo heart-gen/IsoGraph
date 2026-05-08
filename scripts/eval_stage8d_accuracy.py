@@ -44,6 +44,7 @@ from isograph.benchmarks.synthetic import (
 from isograph.explain.config import ExplainConfig
 from isograph.explain.core import explain_module
 from isograph.explain.vae_attribution import compute_decoder_jacobian
+from isograph.features.channels import feature_sample_columns
 from isograph.models.vae import VaeNetworkModel
 from isograph.workflow.config import VaeModelConfig
 
@@ -154,11 +155,11 @@ def _fit_vae_and_write(bundle, artifact_dir: Path):
             transcript_counts=bundle.matrices["transcript_counts"],
             transcript_table=bundle.feature_tables["transcript"],
             sample_table=bundle.sample_table,
-        )
+    )
     # Rename integer columns to sample IDs
     fs = artifacts.feature_scores.copy()
-    int_cols = [c for c in fs.columns if c != "gene_id"]
-    fs = fs.rename(columns={old: new for old, new in zip(int_cols, sample_ids)})
+    sample_cols = feature_sample_columns(fs)
+    fs = fs.rename(columns={old: new for old, new in zip(sample_cols, sample_ids)})
     artifacts.module_table.to_parquet(artifact_dir / "modules.parquet", index=False)
     fs.to_parquet(artifact_dir / "feature_scores.parquet", index=False)
     return artifacts.module_table, fs
@@ -170,6 +171,17 @@ def _auc(scores: np.ndarray, labels: np.ndarray) -> float:
         return float("nan")
     count = sum((p > neg).sum() + 0.5 * (p == neg).sum() for p in pos)
     return float(count / (len(pos) * len(neg)))
+
+
+def _collapse_decoder_by_gene(jacobian: pd.DataFrame) -> pd.DataFrame:
+    """Keep the strongest attribution row per gene for gene-level metrics."""
+    return (
+        jacobian.assign(_abs_delta=jacobian["decoded_delta"].abs())
+        .sort_values("_abs_delta", ascending=False)
+        .drop_duplicates("gene_id", keep="first")
+        .drop(columns=["_abs_delta"])
+        .reset_index(drop=True)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -231,7 +243,8 @@ def _compute_accuracy(
 
     for module_id, result in explain_results.items():
         jac = jacobians[module_id]
-        jac_idx = jac.set_index("gene_id")["decoded_delta"]
+        jac_gene = _collapse_decoder_by_gene(jac)
+        jac_idx = jac_gene.set_index("gene_id")["decoded_delta"]
         tbl = result.gene_driver_table
         finite = tbl["r"].notna()
         for _, row in tbl.loc[finite].iterrows():
@@ -250,7 +263,7 @@ def _compute_accuracy(
     member_aucs = []
     member_aucs_large = []
     for module_id, result in explain_results.items():
-        jac = jacobians[module_id]
+        jac = _collapse_decoder_by_gene(jacobians[module_id])
         module_genes = set(result.gene_driver_table["gene_id"].tolist())
         labels = np.array([1 if g in module_genes else 0 for g in jac["gene_id"]])
         scores = jac["decoded_delta"].abs().values
@@ -265,7 +278,7 @@ def _compute_accuracy(
     # --- Metric 3: sign agreement (direction-corrected by latent_r sign) ---
     sign_agreements = []
     for module_id, result in explain_results.items():
-        jac = jacobians[module_id].set_index("gene_id")
+        jac = _collapse_decoder_by_gene(jacobians[module_id]).set_index("gene_id")
         tbl = result.gene_driver_table
         finite = tbl["r"].notna()
         for _, row in tbl.loc[finite].iterrows():

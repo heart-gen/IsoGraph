@@ -1,0 +1,80 @@
+{
+  "backend": "vae",
+  "gate_failures": [],
+  "results": [
+    {
+      "dataset": "toy_multiplex_v1",
+      "giant_component_fraction": 1.0,
+      "n_edges": 326,
+      "n_genes": 40,
+      "n_modules": 1,
+      "n_samples": 64,
+      "recommended_alpha": null,
+      "recovery": 0.5,
+      "role_recall": {
+        "abundance_only": 1.0,
+        "coupled": 1.0,
+        "discordant": 1.0,
+        "switch_only": 1.0
+      },
+      "runtime_seconds": 8.592784257838503,
+      "selected_alpha_abundance": 0.9
+    },
+    {
+      "dataset": "medium_multiplex_v1",
+      "giant_component_fraction": 0.1,
+      "n_edges": 2688,
+      "n_genes": 320,
+      "n_modules": 6,
+      "n_samples": 180,
+      "recommended_alpha": null,
+      "recovery": 1.0,
+      "role_recall": {
+        "abundance_only": 1.0,
+        "coupled": 1.0,
+        "discordant": 1.0,
+        "switch_only": 1.0
+      },
+      "runtime_seconds": 120.72093927604146,
+      "selected_alpha_abundance": 0.85
+    },
+    {
+      "dataset": "noisy_multiplex_v1",
+      "giant_component_fraction": 0.08055555555555556,
+      "n_edges": 2071,
+      "n_genes": 360,
+      "n_modules": 6,
+      "n_samples": 110,
+      "recommended_alpha": null,
+      "recovery": 0.9885057471264368,
+      "role_recall": {
+        "abundance_only": 1.0,
+        "coupled": 1.0,
+        "discordant": 1.0,
+        "switch_only": 1.0
+      },
+      "runtime_seconds": 126.65834347298369,
+      "selected_alpha_abundance": 0.8
+    },
+    {
+      "dataset": "large_multiplex_v1",
+      "giant_component_fraction": 0.05,
+      "n_edges": 8659,
+      "n_genes": 900,
+      "n_modules": 10,
+      "n_samples": 140,
+      "recommended_alpha": null,
+      "recovery": 0.9977777777777778,
+      "role_recall": {
+        "abundance_only": 1.0,
+        "coupled": 1.0,
+        "discordant": 1.0,
+        "switch_only": 1.0
+      },
+      "runtime_seconds": 674.3672191759106,
+      "selected_alpha_abundance": 0.75
+    }
+  ],
+  "stage": "stress_multiplex_vae",
+  "suite": "multiplex_v1"
+}

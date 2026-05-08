@@ -1,0 +1,76 @@
+{
+  "backend": "wgcna",
+  "gate_failures": [],
+  "results": [
+    {
+      "dataset": "toy_multiplex_v1",
+      "giant_component_fraction": 1.0,
+      "n_edges": 494,
+      "n_genes": 40,
+      "n_modules": 4,
+      "n_samples": 64,
+      "recommended_alpha": null,
+      "recovery": 0.8095238095238095,
+      "role_recall": {
+        "abundance_only": 1.0,
+        "coupled": 1.0,
+        "discordant": 0.6,
+        "switch_only": 0.8
+      },
+      "runtime_seconds": 2.9204310211353004
+    },
+    {
+      "dataset": "medium_multiplex_v1",
+      "giant_component_fraction": 1.0,
+      "n_edges": 178532,
+      "n_genes": 320,
+      "n_modules": 10,
+      "n_samples": 180,
+      "recommended_alpha": null,
+      "recovery": 0.7861912393162394,
+      "role_recall": {
+        "abundance_only": 0.8333333333333334,
+        "coupled": 0.8333333333333334,
+        "discordant": 0.8541666666666666,
+        "switch_only": 0.8125
+      },
+      "runtime_seconds": 20.949869077885523
+    },
+    {
+      "dataset": "noisy_multiplex_v1",
+      "giant_component_fraction": 0.07777777777777778,
+      "n_edges": 2866,
+      "n_genes": 360,
+      "n_modules": 12,
+      "n_samples": 110,
+      "recommended_alpha": null,
+      "recovery": 0.9047619047619047,
+      "role_recall": {
+        "abundance_only": 1.0,
+        "coupled": 1.0,
+        "discordant": 0.7619047619047619,
+        "switch_only": 0.8571428571428571
+      },
+      "runtime_seconds": 4.606458507943898
+    },
+    {
+      "dataset": "large_multiplex_v1",
+      "giant_component_fraction": 0.04888888888888889,
+      "n_edges": 13136,
+      "n_genes": 900,
+      "n_modules": 20,
+      "n_samples": 140,
+      "recommended_alpha": null,
+      "recovery": 0.5426576067189612,
+      "role_recall": {
+        "abundance_only": 1.0,
+        "coupled": 1.0,
+        "discordant": 0.77,
+        "switch_only": 0.7666666666666667
+      },
+      "runtime_seconds": 12.02169038914144
+    }
+  ],
+  "stage": "stress_multiplex_wgcna",
+  "suite": "multiplex_v1"
+}

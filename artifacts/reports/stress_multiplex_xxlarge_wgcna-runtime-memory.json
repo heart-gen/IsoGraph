@@ -1,0 +1,11 @@
+{
+  "results": [
+    {
+      "dataset": "xxlarge_multiplex_v1",
+      "peak_memory_bytes": 117846986,
+      "runtime_seconds": 877.2644422741141
+    }
+  ],
+  "stage": "stress_multiplex_xxlarge_wgcna",
+  "suite": "multiplex_v1"
+}

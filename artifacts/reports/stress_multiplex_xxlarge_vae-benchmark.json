@@ -1,0 +1,25 @@
+{
+  "backend": "vae",
+  "gate_failures": [],
+  "results": [
+    {
+      "dataset": "xxlarge_multiplex_v1",
+      "giant_component_fraction": 0.006083333333333333,
+      "n_edges": 36518,
+      "n_genes": 12000,
+      "n_modules": 16,
+      "n_samples": 240,
+      "recommended_alpha": null,
+      "recovery": 0.9266666666666667,
+      "role_recall": {
+        "abundance_only": 0.725,
+        "coupled": 1.0,
+        "discordant": 1.0,
+        "switch_only": 1.0
+      },
+      "runtime_seconds": 7554.699150358792
+    }
+  ],
+  "stage": "stress_multiplex_xxlarge_vae",
+  "suite": "multiplex_v1"
+}
