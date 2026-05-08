@@ -1,0 +1,41 @@
+{
+  "backend": "vae",
+  "calibration_by_fixture": [
+    {
+      "converged": false,
+      "fixture": "xxlarge_multiplex_v1",
+      "reconstruction_rmse": 0.4888496696949005,
+      "vae_best_epoch": 999,
+      "vae_beta_used": 0.5,
+      "vae_collapsed_dim_indices": [],
+      "vae_early_stopped": false,
+      "vae_final_elbo": 15503.9140625,
+      "vae_final_kl_loss": 100.43093872070312,
+      "vae_final_recon_loss": 15453.6982421875,
+      "vae_latent_dim": 16,
+      "vae_mean_kl": 406.9187927246094,
+      "vae_n_collapsed_dims": 0,
+      "vae_n_epochs_trained": 1000,
+      "vae_per_dim_kl": [
+        482.20550537109375,
+        417.67169189453125,
+        393.5181884765625,
+        266.1703796386719,
+        280.3990173339844,
+        269.0670166015625,
+        381.8383483886719,
+        435.35101318359375,
+        345.7059326171875,
+        882.0826416015625,
+        462.6195983886719,
+        489.9172058105469,
+        376.23126220703125,
+        294.3100280761719,
+        318.1184997558594,
+        415.4942626953125
+      ],
+      "vae_posterior_collapse": false
+    }
+  ],
+  "stage": "stress_multiplex_xxlarge_vae"
+}

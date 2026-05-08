@@ -1,0 +1,25 @@
+{
+  "backend": "wgcna",
+  "gate_failures": [],
+  "results": [
+    {
+      "dataset": "xxlarge_multiplex_v1",
+      "giant_component_fraction": 0.0,
+      "n_edges": 0,
+      "n_genes": 12000,
+      "n_modules": 1898,
+      "n_samples": 240,
+      "recommended_alpha": null,
+      "recovery": 0.9191666666666665,
+      "role_recall": {
+        "abundance_only": 1.0,
+        "coupled": 1.0,
+        "discordant": 0.8333333333333334,
+        "switch_only": 0.821875
+      },
+      "runtime_seconds": 877.2644422741141
+    }
+  ],
+  "stage": "stress_multiplex_xxlarge_wgcna",
+  "suite": "multiplex_v1"
+}

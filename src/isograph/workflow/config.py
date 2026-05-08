@@ -141,6 +141,7 @@ class WgcnaModelConfig:
     deep_split: int = 2
     network_type: str = "signed"
     random_state: int = 0
+    timeout_seconds: int = 600
     trait_columns: list[str] = field(default_factory=lambda: ["Age"])
     residualize_covariates: list[str] = field(
         default_factory=lambda: ["RIN", "PMI", "mito_mapping_rate", "percent_assigned"]

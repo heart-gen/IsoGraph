@@ -84,7 +84,7 @@ class WgcnaNetworkModel(NetworkModel):
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=600,
+                timeout=self.config.timeout_seconds,
             )
             if proc.returncode != 0:
                 raise RuntimeError(

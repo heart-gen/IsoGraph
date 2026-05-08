@@ -49,6 +49,7 @@ _MULTIPLEX_FIXTURES = frozenset(
         "medium_multiplex_v1",
         "noisy_multiplex_v1",
         "large_multiplex_v1",
+        "xxlarge_multiplex_v1",
     }
 )
 
@@ -76,7 +77,13 @@ def prepare_scale_suite(config: BenchmarkCommandConfig) -> list[Path]:
 def prepare_multiplex_suite(config: BenchmarkCommandConfig) -> list[Path]:
     dataset_root = ensure_dir(config.dataset_root)
     f = config.fixture_filter
-    paths: list[Path] = list(generate_multiplex_suite(dataset_root, config.seed))
+    paths: list[Path] = list(
+        generate_multiplex_suite(
+            dataset_root,
+            config.seed,
+            include_xxlarge=f == "xxlarge_multiplex_v1",
+        )
+    )
     if f:
         paths = [p for p in paths if p.name == f]
     return paths

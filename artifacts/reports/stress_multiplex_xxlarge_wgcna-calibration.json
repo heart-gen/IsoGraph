@@ -1,0 +1,15 @@
+{
+  "backend": "wgcna",
+  "calibration_by_fixture": [
+    {
+      "fixture": "xxlarge_multiplex_v1",
+      "wgcna_merge_cut_height": 0.25,
+      "wgcna_n_modules": 1898,
+      "wgcna_n_unassigned_genes": 5015,
+      "wgcna_network_type": "signed",
+      "wgcna_sft_r2": 0.48460085,
+      "wgcna_soft_threshold_power": 3
+    }
+  ],
+  "stage": "stress_multiplex_xxlarge_wgcna"
+}

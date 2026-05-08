@@ -1,6 +1,0 @@
-{
-  "dataset_name": "xlarge_v1",
-  "isograph_version": "0.1.0",
-  "model": "vae_network",
-  "snapshot_name": "stage6_scale_comparison_vae_xlarge_v1_vae_v1_seed0007"
-}

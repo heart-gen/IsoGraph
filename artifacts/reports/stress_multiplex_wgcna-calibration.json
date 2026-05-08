@@ -1,0 +1,42 @@
+{
+  "backend": "wgcna",
+  "calibration_by_fixture": [
+    {
+      "fixture": "toy_multiplex_v1",
+      "wgcna_merge_cut_height": 0.25,
+      "wgcna_n_modules": 4,
+      "wgcna_n_unassigned_genes": 0,
+      "wgcna_network_type": "signed",
+      "wgcna_sft_r2": 0.08648386,
+      "wgcna_soft_threshold_power": 8
+    },
+    {
+      "fixture": "medium_multiplex_v1",
+      "wgcna_merge_cut_height": 0.25,
+      "wgcna_n_modules": 10,
+      "wgcna_n_unassigned_genes": 14,
+      "wgcna_network_type": "signed",
+      "wgcna_sft_r2": 0.4767831,
+      "wgcna_soft_threshold_power": 1
+    },
+    {
+      "fixture": "noisy_multiplex_v1",
+      "wgcna_merge_cut_height": 0.25,
+      "wgcna_n_modules": 12,
+      "wgcna_n_unassigned_genes": 413,
+      "wgcna_network_type": "signed",
+      "wgcna_sft_r2": 0.78538827,
+      "wgcna_soft_threshold_power": 19
+    },
+    {
+      "fixture": "large_multiplex_v1",
+      "wgcna_merge_cut_height": 0.25,
+      "wgcna_n_modules": 20,
+      "wgcna_n_unassigned_genes": 569,
+      "wgcna_network_type": "signed",
+      "wgcna_sft_r2": 0.52715878,
+      "wgcna_soft_threshold_power": 11
+    }
+  ],
+  "stage": "stress_multiplex_wgcna"
+}
