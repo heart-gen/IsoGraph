@@ -76,9 +76,9 @@ def compute_trait_associations(
     Columns absent from sample_table or with >2 categories are skipped.
     """
     sample_ids = (
-        sample_table["sample_id"].tolist()
+        sample_table["sample_id"].astype(str).tolist()
         if "sample_id" in sample_table.columns
-        else list(range(len(sample_table)))
+        else [str(i) for i in range(len(sample_table))]
     )
     if module_table.empty:
         return (

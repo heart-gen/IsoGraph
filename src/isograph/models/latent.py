@@ -112,14 +112,23 @@ class LatentNetworkModel(NetworkModel):
         gene_counts: np.ndarray | None = None,
         gene_table: pd.DataFrame | None = None,
     ) -> FitArtifacts:
-        switch_matrix, feature_info = gene_feature_channels(
+        all_matrix, feature_info = gene_feature_channels(
             transcript_counts, transcript_table, gene_counts, gene_table
         )
-        if switch_matrix.size:
-            design = build_design_matrix(sample_table, self.config.residualize_covariates)
-            switch_matrix = residualize_rows(switch_matrix, design)
+        cfg = self.config
+        if all_matrix.size:
+            design = build_design_matrix(sample_table, cfg.residualize_covariates)
+            all_matrix = residualize_rows(all_matrix, design)
 
-        n_features = switch_matrix.shape[0]
+        use_multiplex = cfg.allow_abundance_abundance or cfg.alpha_abundance_grid is not None
+        is_switch = feature_info["feature_type"].astype(str).eq("switch").values
+        if use_multiplex:
+            compute_matrix, compute_info = all_matrix, feature_info
+        else:
+            compute_matrix = all_matrix[is_switch]
+            compute_info = feature_info[is_switch].reset_index(drop=True)
+
+        n_features = compute_matrix.shape[0]
         graph = nx.Graph()
         graph.add_nodes_from(sorted(feature_info["gene_id"].astype(str).unique()))
 
@@ -135,21 +144,21 @@ class LatentNetworkModel(NetworkModel):
 
         if n_features >= 2:
             # X is (n_samples, n_features) — standard orientation for sklearn
-            X = switch_matrix.T
-            if self.config.n_components_grid:
+            X = compute_matrix.T
+            if cfg.n_components_grid:
                 k = _cv_select_n_components(
                     X,
-                    self.config.n_components_grid,
-                    self.config.max_iter,
-                    self.config.tol,
-                    n_splits=self.config.n_components_cv_folds,
+                    cfg.n_components_grid,
+                    cfg.max_iter,
+                    cfg.tol,
+                    n_splits=cfg.n_components_cv_folds,
                 )
             else:
-                k = max(1, min(self.config.n_components, X.shape[1] - 1, X.shape[0] - 1))
+                k = max(1, min(cfg.n_components, X.shape[1] - 1, X.shape[0] - 1))
             fa = FactorAnalysis(
                 n_components=k,
-                max_iter=self.config.max_iter,
-                tol=self.config.tol,
+                max_iter=cfg.max_iter,
+                tol=cfg.tol,
                 random_state=0,
             )
             converged = True
@@ -162,7 +171,7 @@ class LatentNetworkModel(NetworkModel):
                         "FactorAnalysis did not converge in %d iterations "
                         "(n_features=%d, n_samples=%d, n_components=%d). "
                         "Consider increasing max_iter or tol.",
-                        self.config.max_iter,
+                        cfg.max_iter,
                         n_features,
                         X.shape[0],
                         k,
@@ -170,8 +179,8 @@ class LatentNetworkModel(NetworkModel):
 
             # Probabilistic denoising: posterior mean reconstruction
             Z = fa.transform(X)                          # (n_samples, k)
-            X_denoised = Z @ fa.components_ + fa.mean_  # (n_samples, n_genes)
-            denoised_switch = X_denoised.T               # (n_genes, n_samples)
+            X_denoised = Z @ fa.components_ + fa.mean_  # (n_samples, n_features)
+            denoised_switch = X_denoised.T               # (n_features, n_samples)
 
             # Calibration metrics from the FA model
             log_ll = float(fa.score(X))
@@ -181,29 +190,29 @@ class LatentNetworkModel(NetworkModel):
                 "reconstruction_rmse": rmse,
                 "mean_noise_variance": float(fa.noise_variance_.mean()),
                 "n_components_used": k,
-                "n_components_selected_by": "cv" if self.config.n_components_grid else "fixed",
+                "n_components_selected_by": "cv" if cfg.n_components_grid else "fixed",
                 "n_iter": int(fa.n_iter_),
                 "converged": converged,
             }
 
             # Gene network: strongest feature-channel evidence per gene pair
             partial = self._partial_correlation(denoised_switch)
-            resolved_alpha_abundance = self.config.alpha_abundance
-            if self.config.alpha_abundance_grid is not None:
+            resolved_alpha_abundance = cfg.alpha_abundance
+            if cfg.alpha_abundance_grid is not None:
                 resolved_alpha_abundance = select_alpha_abundance(
-                    partial, feature_info, self.config.alpha, self.config.alpha_abundance_grid,
-                    alpha_switch=self.config.alpha_switch,
+                    partial, compute_info, cfg.alpha, cfg.alpha_abundance_grid,
+                    alpha_switch=cfg.alpha_switch,
                 )
                 calibration["selected_alpha_abundance"] = resolved_alpha_abundance
             graph, edge_rows = project_feature_similarity_to_gene_graph(
-                partial, feature_info, self.config.alpha,
-                allow_abundance_abundance=self.config.allow_abundance_abundance,
-                alpha_switch=self.config.alpha_switch,
+                partial, compute_info, cfg.alpha,
+                allow_abundance_abundance=cfg.allow_abundance_abundance,
+                alpha_switch=cfg.alpha_switch,
                 alpha_abundance=resolved_alpha_abundance,
             )
 
         module_table = self._module_table(graph)
-        feature_scores = make_feature_scores(switch_matrix, feature_info, sample_table)
+        feature_scores = make_feature_scores(all_matrix, feature_info, sample_table)
         trait_table, eigengene_table = self._trait_associations(module_table, feature_scores, sample_table)
         module_gene_roles = compute_module_gene_roles(module_table, feature_scores, sample_table)
 

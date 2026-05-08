@@ -59,28 +59,35 @@ class BaselineNetworkModel(NetworkModel):
         gene_counts: np.ndarray | None = None,
         gene_table: pd.DataFrame | None = None,
     ) -> FitArtifacts:
-        switch_matrix, feature_info = gene_feature_channels(
+        all_matrix, feature_info = gene_feature_channels(
             transcript_counts, transcript_table, gene_counts, gene_table
         )
-        if switch_matrix.size:
-            design = build_design_matrix(sample_table, self.config.residualize_covariates)
-            switch_matrix = residualize_rows(switch_matrix, design)
-        partial = self._partial_correlation(switch_matrix)
         cfg = self.config
+        if all_matrix.size:
+            design = build_design_matrix(sample_table, cfg.residualize_covariates)
+            all_matrix = residualize_rows(all_matrix, design)
+        use_multiplex = cfg.allow_abundance_abundance or cfg.alpha_abundance_grid is not None
+        is_switch = feature_info["feature_type"].astype(str).eq("switch").values
+        if use_multiplex:
+            compute_matrix, compute_info = all_matrix, feature_info
+        else:
+            compute_matrix = all_matrix[is_switch]
+            compute_info = feature_info[is_switch].reset_index(drop=True)
+        partial = self._partial_correlation(compute_matrix)
         resolved_alpha_abundance = cfg.alpha_abundance
         if cfg.alpha_abundance_grid is not None:
             resolved_alpha_abundance = select_alpha_abundance(
-                partial, feature_info, cfg.alpha, cfg.alpha_abundance_grid,
+                partial, compute_info, cfg.alpha, cfg.alpha_abundance_grid,
                 alpha_switch=cfg.alpha_switch,
             )
         graph, edge_rows = project_feature_similarity_to_gene_graph(
-            partial, feature_info, cfg.alpha,
+            partial, compute_info, cfg.alpha,
             allow_abundance_abundance=cfg.allow_abundance_abundance,
             alpha_switch=cfg.alpha_switch,
             alpha_abundance=resolved_alpha_abundance,
         )
         module_table = self._module_table(graph)
-        feature_scores = make_feature_scores(switch_matrix, feature_info, sample_table)
+        feature_scores = make_feature_scores(all_matrix, feature_info, sample_table)
         trait_table, eigengene_table = self._trait_associations(module_table, feature_scores, sample_table)
         module_gene_roles = compute_module_gene_roles(module_table, feature_scores, sample_table)
         calibration: dict | None = None

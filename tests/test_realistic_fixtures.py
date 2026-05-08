@@ -274,9 +274,9 @@ def test_nonswitching_genes_absent_from_feature_scores(tmp_path: Path) -> None:
         transcript_table=bundle.feature_tables["transcript"],
         sample_table=bundle.sample_table,
     )
-    # All genes have ≥ 2 isoforms, so all 200 should appear in feature_scores
-    assert len(arts.feature_scores) == 200, (
-        f"Expected 200 genes in feature_scores, got {len(arts.feature_scores)}"
+    # All genes have ≥ 2 isoforms; each now contributes 2 feature rows (abundance + switch)
+    assert len(arts.feature_scores) == 400, (
+        f"Expected 400 feature rows (200 genes × 2 channels), got {len(arts.feature_scores)}"
     )
     assert "gene_id" in arts.feature_scores.columns
 
