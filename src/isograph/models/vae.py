@@ -146,6 +146,10 @@ try:
         batch_size = cfg.batch_size
         use_minibatch = batch_size is not None and batch_size < X_train.shape[0]
 
+        _device_type = device.split(":")[0]  # "cuda" or "cpu"
+        _use_amp = _device_type == "cuda"
+        _scaler = torch.cuda.amp.GradScaler(enabled=_use_amp)
+
         for epoch in range(cfg.n_epochs):
             beta_t = min(cfg.beta, cfg.beta * (epoch + 1) / warmup)
 
@@ -156,28 +160,33 @@ try:
                 perm = torch.randperm(X_train.shape[0], generator=generator, device=device)
                 for start in range(0, X_train.shape[0], batch_size):
                     batch = X_train[perm[start : start + batch_size]]
-                    mu, lv = encoder(batch)
+                    with torch.autocast(device_type=_device_type, dtype=torch.float16, enabled=_use_amp):
+                        mu, lv = encoder(batch)
+                        z = _reparameterize(mu, lv, generator)
+                        xr = decoder(z)
+                        loss, _, _ = _elbo_loss(batch, xr, mu, lv, beta_t)
+                    optimizer.zero_grad()
+                    _scaler.scale(loss).backward()
+                    _scaler.step(optimizer)
+                    _scaler.update()
+            else:
+                with torch.autocast(device_type=_device_type, dtype=torch.float16, enabled=_use_amp):
+                    mu, lv = encoder(X_train)
                     z = _reparameterize(mu, lv, generator)
                     xr = decoder(z)
-                    loss, _, _ = _elbo_loss(batch, xr, mu, lv, beta_t)
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
-            else:
-                mu, lv = encoder(X_train)
-                z = _reparameterize(mu, lv, generator)
-                xr = decoder(z)
-                loss, _, _ = _elbo_loss(X_train, xr, mu, lv, beta_t)
+                    loss, _, _ = _elbo_loss(X_train, xr, mu, lv, beta_t)
                 optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+                _scaler.scale(loss).backward()
+                _scaler.step(optimizer)
+                _scaler.update()
 
             encoder.eval()
             decoder.eval()
             with torch.no_grad():
-                mu_v, lv_v = encoder(X_val)
-                xr_v = decoder(mu_v)
-                val_loss, recon_l, kl_l = _elbo_loss(X_val, xr_v, mu_v, lv_v, beta_t)
+                with torch.autocast(device_type=_device_type, dtype=torch.float16, enabled=_use_amp):
+                    mu_v, lv_v = encoder(X_val)
+                    xr_v = decoder(mu_v)
+                    val_loss, recon_l, kl_l = _elbo_loss(X_val, xr_v, mu_v, lv_v, beta_t)
 
             scheduler.step(val_loss)
             val_f = float(val_loss)
@@ -206,8 +215,9 @@ try:
         encoder.eval()
         decoder.eval()
         with torch.no_grad():
-            mu_all, lv_all = encoder(X_all)
-            x_recon_all = decoder(mu_all)
+            with torch.autocast(device_type=_device_type, dtype=torch.float16, enabled=_use_amp):
+                mu_all, lv_all = encoder(X_all)
+                x_recon_all = decoder(mu_all)
 
         collapse_dict = _detect_collapse(mu_all, lv_all, cfg.collapse_threshold)
         x_recon_np = x_recon_all.detach().cpu().numpy()

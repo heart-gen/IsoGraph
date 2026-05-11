@@ -92,53 +92,70 @@ def project_feature_similarity_to_gene_graph(
     graph.add_nodes_from(gene_ids)
     best: dict[tuple[str, str], dict[str, object]] = {}
 
-    for i, source_feature in feature_info.iterrows():
-        source_gene = str(source_feature["gene_id"])
-        for j in range(i + 1, len(feature_info)):
-            target_feature = feature_info.iloc[j]
-            target_gene = str(target_feature["gene_id"])
-            if source_gene == target_gene:
-                continue
-            source_type = str(source_feature["feature_type"])
-            target_type = str(target_feature["feature_type"])
-            if (
-                not allow_abundance_abundance
-                and source_type == "abundance"
-                and target_type == "abundance"
-            ):
-                continue
-            # Block switch↔abundance cross-channel edges between dual-channel genes;
-            # abundance↔abundance edges are handled solely by allow_abundance_abundance.
-            if (
-                source_type != target_type
-                and source_gene in genes_with_switch
-                and target_gene in genes_with_switch
-            ):
-                continue
-            weight = float(similarity[i, j])
-            # Resolve per-channel threshold.
-            if alpha_switch is not None and source_type == "switch" and target_type == "switch":
-                effective_alpha = alpha_switch
-            elif alpha_abundance is not None and source_type == "abundance" and target_type == "abundance":
-                effective_alpha = alpha_abundance
-            else:
-                effective_alpha = alpha
-            if not np.isfinite(weight) or abs(weight) < effective_alpha:
-                continue
-            source, target = sorted([source_gene, target_gene])
-            key = (source, target)
-            candidate = {
-                "source": source,
-                "target": target,
-                "weight": weight,
-                "source_feature_id": source_feature["feature_id"],
-                "target_feature_id": target_feature["feature_id"],
-                "source_feature_type": source_type,
-                "target_feature_type": target_type,
-            }
-            current = best.get(key)
-            if current is None or abs(weight) > abs(float(current["weight"])):
-                best[key] = candidate
+    # Pre-extract arrays once to avoid per-row pandas overhead inside the loop.
+    _gene_ids = feature_info["gene_id"].astype(str).to_numpy()
+    _feat_types = feature_info["feature_type"].astype(str).to_numpy()
+    _feat_ids = feature_info["feature_id"].astype(str).to_numpy()
+
+    # Minimum threshold across all channel types — used to pre-filter the similarity
+    # matrix before the Python loop, converting O(n²) pandas iteration to O(E) where
+    # E is the number of above-threshold pairs (sparse for typical alpha >= 0.60).
+    _all_alphas = [alpha]
+    if alpha_switch is not None:
+        _all_alphas.append(alpha_switch)
+    if alpha_abundance is not None:
+        _all_alphas.append(alpha_abundance)
+    _min_alpha = min(_all_alphas)
+
+    _i_arr, _j_arr = np.where(np.abs(similarity) >= _min_alpha)
+    _upper = _i_arr < _j_arr
+    _i_arr, _j_arr = _i_arr[_upper], _j_arr[_upper]
+
+    for i, j in zip(_i_arr, _j_arr):
+        source_gene = _gene_ids[i]
+        target_gene = _gene_ids[j]
+        if source_gene == target_gene:
+            continue
+        source_type = _feat_types[i]
+        target_type = _feat_types[j]
+        if (
+            not allow_abundance_abundance
+            and source_type == "abundance"
+            and target_type == "abundance"
+        ):
+            continue
+        # Block switch↔abundance cross-channel edges between dual-channel genes;
+        # abundance↔abundance edges are handled solely by allow_abundance_abundance.
+        if (
+            source_type != target_type
+            and source_gene in genes_with_switch
+            and target_gene in genes_with_switch
+        ):
+            continue
+        weight = float(similarity[i, j])
+        # Resolve per-channel threshold.
+        if alpha_switch is not None and source_type == "switch" and target_type == "switch":
+            effective_alpha = alpha_switch
+        elif alpha_abundance is not None and source_type == "abundance" and target_type == "abundance":
+            effective_alpha = alpha_abundance
+        else:
+            effective_alpha = alpha
+        if not np.isfinite(weight) or abs(weight) < effective_alpha:
+            continue
+        source, target = sorted([source_gene, target_gene])
+        key = (source, target)
+        candidate = {
+            "source": source,
+            "target": target,
+            "weight": weight,
+            "source_feature_id": _feat_ids[i],
+            "target_feature_id": _feat_ids[j],
+            "source_feature_type": source_type,
+            "target_feature_type": target_type,
+        }
+        current = best.get(key)
+        if current is None or abs(weight) > abs(float(current["weight"])):
+            best[key] = candidate
 
     edge_rows = sorted(best.values(), key=lambda row: (row["source"], row["target"]))
     for row in edge_rows:

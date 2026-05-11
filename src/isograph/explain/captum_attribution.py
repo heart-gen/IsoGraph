@@ -57,14 +57,16 @@ def compute_integrated_gradients(
     from isograph.explain.vae_attribution import _select_module_latent_dim
     from isograph.models.vae import _Encoder
 
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
     checkpoint_path = Path(checkpoint_path)
-    data = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+    data = torch.load(checkpoint_path, map_location=device, weights_only=True)
     latent_dim: int = data["latent_dim"]
     hidden_dim: int = data["hidden_dim"]
     n_hidden: int = data["n_hidden_layers"]
     n_genes: int = data["n_genes"]
 
-    encoder = _Encoder(n_genes, hidden_dim, latent_dim, n_hidden)
+    encoder = _Encoder(n_genes, hidden_dim, latent_dim, n_hidden).to(device)
     encoder.load_state_dict(data["encoder"])
     encoder.eval()
 
@@ -92,7 +94,7 @@ def compute_integrated_gradients(
             f"feature_scores n_samples {len(sample_ids)}"
         )
 
-    X = torch.tensor(scores_df.T.values, dtype=torch.float32)  # (n_samples, n_genes)
+    X = torch.tensor(scores_df.T.values, dtype=torch.float32).to(device)  # (n_samples, n_genes)
 
     j_star, latent_r = _select_module_latent_dim(encoder, X, eigengene)
 
@@ -114,7 +116,7 @@ def compute_integrated_gradients(
         inputs=X,
         baselines=baseline_tensor,
         n_steps=n_steps,
-    ).detach().numpy()  # (n_samples, n_genes)
+    ).detach().cpu().numpy()  # (n_samples, n_genes)
 
     ig_score = attributions.mean(axis=0).astype(np.float64)
     ig_score_abs_mean = np.abs(attributions).mean(axis=0).astype(np.float64)

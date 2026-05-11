@@ -21,7 +21,7 @@ def _select_module_latent_dim(
 
     with torch.no_grad():
         z_mu, _ = encoder(X)
-    z_mu_np: np.ndarray = z_mu.numpy()
+    z_mu_np: np.ndarray = z_mu.cpu().numpy()
     latent_dim = z_mu_np.shape[1]
 
     eg = eigengene - eigengene.mean()
@@ -65,18 +65,20 @@ def compute_decoder_jacobian(
 
     from isograph.models.vae import _Decoder, _Encoder
 
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
     checkpoint_path = Path(checkpoint_path)
-    data = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+    data = torch.load(checkpoint_path, map_location=device, weights_only=True)
     latent_dim: int = data["latent_dim"]
     hidden_dim: int = data["hidden_dim"]
     n_hidden: int = data["n_hidden_layers"]
     n_genes: int = data["n_genes"]
 
-    encoder = _Encoder(n_genes, hidden_dim, latent_dim, n_hidden)
+    encoder = _Encoder(n_genes, hidden_dim, latent_dim, n_hidden).to(device)
     encoder.load_state_dict(data["encoder"])
     encoder.eval()
 
-    decoder = _Decoder(latent_dim, hidden_dim, n_genes, n_hidden)
+    decoder = _Decoder(latent_dim, hidden_dim, n_genes, n_hidden).to(device)
     decoder.load_state_dict(data["decoder"])
     decoder.eval()
 
@@ -106,21 +108,21 @@ def compute_decoder_jacobian(
             f"feature_scores n_samples {len(sample_ids)}"
         )
 
-    X = torch.tensor(scores_df.T.values, dtype=torch.float32)  # (n_samples, n_genes)
+    X = torch.tensor(scores_df.T.values, dtype=torch.float32).to(device)  # (n_samples, n_genes)
 
     j_star, latent_r = _select_module_latent_dim(encoder, X, eigengene)
 
     # Baseline: mean latent vector across samples
     with torch.no_grad():
-        z_mu_np = encoder(X)[0].numpy()
-    z_bar = torch.tensor(z_mu_np.mean(axis=0), dtype=torch.float32)  # (latent_dim,)
+        z_mu_np = encoder(X)[0].cpu().numpy()
+    z_bar = torch.tensor(z_mu_np.mean(axis=0), dtype=torch.float32, device=device)  # (latent_dim,)
 
-    e_j = torch.zeros(latent_dim)
+    e_j = torch.zeros(latent_dim, device=device)
     e_j[j_star] = 1.0
 
     with torch.no_grad():
-        out_plus = decoder((z_bar + eps * e_j).unsqueeze(0)).squeeze(0).numpy()
-        out_minus = decoder((z_bar - eps * e_j).unsqueeze(0)).squeeze(0).numpy()
+        out_plus = decoder((z_bar + eps * e_j).unsqueeze(0)).squeeze(0).cpu().numpy()
+        out_minus = decoder((z_bar - eps * e_j).unsqueeze(0)).squeeze(0).cpu().numpy()
 
     decoded_delta: np.ndarray = (out_plus - out_minus) / (2.0 * eps)
 
