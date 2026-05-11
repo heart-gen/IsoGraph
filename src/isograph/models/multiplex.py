@@ -107,9 +107,21 @@ def project_feature_similarity_to_gene_graph(
         _all_alphas.append(alpha_abundance)
     _min_alpha = min(_all_alphas)
 
-    _i_arr, _j_arr = np.where(np.abs(similarity) >= _min_alpha)
-    _upper = _i_arr < _j_arr
-    _i_arr, _j_arr = _i_arr[_upper], _j_arr[_upper]
+    # Find above-threshold pairs in row chunks to avoid allocating a full (n×n)
+    # absolute-value copy (~11 GB for n=37k features) that would trigger OOM.
+    # Each chunk view is O(chunk × n) extra memory (~150 MB with chunk=512).
+    _n = len(_gene_ids)
+    _chunk = min(512, _n)
+    _i_parts: list[np.ndarray] = []
+    _j_parts: list[np.ndarray] = []
+    for _start in range(0, _n, _chunk):
+        _end = min(_start + _chunk, _n)
+        _ci, _cj = np.where(np.abs(similarity[_start:_end]) >= _min_alpha)
+        _mask = (_start + _ci) < _cj
+        _i_parts.append((_start + _ci)[_mask])
+        _j_parts.append(_cj[_mask])
+    _i_arr = np.concatenate(_i_parts) if _i_parts else np.empty(0, dtype=np.intp)
+    _j_arr = np.concatenate(_j_parts) if _j_parts else np.empty(0, dtype=np.intp)
 
     for i, j in zip(_i_arr, _j_arr):
         source_gene = _gene_ids[i]
