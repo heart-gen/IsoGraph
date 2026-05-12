@@ -251,8 +251,21 @@ class VaeNetworkModel(NetworkModel):
         The VAE's non-linear encoder linearises both linear and non-linear
         module structure into the reconstruction, so Pearson correlation
         captures both types without requiring separate inference modes.
+
+        Uses float32 arithmetic and a chunked matmul to keep peak CPU RAM at
+        O(n_genes^2 * 4 bytes) instead of np.corrcoef's ~2x float64 overhead,
+        which causes OOM for n_genes ~ 37k.
         """
-        sim = np.corrcoef(x_recon.T)
+        X = x_recon.T.astype(np.float32, copy=False)  # (n_genes, n_samples)
+        X = X - X.mean(axis=1, keepdims=True)
+        norms = np.linalg.norm(X, axis=1)
+        X /= np.where(norms > 1e-12, norms, 1.0)[:, None]
+        n = X.shape[0]
+        sim = np.empty((n, n), dtype=np.float32)
+        _chunk = min(512, n)
+        for _start in range(0, n, _chunk):
+            _end = min(_start + _chunk, n)
+            sim[_start:_end] = X[_start:_end] @ X.T
         np.fill_diagonal(sim, 0.0)
         return sim
 
