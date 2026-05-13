@@ -18,7 +18,11 @@ from isograph.models.base import (
     compute_module_gene_roles,
     compute_trait_associations,
 )
-from isograph.models.multiplex import project_feature_similarity_to_gene_graph, select_alpha_abundance
+from isograph.models.multiplex import (
+    project_feature_similarity_to_gene_graph,
+    select_alpha_abundance,
+    select_alpha_switch,
+)
 from isograph.workflow.config import VaeModelConfig
 
 _log = logging.getLogger(__name__)
@@ -392,17 +396,35 @@ class VaeNetworkModel(NetworkModel):
             calibration.update(cal_partial)
 
             partial = self._gene_similarity(x_recon_np)
+            resolved_alpha_switch = cfg.alpha_switch
+            if cfg.alpha_switch_grid is not None:
+                resolved_alpha_switch, switch_sweep = select_alpha_switch(
+                    partial, feature_info, cfg.alpha_switch_grid,
+                )
+                calibration["selected_alpha_switch"] = resolved_alpha_switch
+                calibration["alpha_switch_sweep"] = switch_sweep
+                _log.info(
+                    "alpha_switch_grid sweep: selected %.2f from %s",
+                    resolved_alpha_switch, cfg.alpha_switch_grid,
+                )
+                for s in switch_sweep:
+                    _log.info(
+                        "  alpha_switch=%.2f: n_connected=%d giant_size=%d "
+                        "giant_frac=%.3f n_modules_ge30=%d",
+                        s["alpha_switch"], s["n_switch_connected"],
+                        s["giant_size"], s["giant_fraction"], s["n_modules_ge30"],
+                    )
             resolved_alpha_abundance = cfg.alpha_abundance
             if cfg.alpha_abundance_grid is not None:
                 resolved_alpha_abundance = select_alpha_abundance(
                     partial, feature_info, cfg.alpha, cfg.alpha_abundance_grid,
-                    alpha_switch=cfg.alpha_switch,
+                    alpha_switch=resolved_alpha_switch,
                 )
                 calibration["selected_alpha_abundance"] = resolved_alpha_abundance
             net_graph, edge_rows = project_feature_similarity_to_gene_graph(
                 partial, feature_info, cfg.alpha,
                 allow_abundance_abundance=cfg.allow_abundance_abundance,
-                alpha_switch=cfg.alpha_switch,
+                alpha_switch=resolved_alpha_switch,
                 alpha_abundance=resolved_alpha_abundance,
             )
 

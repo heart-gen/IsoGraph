@@ -126,6 +126,7 @@ class VaeModelConfig:
     checkpoint_dir: Path | None = None
     allow_abundance_abundance: bool = False
     alpha_switch: float | None = None
+    alpha_switch_grid: list[float] | None = None
     alpha_abundance: float | None = None
     alpha_abundance_grid: list[float] | None = None
 

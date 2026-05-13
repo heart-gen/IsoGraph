@@ -15,6 +15,61 @@ def giant_component_fraction(graph: nx.Graph, n_genes: int) -> float:
     return len(components[0]) / n_genes if components else 0.0
 
 
+def select_alpha_switch(
+    similarity: np.ndarray,
+    feature_info: pd.DataFrame,
+    alpha_switch_grid: list[float],
+    giant_fraction_threshold: float = 0.30,
+) -> tuple[float, list[dict]]:
+    """Select the smallest alpha_switch that avoids a giant switch-switch component.
+
+    Evaluates only switch-switch edges (cross-channel and abundance-abundance edges
+    are suppressed) at each candidate threshold. Returns (selected_alpha, sweep_stats).
+
+    Iterates candidates from smallest to largest; returns the first where the giant
+    component fraction (largest component / total switch-connected genes) is below
+    giant_fraction_threshold. Falls back to max(grid) if all candidates exceed it.
+    """
+    _SUPPRESS = 2.0  # alpha value that excludes all non-switch-switch edges
+
+    sweep_stats: list[dict] = []
+    selected = max(alpha_switch_grid)
+
+    for candidate in sorted(alpha_switch_grid):
+        graph, _ = project_feature_similarity_to_gene_graph(
+            similarity, feature_info, _SUPPRESS,
+            allow_abundance_abundance=False,
+            alpha_switch=candidate,
+        )
+        connected = [n for n in graph.nodes if graph.degree(n) > 0]
+        n_connected = len(connected)
+        if n_connected == 0:
+            sweep_stats.append({
+                "alpha_switch": candidate,
+                "n_switch_connected": 0,
+                "giant_size": 0,
+                "giant_fraction": 0.0,
+                "n_modules_ge30": 0,
+            })
+            continue
+        comps = sorted(nx.connected_components(graph.subgraph(connected)), key=len, reverse=True)
+        giant_size = len(comps[0])
+        giant_frac = giant_size / n_connected
+        n_modules = sum(1 for c in comps if len(c) >= 30)
+        sweep_stats.append({
+            "alpha_switch": candidate,
+            "n_switch_connected": n_connected,
+            "giant_size": giant_size,
+            "giant_fraction": round(giant_frac, 4),
+            "n_modules_ge30": n_modules,
+        })
+        if giant_frac < giant_fraction_threshold:
+            selected = candidate
+            break
+
+    return selected, sweep_stats
+
+
 def select_alpha_abundance(
     similarity: np.ndarray,
     feature_info: pd.DataFrame,
