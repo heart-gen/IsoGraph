@@ -55,6 +55,9 @@ docs = [
 torch-explain = [
     "captum>=0.7",
 ]
+go-enrichment = [
+    "goatools>=1.4,<2",
+]
 
 [project.urls]
 Homepage = "https://github.com/heart-gen/IsoGraph"

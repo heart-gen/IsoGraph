@@ -262,6 +262,7 @@ class VaeNetworkModel(NetworkModel):
         """
         X = x_recon.T.astype(np.float32, copy=False)  # (n_genes, n_samples)
         X = X - X.mean(axis=1, keepdims=True)
+        X = X - X.mean(axis=0, keepdims=True)
         norms = np.linalg.norm(X, axis=1)
         X /= np.where(norms > 1e-12, norms, 1.0)[:, None]
         n = X.shape[0]
@@ -272,17 +273,6 @@ class VaeNetworkModel(NetworkModel):
             sim[_start:_end] = X[_start:_end] @ X.T
         np.fill_diagonal(sim, 0.0)
         return sim
-
-    def _module_table(self, graph: nx.Graph) -> pd.DataFrame:
-        rows = []
-        for idx, nodes in enumerate(
-            sorted(nx.connected_components(graph), key=len, reverse=True)
-        ):
-            if len(nodes) < self.config.min_module_size:
-                continue
-            for gene_id in sorted(nodes):
-                rows.append({"gene_id": gene_id, "module_id": f"M{idx:03d}"})
-        return pd.DataFrame(rows)
 
     def _trait_associations(
         self,

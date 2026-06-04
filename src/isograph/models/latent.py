@@ -85,17 +85,6 @@ class LatentNetworkModel(NetworkModel):
         np.fill_diagonal(partial, 0.0)
         return partial
 
-    def _module_table(self, graph: nx.Graph) -> pd.DataFrame:
-        rows = []
-        for module_index, nodes in enumerate(
-            sorted(nx.connected_components(graph), key=len, reverse=True)
-        ):
-            if len(nodes) < self.config.min_module_size:
-                continue
-            for gene_id in sorted(nodes):
-                rows.append({"gene_id": gene_id, "module_id": f"M{module_index:03d}"})
-        return pd.DataFrame(rows)
-
     def _trait_associations(
         self,
         module_table: pd.DataFrame,

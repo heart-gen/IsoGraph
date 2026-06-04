@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import networkx as nx
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -203,3 +204,56 @@ def compute_module_gene_roles(
 class NetworkModel:
     def fit(self, *args, **kwargs) -> FitArtifacts:
         raise NotImplementedError
+
+    def _module_table(self, graph: nx.Graph) -> pd.DataFrame:
+        """Assign genes to modules from the (positive-weight) network.
+
+        Edges with non-positive weight are dropped before module detection.
+        When ``config.leiden_resolution`` is set and ``igraph``/``leidenalg`` are
+        available, Leiden community detection is used; otherwise it falls back to
+        connected components.
+        """
+        pos_graph = nx.Graph()
+        pos_graph.add_nodes_from(graph.nodes())
+        pos_graph.add_edges_from(
+            (u, v, d) for u, v, d in graph.edges(data=True) if d.get("weight", 1.0) > 0
+        )
+
+        communities = self._detect_communities(pos_graph)
+
+        rows = []
+        for module_index, nodes in enumerate(communities):
+            if len(nodes) < self.config.min_module_size:
+                continue
+            for gene_id in sorted(nodes):
+                rows.append({"gene_id": gene_id, "module_id": f"M{module_index:03d}"})
+        return pd.DataFrame(rows)
+
+    def _detect_communities(self, pos_graph: nx.Graph) -> list[set]:
+        """Return node communities, largest first.
+
+        Uses Leiden when ``config.leiden_resolution`` is set and the optional
+        ``igraph``/``leidenalg`` dependencies are installed, otherwise falls back
+        to connected components.
+        """
+        resolution = getattr(self.config, "leiden_resolution", None)
+        if resolution is not None:
+            try:
+                import igraph as ig
+                import leidenalg
+
+                nodes_list = list(pos_graph.nodes())
+                node_to_idx = {n: i for i, n in enumerate(nodes_list)}
+                edges = [(node_to_idx[u], node_to_idx[v]) for u, v in pos_graph.edges()]
+                ig_graph = ig.Graph(n=len(nodes_list), edges=edges)
+                partition = leidenalg.find_partition(
+                    ig_graph,
+                    leidenalg.RBConfigurationVertexPartition,
+                    resolution_parameter=resolution,
+                )
+                communities = [{nodes_list[v] for v in community} for community in partition]
+                return sorted(communities, key=len, reverse=True)
+            except ImportError:
+                pass
+
+        return sorted(nx.connected_components(pos_graph), key=len, reverse=True)
