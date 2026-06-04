@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -146,6 +147,9 @@ try:
         batch_size = cfg.batch_size
         use_minibatch = batch_size is not None and batch_size < X_train.shape[0]
 
+        log_every = max(1, cfg.n_epochs // 10)
+        t_start = time.time()
+
         for epoch in range(cfg.n_epochs):
             beta_t = min(cfg.beta, cfg.beta * (epoch + 1) / warmup)
 
@@ -181,6 +185,15 @@ try:
 
             scheduler.step(val_loss)
             val_f = float(val_loss)
+
+            if epoch % log_every == 0 or epoch == cfg.n_epochs - 1:
+                elapsed = time.time() - t_start
+                frac = max((epoch + 1) / cfg.n_epochs, 1e-8)
+                eta = elapsed / frac - elapsed
+                _log.info(
+                    "  latent_dim=%d  epoch %d/%d  val_loss=%.4f  elapsed=%.0fs  eta=%.0fs",
+                    latent_dim, epoch + 1, cfg.n_epochs, val_f, elapsed, eta,
+                )
 
             if epoch >= warmup:
                 if val_f < best_val - cfg.early_stop_tol:
@@ -349,8 +362,18 @@ class VaeNetworkModel(NetworkModel):
             grid_results: list[tuple] = []
 
             for k in k_grid:
+                _log.info(
+                    "VAE grid sweep: training latent_dim=%d (n_features=%d, n_samples=%d, device=%s) ...",
+                    k, n_features, n_samples_total, device,
+                )
+                _t_k = time.time()
                 x_recon_np, cal_partial, enc, dec = _train_single_vae(
                     X_train, X_val, X_all, X_np, n_features, cfg, k, device
+                )
+                _log.info(
+                    "  latent_dim=%d done in %.0fs  rmse=%.4f  best_epoch=%d  early_stopped=%s",
+                    k, time.time() - _t_k, cal_partial["reconstruction_rmse"],
+                    cal_partial["vae_best_epoch"], cal_partial["vae_early_stopped"],
                 )
                 grid_rmses.append(cal_partial["reconstruction_rmse"])
                 grid_results.append((x_recon_np, cal_partial, enc, dec))
