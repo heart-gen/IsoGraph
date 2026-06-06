@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from isograph.features.channels import gene_feature_channels, make_feature_scores
 from isograph.features.residualize import build_design_matrix, residualize_rows
+from isograph.features.reliability import degradation_direction, gene_switch_reliability
 from isograph.models.base import (
     FitArtifacts,
     NetworkModel,
@@ -308,12 +309,46 @@ class VaeNetworkModel(NetworkModel):
                 "PyTorch is required for the vae backend. Install it with: pip install torch"
             )
 
-        switch_matrix, feature_info = gene_feature_channels(
-            transcript_counts, transcript_table, gene_counts, gene_table
-        )
-        if switch_matrix.size:
+        if self.config.residualize_composition:
+            # Regress covariates out of the CLR composition before PC1. The switch
+            # rows are therefore residualized exactly once (pre-PC1); only the
+            # abundance rows (which have no PC1) get the post-hoc residualization.
             design = build_design_matrix(sample_table, self.config.residualize_covariates)
-            switch_matrix = residualize_rows(switch_matrix, design)
+            switch_matrix, feature_info = gene_feature_channels(
+                transcript_counts, transcript_table, gene_counts, gene_table,
+                switch_design=design,
+            )
+            if switch_matrix.size:
+                is_abundance = (feature_info["feature_type"] == "abundance").to_numpy()
+                if is_abundance.any():
+                    switch_matrix[is_abundance] = residualize_rows(
+                        switch_matrix[is_abundance], design
+                    )
+        else:
+            switch_matrix, feature_info = gene_feature_channels(
+                transcript_counts, transcript_table, gene_counts, gene_table
+            )
+            if switch_matrix.size:
+                design = build_design_matrix(sample_table, self.config.residualize_covariates)
+                switch_matrix = residualize_rows(switch_matrix, design)
+
+        # Degradation-aware switch reliability (multiplex abundance fallback).
+        gene_reliability: dict[str, float] | None = None
+        if self.config.switch_reliability_weighting and self.config.degradation_covariate:
+            direction = degradation_direction(sample_table, self.config.degradation_covariate)
+            if direction is not None:
+                gene_reliability = gene_switch_reliability(
+                    transcript_counts, transcript_table, direction,
+                    floor=self.config.switch_reliability_floor,
+                    power=self.config.switch_reliability_power,
+                )
+                _log.info(
+                    "switch reliability: covariate=%s, %d genes scored, "
+                    "median r=%.3f, frac r<0.5 = %.3f",
+                    self.config.degradation_covariate, len(gene_reliability),
+                    float(np.median(list(gene_reliability.values()))) if gene_reliability else 1.0,
+                    float(np.mean([v < 0.5 for v in gene_reliability.values()])) if gene_reliability else 0.0,
+                )
 
         n_features = switch_matrix.shape[0]
         net_graph = nx.Graph()
@@ -439,6 +474,7 @@ class VaeNetworkModel(NetworkModel):
                 allow_abundance_abundance=cfg.allow_abundance_abundance,
                 alpha_switch=resolved_alpha_switch,
                 alpha_abundance=resolved_alpha_abundance,
+                gene_reliability=gene_reliability,
             )
 
             if cfg.checkpoint_dir is not None:

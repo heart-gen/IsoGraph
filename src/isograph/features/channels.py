@@ -68,13 +68,19 @@ def gene_feature_channels(
     transcript_table: pd.DataFrame,
     gene_counts: np.ndarray | None = None,
     gene_table: pd.DataFrame | None = None,
+    switch_design: np.ndarray | None = None,
 ) -> tuple[np.ndarray, pd.DataFrame]:
     """Return multiplex gene feature channels as rows by samples.
 
     The output always includes an abundance channel for each gene. Switch channels
     are included only for genes with at least two retained transcripts.
+
+    ``switch_design`` is forwarded to :func:`gene_switch_coordinates` to regress
+    nuisance covariates out of each gene's CLR composition before PC1.
     """
-    switch_matrix, switch_info = gene_switch_coordinates(transcript_counts, transcript_table)
+    switch_matrix, switch_info = gene_switch_coordinates(
+        transcript_counts, transcript_table, design=switch_design
+    )
     if switch_info.empty:
         switch_info = pd.DataFrame(columns=["gene_id", "explained_variance_proxy", "n_transcripts"])
     switch_info = switch_info.copy()

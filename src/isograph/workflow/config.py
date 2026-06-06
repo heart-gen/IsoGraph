@@ -122,6 +122,29 @@ class VaeModelConfig:
     residualize_covariates: list[str] = field(
         default_factory=lambda: ["RIN", "PMI", "mito_mapping_rate", "percent_assigned"]
     )
+    # When True, residualize_covariates are regressed out of each gene's CLR
+    # composition *before* the switch PC1 (instead of from the collapsed switch
+    # score afterward). This is robust to confounds that rotate the per-gene
+    # principal axis, such as RNA 3' degradation. Default False preserves the
+    # original behaviour.
+    residualize_composition: bool = False
+    # --- Degradation-aware switch reliability (multiplex abundance fallback) ---
+    # When switch_reliability_weighting is True, each gene's switch coordinate is
+    # scored for how much of its CLR composition variance aligns with
+    # degradation_covariate (a sample-level RNA-integrity metric: RIN, TIN, 3'/5'
+    # bias, exonic coverage slope, ...). Switch-switch edges are then downweighted
+    # by sqrt(r_a*r_b) so degradation-dominated genes drop their switch edges and
+    # fall back to the abundance channel. Default off preserves original behaviour.
+    switch_reliability_weighting: bool = False
+    degradation_covariate: str | None = None
+    switch_reliability_floor: float = 0.0
+    switch_reliability_power: float = 1.0
+    # Background/grey-module rejection (analogous to WGCNA's grey module). After
+    # community detection, iteratively drop genes whose intra-module degree is
+    # below this k (a per-module k-core filter); dropped genes are left
+    # unassigned instead of diluting modules with weakly-connected background.
+    # 0 disables (default), preserving the original assign-every-gene behaviour.
+    grey_min_intra_degree: int = 0
     trait_columns: list[str] = field(default_factory=lambda: ["Age"])
     checkpoint_dir: Path | None = None
     allow_abundance_abundance: bool = False

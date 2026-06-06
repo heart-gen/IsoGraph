@@ -130,6 +130,7 @@ def project_feature_similarity_to_gene_graph(
     allow_abundance_abundance: bool = False,
     alpha_switch: float | None = None,
     alpha_abundance: float | None = None,
+    gene_reliability: dict[str, float] | None = None,
 ) -> tuple[nx.Graph, list[dict[str, object]]]:
     """Aggregate feature-channel similarities into a gene-level graph.
 
@@ -138,6 +139,14 @@ def project_feature_similarity_to_gene_graph(
     edges between dual-channel genes are included only when allow_abundance_abundance
     is True; use alpha_abundance (or alpha_abundance_grid via select_alpha_abundance)
     to calibrate the per-channel threshold and avoid giant components.
+
+    ``gene_reliability`` (gene_id -> weight in [0, 1]) downweights switch-switch
+    edges by the geometric mean of the two genes' switch reliabilities
+    (``edge_weight = association * sqrt(r_a * r_b)``). Degradation-dominated genes
+    thus drop their switch edges below threshold and fall back to the abundance
+    channel. Abundance-involving edges are not reweighted (abundance is
+    degradation-robust). Applied before thresholding so unreliable edges are
+    filtered out.
     """
     gene_ids = sorted(feature_info["gene_id"].astype(str).unique())
     genes_with_switch = set(
@@ -207,6 +216,11 @@ def project_feature_similarity_to_gene_graph(
             effective_alpha = alpha_abundance
         else:
             effective_alpha = alpha
+        # Degradation-aware reliability downweighting of switch-switch edges only.
+        if gene_reliability is not None and source_type == "switch" and target_type == "switch":
+            r_s = gene_reliability.get(source_gene, 1.0)
+            r_t = gene_reliability.get(target_gene, 1.0)
+            weight *= float(np.sqrt(max(r_s, 0.0) * max(r_t, 0.0)))
         if not np.isfinite(weight) or abs(weight) < effective_alpha:
             continue
         source, target = sorted([source_gene, target_gene])

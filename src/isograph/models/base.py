@@ -201,6 +201,25 @@ def compute_module_gene_roles(
     return pd.DataFrame(rows)
 
 
+def _kcore_module(graph: nx.Graph, nodes: set, k: int) -> set:
+    """Background/grey rejection: the k-core of a module's induced subgraph.
+
+    Iteratively removes genes whose degree *within the module* is < k, until all
+    remaining genes have intra-module degree >= k. Weakly-attached background
+    genes (joined to a module by only one or two spurious edges) are dropped to
+    grey rather than diluting the module; densely co-connected true module genes
+    survive. Mirrors WGCNA leaving low-connectivity genes unassigned.
+    """
+    sub = graph.subgraph(nodes).copy()
+    sub.remove_edges_from(nx.selfloop_edges(sub))
+    while sub.number_of_nodes():
+        low = [n for n, deg in sub.degree() if deg < k]
+        if not low:
+            break
+        sub.remove_nodes_from(low)
+    return set(sub.nodes())
+
+
 class NetworkModel:
     def fit(self, *args, **kwargs) -> FitArtifacts:
         raise NotImplementedError
@@ -221,8 +240,12 @@ class NetworkModel:
 
         communities = self._detect_communities(pos_graph)
 
+        grey_k = getattr(self.config, "grey_min_intra_degree", 0)
+
         rows = []
         for module_index, nodes in enumerate(communities):
+            if grey_k > 0:
+                nodes = _kcore_module(pos_graph, nodes, grey_k)
             if len(nodes) < self.config.min_module_size:
                 continue
             for gene_id in sorted(nodes):
