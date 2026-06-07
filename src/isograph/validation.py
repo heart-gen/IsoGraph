@@ -28,6 +28,7 @@ class FeatureTableSpec(BaseModel):
         "junction",
         "truth_module",
         "truth_switch",
+        "truth_switch_event",
         "truth_abundance",
         "truth_channel_role",
     ]
