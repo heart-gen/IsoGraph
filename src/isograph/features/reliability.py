@@ -17,7 +17,46 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from isograph.features.composition import group_transcript_clr
+from isograph.features.composition import group_transcript_clr, transcript_usage
+
+
+def gene_switch_estimability(
+    transcript_counts: np.ndarray,
+    transcript_table: pd.DataFrame,
+    min_minor_usage: float = 0.1,
+    floor: float = 0.0,
+    power: float = 1.0,
+) -> dict[str, float]:
+    """Covariate-free per-gene switch reliability from isoform estimability.
+
+    A gene's switch coordinate (PC1 of the within-gene CLR composition) is only
+    estimable when its *minor* isoforms carry real read support. A gene dominated
+    by a single isoform has almost no compositional headroom, so its switch
+    coordinate is sampling noise that re-orients arbitrarily between independent
+    sample splits -- the main driver of split-half module instability. The minor
+    isoform usage share is the standard differential-transcript-usage estimability
+    criterion (cf. DRIMSeq/DEXSeq minor-proportion filters); we map it to a
+    reliability weight in ``[floor, 1]``:
+
+        minor_g = 1 - mean_s( max_t usage_{t,s} )           # non-dominant usage share
+        reliability_g = clip( (minor_g / min_minor_usage) ** power, floor, 1 )
+
+    A gene whose minor isoforms reach ``min_minor_usage`` (default 0.1 = 10%, a
+    common DTU floor) scores 1; genes below it are downweighted, and ``power`` > 1
+    sharpens that penalty. Requires no sample-level covariate, so it applies to any
+    cohort (unlike :func:`gene_switch_reliability`, which needs a degradation axis).
+    """
+    ref = max(float(min_minor_usage), 1e-6)
+    reliability: dict[str, float] = {}
+    for gene_id, frame in transcript_table.groupby("gene_id", sort=True):
+        indices = frame.index.to_numpy()
+        if len(indices) < 2:
+            continue
+        usage = transcript_usage(transcript_counts[indices])  # (n_tx, n_samples)
+        minor = float(1.0 - usage.max(axis=0).mean())
+        r = (minor / ref) ** power
+        reliability[str(gene_id)] = float(min(1.0, max(floor, r)))
+    return reliability
 
 
 def degradation_direction(
@@ -72,6 +111,55 @@ def gene_degradation_sensitivity(
         aligned = centered @ d  # (n_transcripts,)
         sensitivity[str(gene_id)] = float(np.sum(aligned * aligned) / total)
     return sensitivity
+
+
+def gene_tin_reliability(
+    transcript_counts: np.ndarray,
+    transcript_table: pd.DataFrame,
+    transcript_tin: np.ndarray,
+    floor: float = 0.0,
+    power: float = 1.0,
+) -> dict[str, float]:
+    """Per-gene switch reliability from *within-gene differential* transcript integrity.
+
+    Unlike :func:`gene_switch_reliability` (one sample-level degradation axis shared by
+    all genes), this uses a per-transcript x per-sample TIN matrix (RSeQC transcript
+    integrity number) aligned row-for-row with ``transcript_counts``. For each
+    multi-isoform gene it derives that gene's *own* degradation axis as the dominant
+    sample-mode (PC1) of its mean-centered within-gene TIN matrix -- i.e. the main
+    pattern of *which isoform is relatively more degraded* across samples -- then
+    reuses the sensitivity formula of :func:`gene_degradation_sensitivity`:
+
+        sensitivity_g = ||C_g @ d_g||^2 / ||C_g||_F^2  in [0, 1]
+        reliability_g = clip((1 - sensitivity_g) ** power, floor, 1)
+
+    where ``C_g`` is the gene's centered CLR composition and ``d_g`` its unit TIN axis.
+    A gene whose isoform composition co-varies with differential isoform degradation
+    scores low reliability (its switch is a degradation artifact) and its switch-switch
+    edges are downweighted. Genes with no TIN variation (constant integrity) keep
+    reliability 1.
+    """
+    gene_ids, gene_groups, matrices = group_transcript_clr(transcript_counts, transcript_table)
+    reliability: dict[str, float] = {}
+    for gene_id, indices, clr in zip(gene_ids, gene_groups, matrices, strict=False):
+        tin_g = np.asarray(transcript_tin[indices], dtype=float)  # (n_tx, n_samples)
+        tin_c = tin_g - tin_g.mean(axis=1, keepdims=True)
+        if float(np.sum(tin_c * tin_c)) < 1e-12:
+            reliability[str(gene_id)] = 1.0  # no differential-degradation axis
+            continue
+        # gene-specific degradation axis = PC1 over samples of the centered TIN matrix
+        _, _, vh = np.linalg.svd(tin_c, full_matrices=False)
+        d_g = vh[0]  # (n_samples,), unit-norm
+        centered = clr - clr.mean(axis=1, keepdims=True)
+        total = float(np.sum(centered * centered))
+        if total < 1e-12:
+            reliability[str(gene_id)] = 1.0
+            continue
+        aligned = centered @ d_g
+        sensitivity = float(np.sum(aligned * aligned) / total)
+        r = (1.0 - sensitivity) ** power
+        reliability[str(gene_id)] = float(min(1.0, max(floor, r)))
+    return reliability
 
 
 def gene_switch_reliability(

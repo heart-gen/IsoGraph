@@ -139,6 +139,17 @@ class VaeModelConfig:
     degradation_covariate: str | None = None
     switch_reliability_floor: float = 0.0
     switch_reliability_power: float = 1.0
+    # Source of the per-gene switch reliability weight:
+    #   "degradation"  -- alignment of CLR composition variance with
+    #                     degradation_covariate (needs that covariate; original).
+    #   "estimability" -- covariate-free minor-isoform usage support (works on any
+    #                     cohort); targets split-half instability from genes whose
+    #                     switch coordinate is sampling noise. See
+    #                     features.reliability.gene_switch_estimability.
+    switch_reliability_source: str = "degradation"
+    # Minor-isoform usage floor (DTU estimability) for the "estimability" source: a
+    # gene reaching this non-dominant usage share scores reliability 1.
+    switch_estimability_min_minor_usage: float = 0.1
     # Background/grey-module rejection (analogous to WGCNA's grey module). After
     # community detection, iteratively drop genes whose intra-module degree is
     # below this k (a per-module k-core filter); dropped genes are left
