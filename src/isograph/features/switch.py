@@ -45,3 +45,32 @@ def gene_switch_coordinates(
         )
     matrix = np.vstack(coordinates) if coordinates else np.zeros((0, transcript_counts.shape[1]))
     return matrix, pd.DataFrame(loading_rows)
+
+
+def gene_switch_loadings(
+    transcript_counts: np.ndarray,
+    transcript_table: pd.DataFrame,
+    design: np.ndarray | None = None,
+) -> pd.DataFrame:
+    """Per-transcript loadings on each gene's switch axis (PC1 of the within-gene CLR
+    composition). The transcript with the largest |loading| is the dominant switching
+    isoform -- the gene's driver transcript. Returns a long table
+    ``[gene_id, transcript_id, loading]`` (sign-stabilised the same way as
+    :func:`gene_switch_coordinates`). ``design`` residualises the composition first,
+    matching the switch coordinate used downstream.
+    """
+    gene_ids, groups, matrices = group_transcript_clr(transcript_counts, transcript_table)
+    tx_ids = transcript_table["transcript_id"].astype(str).to_numpy()
+    rows: list[dict[str, object]] = []
+    for gene_id, idx, clr_values in zip(gene_ids, groups, matrices, strict=False):
+        if design is not None:
+            clr_values = residualize_rows(clr_values, design)
+        centered = clr_values.T - clr_values.T.mean(axis=0, keepdims=True)
+        _, _, vh = np.linalg.svd(centered, full_matrices=False)
+        loadings = vh[0]
+        scores = centered @ loadings
+        _, loadings = stable_sign(scores, loadings)
+        for t, load in zip(idx, loadings, strict=False):
+            rows.append({"gene_id": str(gene_id), "transcript_id": tx_ids[t],
+                         "loading": float(load)})
+    return pd.DataFrame(rows, columns=["gene_id", "transcript_id", "loading"])
