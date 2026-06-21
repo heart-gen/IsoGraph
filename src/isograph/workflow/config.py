@@ -109,6 +109,13 @@ class VaeModelConfig:
     n_epochs: int = 500
     lr: float = 1e-3
     weight_decay: float = 1e-5
+    # Max global gradient norm clipped before each optimizer step. Tames the early
+    # exploding-gradient steps that drive ELBO -> ~1e8/nan on some datasets (e.g. GTEx
+    # at lr=1e-3), letting a single lr serve heterogeneous cohorts. None disables
+    # (default), preserving existing run hashes. A divergence guard (non-finite val
+    # loss -> restore best + stop) is always active and only fires on the pathological
+    # path, so it does not change a healthy run.
+    grad_clip_norm: float | None = None
     batch_size: int | None = None
     warmup_epochs: int | None = None
     val_fraction: float = 0.2

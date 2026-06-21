@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import math
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -176,6 +177,8 @@ try:
                     loss, _, _ = _elbo_loss(batch, xr, mu, lv, beta_t)
                     optimizer.zero_grad()
                     loss.backward()
+                    if cfg.grad_clip_norm is not None:
+                        torch.nn.utils.clip_grad_norm_(params, cfg.grad_clip_norm)
                     optimizer.step()
             else:
                 mu, lv = encoder(X_train)
@@ -184,6 +187,8 @@ try:
                 loss, _, _ = _elbo_loss(X_train, xr, mu, lv, beta_t)
                 optimizer.zero_grad()
                 loss.backward()
+                if cfg.grad_clip_norm is not None:
+                    torch.nn.utils.clip_grad_norm_(params, cfg.grad_clip_norm)
                 optimizer.step()
 
             encoder.eval()
@@ -195,6 +200,19 @@ try:
 
             scheduler.step(val_loss)
             val_f = float(val_loss)
+
+            # Divergence guard: a non-finite val loss means training has blown up
+            # (degenerate reconstruction -> downstream near-complete graph / OOM). Stop
+            # and fall back to the best checkpoint rather than poison the recon. Always
+            # on; only reachable on the pathological path, so healthy runs are unchanged.
+            if not math.isfinite(val_f):
+                _log.warning(
+                    "  latent_dim=%d  epoch %d: non-finite val_loss (%.3g) -- diverged; "
+                    "stopping at best_epoch=%d. Set grad_clip_norm (e.g. 1.0) or lower lr.",
+                    latent_dim, epoch + 1, val_f, best_epoch,
+                )
+                early_stopped = True
+                break
 
             if epoch % log_every == 0 or epoch == cfg.n_epochs - 1:
                 elapsed = time.time() - t_start
