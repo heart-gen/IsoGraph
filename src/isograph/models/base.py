@@ -268,11 +268,18 @@ class NetworkModel:
                 nodes_list = list(pos_graph.nodes())
                 node_to_idx = {n: i for i, n in enumerate(nodes_list)}
                 edges = [(node_to_idx[u], node_to_idx[v]) for u, v in pos_graph.edges()]
+                # Edge-weighted and seeded: the unweighted/unseeded Leiden run was a
+                # documented split-half variance source. Weighting by edge strength and
+                # fixing the seed to config.random_state makes the partition deterministic.
+                weights = [float(d.get("weight", 1.0)) for _, _, d in pos_graph.edges(data=True)]
+                seed = int(getattr(self.config, "random_state", 0) or 0)
                 ig_graph = ig.Graph(n=len(nodes_list), edges=edges)
                 partition = leidenalg.find_partition(
                     ig_graph,
                     leidenalg.RBConfigurationVertexPartition,
+                    weights=weights or None,
                     resolution_parameter=resolution,
+                    seed=seed,
                 )
                 communities = [{nodes_list[v] for v in community} for community in partition]
                 return sorted(communities, key=len, reverse=True)
