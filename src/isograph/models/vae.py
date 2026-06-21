@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import math
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,7 +14,12 @@ import numpy as np
 import pandas as pd
 from isograph.features.channels import gene_feature_channels, make_feature_scores
 from isograph.features.residualize import build_design_matrix, residualize_rows
-from isograph.features.reliability import degradation_direction, gene_switch_reliability
+from isograph.features.reliability import (
+    degradation_direction,
+    gene_switch_estimability,
+    gene_switch_reliability,
+    gene_tin_reliability,
+)
 from isograph.models.base import (
     FitArtifacts,
     NetworkModel,
@@ -171,6 +177,8 @@ try:
                     loss, _, _ = _elbo_loss(batch, xr, mu, lv, beta_t)
                     optimizer.zero_grad()
                     loss.backward()
+                    if cfg.grad_clip_norm is not None:
+                        torch.nn.utils.clip_grad_norm_(params, cfg.grad_clip_norm)
                     optimizer.step()
             else:
                 mu, lv = encoder(X_train)
@@ -179,6 +187,8 @@ try:
                 loss, _, _ = _elbo_loss(X_train, xr, mu, lv, beta_t)
                 optimizer.zero_grad()
                 loss.backward()
+                if cfg.grad_clip_norm is not None:
+                    torch.nn.utils.clip_grad_norm_(params, cfg.grad_clip_norm)
                 optimizer.step()
 
             encoder.eval()
@@ -190,6 +200,19 @@ try:
 
             scheduler.step(val_loss)
             val_f = float(val_loss)
+
+            # Divergence guard: a non-finite val loss means training has blown up
+            # (degenerate reconstruction -> downstream near-complete graph / OOM). Stop
+            # and fall back to the best checkpoint rather than poison the recon. Always
+            # on; only reachable on the pathological path, so healthy runs are unchanged.
+            if not math.isfinite(val_f):
+                _log.warning(
+                    "  latent_dim=%d  epoch %d: non-finite val_loss (%.3g) -- diverged; "
+                    "stopping at best_epoch=%d. Set grad_clip_norm (e.g. 1.0) or lower lr.",
+                    latent_dim, epoch + 1, val_f, best_epoch,
+                )
+                early_stopped = True
+                break
 
             if epoch % log_every == 0 or epoch == cfg.n_epochs - 1:
                 elapsed = time.time() - t_start
@@ -303,6 +326,7 @@ class VaeNetworkModel(NetworkModel):
         sample_table: pd.DataFrame,
         gene_counts: np.ndarray | None = None,
         gene_table: pd.DataFrame | None = None,
+        transcript_tin: np.ndarray | None = None,
     ) -> FitArtifacts:
         if not _TORCH_AVAILABLE:
             raise ImportError(
@@ -332,23 +356,62 @@ class VaeNetworkModel(NetworkModel):
                 design = build_design_matrix(sample_table, self.config.residualize_covariates)
                 switch_matrix = residualize_rows(switch_matrix, design)
 
-        # Degradation-aware switch reliability (multiplex abundance fallback).
+        # Per-gene switch reliability -> switch-switch edge downweighting. Two
+        # sources: degradation-alignment (needs a covariate) or covariate-free
+        # isoform estimability (minor-isoform usage support).
         gene_reliability: dict[str, float] | None = None
-        if self.config.switch_reliability_weighting and self.config.degradation_covariate:
-            direction = degradation_direction(sample_table, self.config.degradation_covariate)
-            if direction is not None:
-                gene_reliability = gene_switch_reliability(
-                    transcript_counts, transcript_table, direction,
+        if self.config.switch_reliability_weighting:
+            source = getattr(self.config, "switch_reliability_source", "degradation")
+            if source == "estimability":
+                gene_reliability = gene_switch_estimability(
+                    transcript_counts, transcript_table,
+                    min_minor_usage=getattr(
+                        self.config, "switch_estimability_min_minor_usage", 0.1),
                     floor=self.config.switch_reliability_floor,
                     power=self.config.switch_reliability_power,
                 )
-                _log.info(
-                    "switch reliability: covariate=%s, %d genes scored, "
-                    "median r=%.3f, frac r<0.5 = %.3f",
-                    self.config.degradation_covariate, len(gene_reliability),
-                    float(np.median(list(gene_reliability.values()))) if gene_reliability else 1.0,
-                    float(np.mean([v < 0.5 for v in gene_reliability.values()])) if gene_reliability else 0.0,
+                if gene_reliability:
+                    _log.info(
+                        "switch reliability: source=estimability, %d genes scored, "
+                        "median r=%.3f, frac r<0.5 = %.3f",
+                        len(gene_reliability),
+                        float(np.median(list(gene_reliability.values()))),
+                        float(np.mean([v < 0.5 for v in gene_reliability.values()])),
+                    )
+            elif source == "tin_differential":
+                if transcript_tin is None:
+                    raise ValueError(
+                        "switch_reliability_source='tin_differential' requires a "
+                        "transcript_tin matrix (n_transcripts x n_samples) passed to fit()."
+                    )
+                gene_reliability = gene_tin_reliability(
+                    transcript_counts, transcript_table, np.asarray(transcript_tin),
+                    floor=self.config.switch_reliability_floor,
+                    power=self.config.switch_reliability_power,
                 )
+                if gene_reliability:
+                    _log.info(
+                        "switch reliability: source=tin_differential, %d genes scored, "
+                        "median r=%.3f, frac r<0.5 = %.3f",
+                        len(gene_reliability),
+                        float(np.median(list(gene_reliability.values()))),
+                        float(np.mean([v < 0.5 for v in gene_reliability.values()])),
+                    )
+            elif self.config.degradation_covariate:
+                direction = degradation_direction(sample_table, self.config.degradation_covariate)
+                if direction is not None:
+                    gene_reliability = gene_switch_reliability(
+                        transcript_counts, transcript_table, direction,
+                        floor=self.config.switch_reliability_floor,
+                        power=self.config.switch_reliability_power,
+                    )
+                    _log.info(
+                        "switch reliability: source=degradation, covariate=%s, %d genes scored, "
+                        "median r=%.3f, frac r<0.5 = %.3f",
+                        self.config.degradation_covariate, len(gene_reliability),
+                        float(np.median(list(gene_reliability.values()))) if gene_reliability else 1.0,
+                        float(np.mean([v < 0.5 for v in gene_reliability.values()])) if gene_reliability else 0.0,
+                    )
 
         n_features = switch_matrix.shape[0]
         net_graph = nx.Graph()
