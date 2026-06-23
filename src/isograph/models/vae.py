@@ -296,10 +296,16 @@ class VaeNetworkModel(NetworkModel):
         Uses float32 arithmetic and a chunked matmul to keep peak CPU RAM at
         O(n_genes^2 * 4 bytes) instead of np.corrcoef's ~2x float64 overhead,
         which causes OOM for n_genes ~ 37k.
+
+        Two-axis (double) centering (collapse fix B): the reconstruction is
+        centered both per-gene (axis=1, the standard Pearson centering) and
+        across genes (axis=0). Removing the per-sample mean stops a globally
+        high/low gene from co-ranking with everything, which would otherwise add
+        spurious bridge edges that fuse separate modules into one giant component.
         """
         X = x_recon.T.astype(np.float32, copy=False)  # (n_genes, n_samples)
-        X = X - X.mean(axis=1, keepdims=True)
-        X = X - X.mean(axis=0, keepdims=True)
+        X = X - X.mean(axis=1, keepdims=True)  # per-gene (across samples)
+        X = X - X.mean(axis=0, keepdims=True)  # across-gene (per sample)
         norms = np.linalg.norm(X, axis=1)
         X /= np.where(norms > 1e-12, norms, 1.0)[:, None]
         n = X.shape[0]
@@ -561,6 +567,9 @@ class VaeNetworkModel(NetworkModel):
                 _log.info("Saved VAE checkpoint to %s", chk_path)
 
         module_table = self._module_table(net_graph)
+        leiden_selection = getattr(self, "_leiden_selection", None)
+        if leiden_selection is not None:
+            calibration["leiden_selection"] = leiden_selection
         feature_scores = make_feature_scores(switch_matrix, feature_info, sample_table)
         trait_table, eigengene_table = self._trait_associations(module_table, feature_scores, sample_table)
         module_gene_roles = compute_module_gene_roles(module_table, feature_scores, sample_table)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -11,6 +12,8 @@ import pandas as pd
 from scipy import stats
 
 from isograph.features.channels import feature_sample_columns
+
+_log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -255,35 +258,118 @@ class NetworkModel:
     def _detect_communities(self, pos_graph: nx.Graph) -> list[set]:
         """Return node communities, largest first.
 
-        Uses Leiden when ``config.leiden_resolution`` is set and the optional
-        ``igraph``/``leidenalg`` dependencies are installed, otherwise falls back
-        to connected components.
+        Module-detection backend, selected by config:
+
+        * ``leiden_max_giant_frac`` set (collapse fix C) -> *data-driven*
+          resolution: sweep increasing Leiden resolutions
+          (``leiden_resolution_grid`` or a default geometric grid) and pick the
+          smallest whose largest community is <= that fraction of all genes. This
+          removes the hand-picked-resolution knob -- the chief module-collapse
+          defect, since ``connected_components`` fuses everything into one giant
+          module via single bridge genes on a dense reconstruction-similarity graph.
+        * ``leiden_resolution`` set (without a cap) -> seeded, edge-weighted Leiden
+          at that fixed resolution.
+        * neither set -> legacy ``connected_components`` (preserves old run hashes;
+          default).
+
+        Leiden is edge-weighted and seeded on ``config.random_state`` for
+        determinism. The chosen backend/resolution and achieved giant fraction are
+        recorded on ``self._leiden_selection`` so the partition is auditable and
+        reproducible from ``(config, seed)``.
         """
+        n_nodes = pos_graph.number_of_nodes()
         resolution = getattr(self.config, "leiden_resolution", None)
-        if resolution is not None:
+        max_giant_frac = getattr(self.config, "leiden_max_giant_frac", None)
+
+        if resolution is not None or max_giant_frac is not None:
             try:
                 import igraph as ig
                 import leidenalg
-
+            except ImportError:
+                _log.warning(
+                    "Leiden module detection requested (leiden_resolution/"
+                    "leiden_max_giant_frac) but igraph/leidenalg are not installed; "
+                    "falling back to connected components."
+                )
+            else:
                 nodes_list = list(pos_graph.nodes())
                 node_to_idx = {n: i for i, n in enumerate(nodes_list)}
                 edges = [(node_to_idx[u], node_to_idx[v]) for u, v in pos_graph.edges()]
-                # Edge-weighted and seeded: the unweighted/unseeded Leiden run was a
-                # documented split-half variance source. Weighting by edge strength and
-                # fixing the seed to config.random_state makes the partition deterministic.
                 weights = [float(d.get("weight", 1.0)) for _, _, d in pos_graph.edges(data=True)]
                 seed = int(getattr(self.config, "random_state", 0) or 0)
                 ig_graph = ig.Graph(n=len(nodes_list), edges=edges)
-                partition = leidenalg.find_partition(
-                    ig_graph,
-                    leidenalg.RBConfigurationVertexPartition,
-                    weights=weights or None,
-                    resolution_parameter=resolution,
-                    seed=seed,
-                )
-                communities = [{nodes_list[v] for v in community} for community in partition]
-                return sorted(communities, key=len, reverse=True)
-            except ImportError:
-                pass
 
-        return sorted(nx.connected_components(pos_graph), key=len, reverse=True)
+                def _partition(res: float) -> list[set]:
+                    part = leidenalg.find_partition(
+                        ig_graph,
+                        leidenalg.RBConfigurationVertexPartition,
+                        weights=weights or None,
+                        resolution_parameter=res,
+                        seed=seed,
+                    )
+                    comms = [{nodes_list[v] for v in c} for c in part]
+                    return sorted(comms, key=len, reverse=True)
+
+                def _giant_frac(comms: list[set]) -> float:
+                    return (len(comms[0]) / n_nodes) if comms and n_nodes else 0.0
+
+                if max_giant_frac is not None:
+                    grid = getattr(self.config, "leiden_resolution_grid", None)
+                    if not grid:
+                        base_r = resolution if resolution is not None else 1.0
+                        grid = [base_r * (2 ** i) for i in range(6)]
+                    grid = sorted({float(r) for r in grid})
+                    tried: list[dict] = []
+                    chosen: tuple[float, float, list[set]] | None = None
+                    best: tuple[float, float, list[set]] | None = None
+                    for r in grid:
+                        comms = _partition(r)
+                        gf = _giant_frac(comms)
+                        tried.append({"resolution": r, "giant_fraction": gf, "n_modules": len(comms)})
+                        if best is None or gf < best[1]:
+                            best = (r, gf, comms)
+                        if gf <= max_giant_frac:
+                            chosen = (r, gf, comms)
+                            break
+                    cap_met = chosen is not None
+                    r_sel, gf_sel, comms_sel = chosen if chosen is not None else best  # type: ignore[misc]
+                    if not cap_met:
+                        _log.warning(
+                            "leiden_max_giant_frac=%.3f not reached on the resolution grid "
+                            "(best giant fraction %.3f at resolution %.4g); using best effort.",
+                            max_giant_frac, gf_sel, r_sel,
+                        )
+                    self._leiden_selection = {
+                        "mode": "auto",
+                        "resolution": r_sel,
+                        "giant_fraction": gf_sel,
+                        "n_modules": len(comms_sel),
+                        "cap": max_giant_frac,
+                        "cap_met": cap_met,
+                        "grid_tried": tried,
+                        "seed": seed,
+                    }
+                    return comms_sel
+
+                comms = _partition(float(resolution))
+                self._leiden_selection = {
+                    "mode": "fixed",
+                    "resolution": float(resolution),
+                    "giant_fraction": _giant_frac(comms),
+                    "n_modules": len(comms),
+                    "cap": None,
+                    "cap_met": None,
+                    "seed": seed,
+                }
+                return comms
+
+        comms = sorted(nx.connected_components(pos_graph), key=len, reverse=True)
+        self._leiden_selection = {
+            "mode": "connected_components",
+            "resolution": None,
+            "giant_fraction": (len(comms[0]) / n_nodes) if comms and n_nodes else 0.0,
+            "n_modules": len(comms),
+            "cap": None,
+            "cap_met": None,
+        }
+        return comms
