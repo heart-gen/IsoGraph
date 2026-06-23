@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -280,6 +281,20 @@ class NetworkModel:
         n_nodes = pos_graph.number_of_nodes()
         resolution = getattr(self.config, "leiden_resolution", None)
         max_giant_frac = getattr(self.config, "leiden_max_giant_frac", None)
+
+        if max_giant_frac is not None:
+            # DEPRECATED (2026-06-22): the giant-fraction cap regresses split-half module
+            # stability (ARI -0.05 to -0.09 across the trust-funnel regions). It is retained
+            # only for reproducibility of prior runs/the A/B record; new fits should leave it
+            # at None and steer granularity with leiden_resolution instead.
+            _msg = (
+                "leiden_max_giant_frac is deprecated and not recommended: the split-half "
+                "stability A/B (2026-06-22) showed it regresses within-cohort module "
+                "reproducibility (ARI -0.05 to -0.09). Leave it at None and tune "
+                "leiden_resolution if you must steer module granularity."
+            )
+            warnings.warn(_msg, DeprecationWarning, stacklevel=2)
+            _log.warning(_msg)
 
         if resolution is not None or max_giant_frac is not None:
             try:

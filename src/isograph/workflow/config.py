@@ -171,13 +171,15 @@ class VaeModelConfig:
     alpha_abundance: float | None = None
     alpha_abundance_grid: list[float] | None = None
     leiden_resolution: float | None = None
-    # Collapse fix C — data-driven module-detection resolution. When set, sweep
-    # increasing Leiden resolutions and select the smallest whose largest community
-    # is <= this fraction of all genes, then record the chosen resolution. Removes
-    # the hand-picked-resolution knob that otherwise lets dense reconstruction-
-    # similarity graphs fuse into one giant module under connected components.
-    # Requires igraph/leidenalg. None (default) preserves the existing backend
-    # (connected components unless leiden_resolution is set) and run hashes.
+    # DEPRECATED (2026-06-22) — do not tune. Collapse fix C explored a data-driven
+    # module-detection resolution: sweep increasing Leiden resolutions and select the
+    # smallest whose largest community is <= this fraction of all genes. The split-half
+    # stability A/B (cap=0.15 vs baseline, 6 trust-funnel regions) showed it *regresses*
+    # within-cohort reproducibility (ARI -0.05 to -0.09 in every region with signal),
+    # exactly like the post-hoc `max_module_frac` split it was meant to replace. Keep
+    # this at None; tune `leiden_resolution` instead if you must steer granularity.
+    # Retained only so prior run hashes / the A/B record stay reproducible — setting it
+    # to a non-None value emits a DeprecationWarning (see models/base.py).
     leiden_max_giant_frac: float | None = None
     # Optional explicit resolution grid for the leiden_max_giant_frac sweep; when
     # None a geometric grid (base, 2x, 4x, ... 32x) is used, seeded at
