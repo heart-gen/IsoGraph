@@ -18,7 +18,6 @@ from isograph.features.reliability import (
     degradation_direction,
     gene_switch_estimability,
     gene_switch_reliability,
-    gene_tin_reliability,
 )
 from isograph.models.base import (
     FitArtifacts,
@@ -326,7 +325,6 @@ class VaeNetworkModel(NetworkModel):
         sample_table: pd.DataFrame,
         gene_counts: np.ndarray | None = None,
         gene_table: pd.DataFrame | None = None,
-        transcript_tin: np.ndarray | None = None,
     ) -> FitArtifacts:
         if not _TORCH_AVAILABLE:
             raise ImportError(
@@ -373,25 +371,6 @@ class VaeNetworkModel(NetworkModel):
                 if gene_reliability:
                     _log.info(
                         "switch reliability: source=estimability, %d genes scored, "
-                        "median r=%.3f, frac r<0.5 = %.3f",
-                        len(gene_reliability),
-                        float(np.median(list(gene_reliability.values()))),
-                        float(np.mean([v < 0.5 for v in gene_reliability.values()])),
-                    )
-            elif source == "tin_differential":
-                if transcript_tin is None:
-                    raise ValueError(
-                        "switch_reliability_source='tin_differential' requires a "
-                        "transcript_tin matrix (n_transcripts x n_samples) passed to fit()."
-                    )
-                gene_reliability = gene_tin_reliability(
-                    transcript_counts, transcript_table, np.asarray(transcript_tin),
-                    floor=self.config.switch_reliability_floor,
-                    power=self.config.switch_reliability_power,
-                )
-                if gene_reliability:
-                    _log.info(
-                        "switch reliability: source=tin_differential, %d genes scored, "
                         "median r=%.3f, frac r<0.5 = %.3f",
                         len(gene_reliability),
                         float(np.median(list(gene_reliability.values()))),
