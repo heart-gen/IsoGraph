@@ -170,7 +170,8 @@ class VaeModelConfig:
     alpha_switch_grid: list[float] | None = None
     alpha_abundance: float | None = None
     alpha_abundance_grid: list[float] | None = None
-    leiden_resolution: float | None = None
+    # Leiden community-detection resolution (higher -> more, smaller modules).
+    leiden_resolution: float | None = 5.0
 
 
 @dataclass
