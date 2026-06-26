@@ -9,7 +9,8 @@ IsoGraph uses dataclass-based typed configuration models in
   Controls suite generation, backend selection, report locations, real-data freeze
   settings, and backend-specific config blocks. The default backend is `"vae"`.
 - `FitCommandConfig`
-  Controls baseline fitting for a prepared dataset bundle.
+  Controls fitting a prepared dataset bundle with any backend (`baseline`, `latent`,
+  `graph`, `vae`, `wgcna`); the default backend is `"vae"`.
 - `CompareCommandConfig`
   Controls report or snapshot comparison output paths.
 
@@ -43,7 +44,7 @@ The repository ships with these YAML entry points:
 | File | Suite | Backend |
 |---|---|---|
 | `configs/benchmark.yaml` | `core_v1` | `vae` (default) |
-| `configs/fit.yaml` | — | baseline |
+| `configs/fit.yaml` | — | `vae` (default) |
 | `configs/compare.yaml` | — | — |
 | `configs/stage3_graph.yaml` | `core_v1` | `graph` |
 | `configs/stage4_vae.yaml` | `core_v1` | `vae` |
@@ -66,12 +67,38 @@ VAE, graph, and latent configs can enable multiplex edge policies with:
 - `allow_abundance_abundance` — include abundance-abundance edges instead of requiring
   abundance-only genes to connect through switch-active genes.
 - `alpha_switch` — threshold for switch-switch feature edges.
+- `alpha_switch_grid` — optional grid used to select the switch threshold that avoids
+  switch-switch giant components (the switch-channel counterpart of `alpha_abundance_grid`).
 - `alpha_abundance` — fixed threshold for abundance-abundance feature edges.
 - `alpha_abundance_grid` — optional grid used to select the smallest abundance threshold
   that avoids merging baseline switch modules.
 
 For very large multiplex fixtures, prefer a fixed `alpha_abundance` because grid
 selection repeats the O(feature²) graph projection for each candidate threshold.
+
+## VAE Stability and Reliability Controls
+
+`VaeModelConfig` exposes several opt-in fields (all off/neutral by default) for hard
+cohorts. They are not set in `configs/fit.yaml`, so they take their dataclass defaults
+unless you override them:
+
+- `grad_clip_norm` (default `None`) — clips the global gradient norm before each optimizer
+  step to tame early exploding-gradient steps. A divergence guard (non-finite validation
+  loss → restore best checkpoint and stop) is always active regardless of this setting.
+- `residualize_composition` (default `False`) — regress `residualize_covariates` out of each
+  gene's CLR composition *before* the switch PC1 is derived, instead of out of the collapsed
+  switch score afterward. Robust to confounds that rotate a gene's switch axis (e.g. 3′
+  degradation).
+- `switch_reliability_weighting` (default `False`) — down-weight switch-switch edges by
+  per-gene reliability so unreliable genes fall back to the abundance channel. Source is
+  chosen with `switch_reliability_source`: `"degradation"` (needs `degradation_covariate`)
+  or the covariate-free `"estimability"` (tuned by `switch_estimability_min_minor_usage`).
+  `switch_reliability_floor` and `switch_reliability_power` shape the weight curve.
+- `grey_min_intra_degree` (default `0`) — WGCNA-style grey-module rejection: iteratively drop
+  genes whose intra-module degree is below this `k`, leaving them unassigned.
+- `leiden_resolution` (default `5.0`) — Leiden community-detection resolution; higher gives
+  more, smaller modules. The data-driven giant-component cap is automatic (the former
+  `leiden_max_giant_frac` knob is deprecated).
 
 ## Per-Fixture Overrides
 

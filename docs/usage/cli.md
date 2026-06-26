@@ -93,6 +93,7 @@ Outputs:
 - `edges.parquet`
 - `traits.parquet`
 - `feature_scores.parquet`
+- `module_gene_roles.parquet` (multiplex fits only — gene channel roles per module)
 - `calibration.json` (when the backend emits calibration metadata — VAE, latent)
 - `fit_config.json`
 

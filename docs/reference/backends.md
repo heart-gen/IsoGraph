@@ -12,7 +12,7 @@ correlation network, and extracts modules as connected components.
 Use it when you want:
 
 - the simplest reproducible backend
-- the current custom-data CLI path through `isograph fit`
+- a fast, deterministic option via `isograph fit --backend baseline`
 - a stable reference point for regression testing
 
 ## Latent
@@ -91,6 +91,9 @@ for both. For `fit` with Hydra overrides, append `--` followed by `<backend>.<fi
 (e.g. `-- vae.hidden_dim=256`).
 
 All backends support the multiplex edge-policy fields when multiplex channels are present:
-`allow_abundance_abundance`, `alpha_switch`, `alpha_abundance`, `alpha_abundance_grid`.
-The VAE backend supports `vae_checkpoint.pt` saving for decoder and encoder attribution.
+`allow_abundance_abundance`, `alpha_switch`, `alpha_switch_grid`, `alpha_abundance`,
+`alpha_abundance_grid`. The VAE backend supports `vae_checkpoint.pt` saving for decoder and
+encoder attribution, plus opt-in stability/reliability controls (`grad_clip_norm`,
+`switch_reliability_weighting`, `grey_min_intra_degree`, `residualize_composition`) — see the
+"VAE Stability and Reliability Controls" section of the [configuration reference](configuration.md).
 All backends populate `module_gene_roles.parquet` when multiplex channels are detected.
