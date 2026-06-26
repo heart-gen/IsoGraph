@@ -12,6 +12,12 @@ project = "IsoGraph"
 author = "Kynon J Benjamin"
 copyright = "2026, Kynon J Benjamin"
 
+try:
+    from isograph import __version__ as release
+except Exception:  # pragma: no cover - fallback if the package is not importable
+    release = "0.1.4"
+version = release
+
 extensions = [
     "myst_parser",
     "sphinx.ext.autodoc",

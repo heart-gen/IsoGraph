@@ -52,6 +52,16 @@ JSON reports under `artifacts/reports/`.
   - `switch_active`, `abundance_active` — boolean flags (|r| ≥ 0.2)
 - `fit_config.json` — complete configuration used for this run, including IsoGraph version
   and random seed
+- `calibration.json` — backend calibration metadata when the selected backend emits it
+  (VAE, latent). For VAE this includes `reconstruction_rmse`, `vae_latent_dim`, and
+  `vae_n_collapsed_dims`; multiplex runs additionally record the auto-selected thresholds
+  (`selected_alpha_switch`, `selected_alpha_abundance`) and `leiden_selection`.
+
+```{note}
+`FitArtifacts` also carries `node_diagnostics` and `feature_reconstruction` diagnostic
+tables in-process. These are available from the Python API (`model.fit(...)`) but are not
+written to disk by `isograph fit`.
+```
 
 ## Explain Outputs
 
