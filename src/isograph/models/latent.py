@@ -9,17 +9,12 @@ deterministic Stage-1 baseline.
 
 from __future__ import annotations
 
-import logging
-import warnings
 from dataclasses import dataclass
 
 import networkx as nx
 import numpy as np
 import pandas as pd
 from sklearn.covariance import LedoitWolf
-from sklearn.decomposition import FactorAnalysis
-from sklearn.exceptions import ConvergenceWarning
-from sklearn.model_selection import KFold
 
 from isograph.features.channels import gene_feature_channels, make_feature_scores
 from isograph.features.residualize import build_design_matrix, residualize_rows
@@ -29,45 +24,9 @@ from isograph.models.base import (
     compute_module_gene_roles,
     compute_trait_associations,
 )
+from isograph.models.denoise import denoise_features_per_channel
 from isograph.models.multiplex import project_feature_similarity_to_gene_graph, select_alpha_abundance
 from isograph.workflow.config import LatentModelConfig
-
-_log = logging.getLogger(__name__)
-
-
-def _cv_select_n_components(
-    X: np.ndarray,
-    grid: list[int],
-    max_iter: int,
-    tol: float,
-    n_splits: int = 5,
-) -> int:
-    """Select n_components from *grid* by cross-validated held-out log-likelihood.
-
-    Fits FA on (n_splits-1) folds and scores on the held-out fold. Picks the
-    smallest k whose mean CV log-likelihood is within numerical noise of the
-    maximum — this guards against selecting a larger k when gains are marginal.
-    Held-out scoring penalises factors that fit training noise and do not
-    generalise, giving a reliable elbow even on low-noise synthetic data.
-    """
-    n_samples, n_genes = X.shape
-    kf = KFold(n_splits=n_splits, shuffle=True, random_state=0)
-    best_k, best_score = grid[0], -np.inf
-    for k in grid:
-        k_eff = max(1, min(k, n_genes - 1, n_samples - 1))
-        fold_scores = []
-        for train_idx, test_idx in kf.split(X):
-            fa = FactorAnalysis(n_components=k_eff, max_iter=max_iter, tol=tol, random_state=0)
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", ConvergenceWarning)
-                fa.fit(X[train_idx])
-            fold_scores.append(float(fa.score(X[test_idx])))
-        score = float(np.mean(fold_scores))
-        _log.debug("CV sweep k=%d  cv_ll=%.4f", k_eff, score)
-        if score > best_score:
-            best_score, best_k = score, k_eff
-    _log.info("CV selected n_components=%d (cv_ll=%.4f)", best_k, best_score)
-    return best_k
 
 
 @dataclass
@@ -123,57 +82,17 @@ class LatentNetworkModel(NetworkModel):
         edge_rows: list[dict] = []
 
         if n_features >= 2:
-            # X is (n_samples, n_features) — standard orientation for sklearn
-            X = switch_matrix.T
-            if self.config.n_components_grid:
-                k = _cv_select_n_components(
-                    X,
-                    self.config.n_components_grid,
-                    self.config.max_iter,
-                    self.config.tol,
-                    n_splits=self.config.n_components_cv_folds,
-                )
-            else:
-                k = max(1, min(self.config.n_components, X.shape[1] - 1, X.shape[0] - 1))
-            fa = FactorAnalysis(
-                n_components=k,
+            # Probabilistic denoising: FA per multiplex channel (switch / abundance)
+            # so a high-variance channel cannot swamp the others' component selection.
+            denoised_switch, calibration = denoise_features_per_channel(
+                switch_matrix,
+                feature_info,
+                n_components=self.config.n_components,
+                n_components_grid=self.config.n_components_grid,
                 max_iter=self.config.max_iter,
                 tol=self.config.tol,
-                random_state=0,
+                n_splits=self.config.n_components_cv_folds,
             )
-            converged = True
-            with warnings.catch_warnings(record=True) as _caught:
-                warnings.simplefilter("always")
-                fa.fit(X)
-                if any(issubclass(w.category, ConvergenceWarning) for w in _caught):
-                    converged = False
-                    _log.warning(
-                        "FactorAnalysis did not converge in %d iterations "
-                        "(n_features=%d, n_samples=%d, n_components=%d). "
-                        "Consider increasing max_iter or tol.",
-                        self.config.max_iter,
-                        n_features,
-                        X.shape[0],
-                        k,
-                    )
-
-            # Probabilistic denoising: posterior mean reconstruction
-            Z = fa.transform(X)                          # (n_samples, k)
-            X_denoised = Z @ fa.components_ + fa.mean_  # (n_samples, n_genes)
-            denoised_switch = X_denoised.T               # (n_genes, n_samples)
-
-            # Calibration metrics from the FA model
-            log_ll = float(fa.score(X))
-            rmse = float(np.sqrt(np.mean((X - X_denoised) ** 2)))
-            calibration = {
-                "mean_log_likelihood": log_ll,
-                "reconstruction_rmse": rmse,
-                "mean_noise_variance": float(fa.noise_variance_.mean()),
-                "n_components_used": k,
-                "n_components_selected_by": "cv" if self.config.n_components_grid else "fixed",
-                "n_iter": int(fa.n_iter_),
-                "converged": converged,
-            }
 
             # Gene network: strongest feature-channel evidence per gene pair
             partial = self._partial_correlation(denoised_switch)

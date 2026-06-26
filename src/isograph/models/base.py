@@ -82,11 +82,7 @@ def compute_trait_associations(
     (effect = group1_mean - group0_mean, groups ordered by sorted category label).
     Columns absent from sample_table or with >2 categories are skipped.
     """
-    sample_ids = (
-        sample_table["sample_id"].tolist()
-        if "sample_id" in sample_table.columns
-        else list(range(len(sample_table)))
-    )
+    sample_ids = feature_sample_columns(feature_scores)
     if module_table.empty:
         return (
             pd.DataFrame(columns=["module_id", "trait", "effect", "pvalue"]),

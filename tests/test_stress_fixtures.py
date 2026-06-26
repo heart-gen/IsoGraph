@@ -2,25 +2,33 @@
 
 noisy_v1       — High noise, low sample count, weak effects, 70 % background.
                  Grounded in real caudate NB dispersion (~6–15) and sparse switching.
-                 Demonstrates Stage 2 (FA denoising) value over Stage 1.
+                 The multiplex abundance channel carries strong module signal, so
+                 even the deterministic Stage-1 baseline recovers it; Stage 2/3
+                 maintain comparable recovery while adding FA calibration.
 
 large_v1       — Scale stress (800 genes / 120 samples, n_genes >> n_samples).
-                 Stage 1 covariance estimation is severely underdetermined;
-                 FA dimension reduction (Stage 2) is the critical differentiator.
+                 Abundance co-regulation lets Stage 1 recover modules despite the
+                 underdetermined switch covariance; Stage 2 FA denoising holds
+                 recovery while keeping high edge precision.
 
 nonlinear_v1   — Radial / product-interaction module structure.
-                 Modules activate on r² or f1·f2 — not representable as a1·f1 + a2·f2.
-                 Stage 2 achieves partial recovery (~0.59); Stage 4 (VAE) is the target.
+                 Modules activate on r² or f1·f2 — not representable as a1·f1 + a2·f2,
+                 and not abundance-co-regulated, so Stage 1 stays weak here. Stage 2
+                 achieves partial recovery (~0.59); Stage 4 (VAE) is the target.
 
-Recovery thresholds are locked to empirically measured values (seed=7, 2026-04-18):
+Recovery thresholds are locked to empirically measured values (seed=7, 2026-06-26,
+multiplex switch+abundance channels with per-channel FA denoising):
 
   Fixture        Stage 1   Stage 2   Stage 3
-  noisy_v1       0.040     0.833     0.812
-  large_v1       0.027     0.862     0.852
-  nonlinear_v1   0.125     0.588     0.535
+  noisy_v1       0.869     0.833     0.977
+  large_v1       0.933     0.862     0.863
+  nonlinear_v1   0.225     0.588     0.525
 
-Stage 2 and 3 gates are set to observed_value - 0.10 to allow for seed variation
-while still catching genuine regressions.
+Gates are set below the observed values (roughly observed - 0.10) to allow for
+seed variation while still catching genuine regressions. Note that on the
+abundance-informative fixtures (noisy_v1, large_v1) Stage 1 is now strong, so the
+gates check that each stage recovers well rather than that later stages strictly
+beat Stage 1; nonlinear_v1 retains the Stage1-weak / Stage2-better ordering.
 """
 
 from __future__ import annotations
@@ -89,29 +97,28 @@ def stress_bundles(tmp_path_factory):
 # ===========================================================================
 
 
-def test_noisy_v1_stage1_fails(stress_bundles):
-    """Stage 1 (deterministic baseline) produces near-random recovery on noisy_v1.
+def test_noisy_v1_stage1_recovers(stress_bundles):
+    """Stage 1 (deterministic baseline) recovers noisy_v1 via the abundance channel.
 
-    High noise, weak effects, and 70 % background genes overwhelm the
-    Ledoit-Wolf partial-correlation estimator, resulting in a dense network
-    with essentially no module structure.
+    Despite high noise, weak effects, and 70 % background genes, the multiplex
+    abundance channel carries enough module signal for the Ledoit-Wolf
+    partial-correlation baseline to recover most modules (~0.87).
     """
     arts = _fit(BaselineNetworkModel, _S1_NOISY, stress_bundles["noisy_v1"])
     rec  = _recovery(arts, stress_bundles["noisy_v1"])
-    assert rec < 0.15, f"Stage 1 noisy_v1 recovery {rec:.4f} should be < 0.15 (noise floor)"
+    assert rec >= 0.70, f"Stage 1 noisy_v1 recovery {rec:.4f} < 0.70"
 
 
-def test_noisy_v1_stage2_improves_over_stage1(stress_bundles):
-    """Stage 2 (FA denoising) shows a large improvement over Stage 1 on noisy_v1.
+def test_noisy_v1_stage2_maintains_recovery(stress_bundles):
+    """Stage 2 (FA denoising) holds high recovery on noisy_v1 (~0.83).
 
-    The FA denoising step filters the high NB overdispersion noise, enabling
-    Ledoit-Wolf to recover most modules.  Expected recovery >= 0.70.
+    Per-channel FA denoising filters the high NB overdispersion noise while
+    preserving the switch signal. On this abundance-informative fixture Stage 1
+    is already strong, so Stage 2 maintains comparable recovery (it adds
+    calibrated uncertainty estimates rather than a recovery jump).
     """
-    arts1 = _fit(BaselineNetworkModel, _S1_NOISY, stress_bundles["noisy_v1"])
-    arts2 = _fit(LatentNetworkModel,   _S2_NOISY, stress_bundles["noisy_v1"])
-    rec1  = _recovery(arts1, stress_bundles["noisy_v1"])
+    arts2 = _fit(LatentNetworkModel, _S2_NOISY, stress_bundles["noisy_v1"])
     rec2  = _recovery(arts2, stress_bundles["noisy_v1"])
-    assert rec2 > rec1, f"Stage 2 recovery ({rec2:.4f}) must exceed Stage 1 ({rec1:.4f})"
     assert rec2 >= 0.70, f"Stage 2 noisy_v1 recovery {rec2:.4f} < 0.70"
 
 
@@ -141,30 +148,27 @@ def test_noisy_v1_calibration_converged(stress_bundles):
 # ===========================================================================
 
 
-def test_large_v1_stage1_fails(stress_bundles):
-    """Stage 1 produces near-random recovery on large_v1 (800 genes / 120 samples).
+def test_large_v1_stage1_recovers(stress_bundles):
+    """Stage 1 recovers large_v1 (800 genes / 120 samples) via abundance co-regulation.
 
-    An 800×800 covariance matrix estimated from 120 observations is severely
-    underdetermined even with Ledoit-Wolf shrinkage — Stage 1 cannot find
-    meaningful module structure.
+    Although the 800×800 switch covariance is severely underdetermined from 120
+    observations, the multiplex abundance channel supplies clean gene-level
+    co-regulation edges, so the Ledoit-Wolf baseline recovers most modules (~0.93).
     """
     arts = _fit(BaselineNetworkModel, _S1_LARGE, stress_bundles["large_v1"])
     rec  = _recovery(arts, stress_bundles["large_v1"])
-    assert rec < 0.15, f"Stage 1 large_v1 recovery {rec:.4f} should be < 0.15"
+    assert rec >= 0.75, f"Stage 1 large_v1 recovery {rec:.4f} < 0.75"
 
 
-def test_large_v1_stage2_improves_over_stage1(stress_bundles):
-    """Stage 2 FA reduces the estimation problem from 800-D to k-D, enabling recovery.
+def test_large_v1_stage2_maintains_recovery(stress_bundles):
+    """Stage 2 FA holds high recovery on large_v1 (~0.86).
 
-    Expected improvement: Stage 2 >= 0.70 (vs Stage 1 near zero).
-    FA identifies the ~10 latent modules and passes a tractable covariance
-    problem to Ledoit-Wolf.
+    Per-channel FA reduces the switch estimation problem from 800-D to k-D while
+    abundance edges are denoised separately. On this abundance-informative fixture
+    Stage 1 is already strong, so Stage 2 maintains comparable recovery.
     """
-    arts1 = _fit(BaselineNetworkModel, _S1_LARGE, stress_bundles["large_v1"])
-    arts2 = _fit(LatentNetworkModel,   _S2_LARGE, stress_bundles["large_v1"])
-    rec1  = _recovery(arts1, stress_bundles["large_v1"])
+    arts2 = _fit(LatentNetworkModel, _S2_LARGE, stress_bundles["large_v1"])
     rec2  = _recovery(arts2, stress_bundles["large_v1"])
-    assert rec2 > rec1, f"Stage 2 recovery ({rec2:.4f}) must exceed Stage 1 ({rec1:.4f})"
     assert rec2 >= 0.70, f"Stage 2 large_v1 recovery {rec2:.4f} < 0.70"
 
 
