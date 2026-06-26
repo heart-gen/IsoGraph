@@ -633,6 +633,9 @@ class VaeNetworkModel(NetworkModel):
                 _log.info("Saved VAE checkpoint to %s", chk_path)
 
         module_table = self._module_table(net_graph)
+        leiden_selection = getattr(self, "_leiden_selection", None)
+        if leiden_selection is not None:
+            calibration["leiden_selection"] = leiden_selection
         feature_scores = make_feature_scores(switch_matrix, feature_info, sample_table)
         # VAE reconstruction of the full multiplex feature matrix (switch + abundance
         # rows), saved so the gene graph can be re-projected post-hoc under different
