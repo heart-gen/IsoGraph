@@ -113,55 +113,6 @@ def gene_degradation_sensitivity(
     return sensitivity
 
 
-def gene_tin_reliability(
-    transcript_counts: np.ndarray,
-    transcript_table: pd.DataFrame,
-    transcript_tin: np.ndarray,
-    floor: float = 0.0,
-    power: float = 1.0,
-) -> dict[str, float]:
-    """Per-gene switch reliability from *within-gene differential* transcript integrity.
-
-    Unlike :func:`gene_switch_reliability` (one sample-level degradation axis shared by
-    all genes), this uses a per-transcript x per-sample TIN matrix (RSeQC transcript
-    integrity number) aligned row-for-row with ``transcript_counts``. For each
-    multi-isoform gene it derives that gene's *own* degradation axis as the dominant
-    sample-mode (PC1) of its mean-centered within-gene TIN matrix -- i.e. the main
-    pattern of *which isoform is relatively more degraded* across samples -- then
-    reuses the sensitivity formula of :func:`gene_degradation_sensitivity`:
-
-        sensitivity_g = ||C_g @ d_g||^2 / ||C_g||_F^2  in [0, 1]
-        reliability_g = clip((1 - sensitivity_g) ** power, floor, 1)
-
-    where ``C_g`` is the gene's centered CLR composition and ``d_g`` its unit TIN axis.
-    A gene whose isoform composition co-varies with differential isoform degradation
-    scores low reliability (its switch is a degradation artifact) and its switch-switch
-    edges are downweighted. Genes with no TIN variation (constant integrity) keep
-    reliability 1.
-    """
-    gene_ids, gene_groups, matrices = group_transcript_clr(transcript_counts, transcript_table)
-    reliability: dict[str, float] = {}
-    for gene_id, indices, clr in zip(gene_ids, gene_groups, matrices, strict=False):
-        tin_g = np.asarray(transcript_tin[indices], dtype=float)  # (n_tx, n_samples)
-        tin_c = tin_g - tin_g.mean(axis=1, keepdims=True)
-        if float(np.sum(tin_c * tin_c)) < 1e-12:
-            reliability[str(gene_id)] = 1.0  # no differential-degradation axis
-            continue
-        # gene-specific degradation axis = PC1 over samples of the centered TIN matrix
-        _, _, vh = np.linalg.svd(tin_c, full_matrices=False)
-        d_g = vh[0]  # (n_samples,), unit-norm
-        centered = clr - clr.mean(axis=1, keepdims=True)
-        total = float(np.sum(centered * centered))
-        if total < 1e-12:
-            reliability[str(gene_id)] = 1.0
-            continue
-        aligned = centered @ d_g
-        sensitivity = float(np.sum(aligned * aligned) / total)
-        r = (1.0 - sensitivity) ** power
-        reliability[str(gene_id)] = float(min(1.0, max(floor, r)))
-    return reliability
-
-
 def gene_switch_reliability(
     transcript_counts: np.ndarray,
     transcript_table: pd.DataFrame,

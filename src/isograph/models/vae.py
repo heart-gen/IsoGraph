@@ -18,7 +18,6 @@ from isograph.features.reliability import (
     degradation_direction,
     gene_switch_estimability,
     gene_switch_reliability,
-    gene_tin_reliability,
 )
 from isograph.models.base import (
     FitArtifacts,
@@ -28,6 +27,7 @@ from isograph.models.base import (
 )
 from isograph.models.multiplex import (
     project_feature_similarity_to_gene_graph,
+    reconstruction_to_similarity,
     select_alpha_abundance,
     select_alpha_switch,
 )
@@ -280,6 +280,107 @@ except ImportError:  # pragma: no cover
 # ---------------------------------------------------------------------------
 
 
+def _build_node_diagnostics(
+    feature_info: pd.DataFrame,
+    edge_rows: list[dict],
+    module_table: pd.DataFrame,
+    gene_reliability: dict[str, float] | None,
+    node_stats: dict[str, dict[str, float]],
+    alpha_switch: float | None,
+    min_module_size: int,
+    reliability_on: bool,
+) -> pd.DataFrame:
+    """Per-gene node-fate diagnostic: explain why a target gene is (or is not) in a module.
+
+    One row per gene. ``fate`` is one of:
+      - ``assigned``               -- in a final module (>= min_module_size).
+      - ``sub_min_module_size``    -- connected, but its community is below min_module_size.
+      - ``downweighted_below_alpha`` -- isolated switch gene whose strongest *raw*
+        switch association cleared alpha_switch but reliability downweighting pushed
+        its best edge below threshold (only when reliability weighting is on).
+      - ``isolated_below_alpha``   -- isolated; no association reached the edge
+        threshold (the alpha sparsity floor), reliability not responsible.
+
+    Evidence columns: ``has_switch_feature``/``has_abundance_feature``,
+    ``switch_reliability`` (estimability/degradation weight; NaN when weighting off),
+    ``max_abs_assoc`` and ``max_switch_assoc`` (strongest raw association to any
+    partner; NaN means below the min-alpha pre-filter, i.e. effectively independent),
+    and per-channel/total edge ``degree``.
+    """
+    gene_ids = sorted(feature_info["gene_id"].astype(str).unique())
+    types_by_gene = (
+        feature_info.assign(gene_id=feature_info["gene_id"].astype(str),
+                            feature_type=feature_info["feature_type"].astype(str))
+        .groupby("gene_id")["feature_type"].agg(set)
+    )
+
+    # Per-gene surviving-edge degree by channel (a gene's endpoint feature_type).
+    n_switch_edges: dict[str, int] = {}
+    n_abundance_edges: dict[str, int] = {}
+    for row in edge_rows:
+        for gene_key, type_key in (
+            (str(row["source"]), str(row["source_feature_type"])),
+            (str(row["target"]), str(row["target_feature_type"])),
+        ):
+            if type_key == "switch":
+                n_switch_edges[gene_key] = n_switch_edges.get(gene_key, 0) + 1
+            else:
+                n_abundance_edges[gene_key] = n_abundance_edges.get(gene_key, 0) + 1
+
+    assigned = dict(
+        zip(module_table["gene_id"].astype(str), module_table["module_id"].astype(str))
+    ) if not module_table.empty else {}
+
+    rows = []
+    for gene_id in gene_ids:
+        gtypes = types_by_gene.get(gene_id, set())
+        has_switch = "switch" in gtypes
+        has_abundance = "abundance" in gtypes
+        rel = (
+            float(gene_reliability.get(gene_id, 1.0))
+            if (reliability_on and gene_reliability is not None)
+            else float("nan")
+        )
+        stats = node_stats.get(gene_id, {})
+        max_abs_assoc = float(stats.get("max_abs_assoc", float("nan")))
+        max_switch_assoc = float(stats.get("max_switch_assoc", float("nan")))
+        n_sw = n_switch_edges.get(gene_id, 0)
+        n_ab = n_abundance_edges.get(gene_id, 0)
+        degree = n_sw + n_ab
+        module_id = assigned.get(gene_id)
+
+        if module_id is not None:
+            fate = "assigned"
+        elif degree > 0:
+            fate = "sub_min_module_size"
+        elif (
+            reliability_on
+            and has_switch
+            and np.isfinite(rel) and rel < 1.0
+            and alpha_switch is not None
+            and np.isfinite(max_switch_assoc)
+            and max_switch_assoc >= alpha_switch
+        ):
+            fate = "downweighted_below_alpha"
+        else:
+            fate = "isolated_below_alpha"
+
+        rows.append({
+            "gene_id": gene_id,
+            "fate": fate,
+            "module_id": module_id,
+            "has_switch_feature": has_switch,
+            "has_abundance_feature": has_abundance,
+            "switch_reliability": rel,
+            "max_abs_assoc": max_abs_assoc,
+            "max_switch_assoc": max_switch_assoc,
+            "n_switch_edges": n_sw,
+            "n_abundance_edges": n_ab,
+            "degree": degree,
+        })
+    return pd.DataFrame(rows)
+
+
 @dataclass
 class VaeNetworkModel(NetworkModel):
     config: VaeModelConfig
@@ -293,29 +394,11 @@ class VaeNetworkModel(NetworkModel):
         module structure into the reconstruction, so Pearson correlation
         captures both types without requiring separate inference modes.
 
-        Uses float32 arithmetic and a chunked matmul to keep peak CPU RAM at
-        O(n_genes^2 * 4 bytes) instead of np.corrcoef's ~2x float64 overhead,
-        which causes OOM for n_genes ~ 37k.
-
-        Two-axis (double) centering (collapse fix B): the reconstruction is
-        centered both per-gene (axis=1, the standard Pearson centering) and
-        across genes (axis=0). Removing the per-sample mean stops a globally
-        high/low gene from co-ranking with everything, which would otherwise add
-        spurious bridge edges that fuse separate modules into one giant component.
+        Delegates to :func:`reconstruction_to_similarity` (the single source of truth
+        shared with post-hoc multi-tier re-projection) so the edge similarity cannot
+        drift between the fit and the re-projection pipeline.
         """
-        X = x_recon.T.astype(np.float32, copy=False)  # (n_genes, n_samples)
-        X = X - X.mean(axis=1, keepdims=True)  # per-gene (across samples)
-        X = X - X.mean(axis=0, keepdims=True)  # across-gene (per sample)
-        norms = np.linalg.norm(X, axis=1)
-        X /= np.where(norms > 1e-12, norms, 1.0)[:, None]
-        n = X.shape[0]
-        sim = np.empty((n, n), dtype=np.float32)
-        _chunk = min(512, n)
-        for _start in range(0, n, _chunk):
-            _end = min(_start + _chunk, n)
-            sim[_start:_end] = X[_start:_end] @ X.T
-        np.fill_diagonal(sim, 0.0)
-        return sim
+        return reconstruction_to_similarity(x_recon)
 
     def _trait_associations(
         self,
@@ -332,7 +415,6 @@ class VaeNetworkModel(NetworkModel):
         sample_table: pd.DataFrame,
         gene_counts: np.ndarray | None = None,
         gene_table: pd.DataFrame | None = None,
-        transcript_tin: np.ndarray | None = None,
     ) -> FitArtifacts:
         if not _TORCH_AVAILABLE:
             raise ImportError(
@@ -384,25 +466,6 @@ class VaeNetworkModel(NetworkModel):
                         float(np.median(list(gene_reliability.values()))),
                         float(np.mean([v < 0.5 for v in gene_reliability.values()])),
                     )
-            elif source == "tin_differential":
-                if transcript_tin is None:
-                    raise ValueError(
-                        "switch_reliability_source='tin_differential' requires a "
-                        "transcript_tin matrix (n_transcripts x n_samples) passed to fit()."
-                    )
-                gene_reliability = gene_tin_reliability(
-                    transcript_counts, transcript_table, np.asarray(transcript_tin),
-                    floor=self.config.switch_reliability_floor,
-                    power=self.config.switch_reliability_power,
-                )
-                if gene_reliability:
-                    _log.info(
-                        "switch reliability: source=tin_differential, %d genes scored, "
-                        "median r=%.3f, frac r<0.5 = %.3f",
-                        len(gene_reliability),
-                        float(np.median(list(gene_reliability.values()))),
-                        float(np.mean([v < 0.5 for v in gene_reliability.values()])),
-                    )
             elif self.config.degradation_covariate:
                 direction = degradation_direction(sample_table, self.config.degradation_covariate)
                 if direction is not None:
@@ -441,6 +504,8 @@ class VaeNetworkModel(NetworkModel):
             "vae_posterior_collapse": False,
         }
         edge_rows: list[dict] = []
+        node_stats: dict[str, dict[str, float]] = {}
+        x_recon_np: np.ndarray | None = None
 
         if n_features >= 2:
             cfg = self.config
@@ -544,6 +609,7 @@ class VaeNetworkModel(NetworkModel):
                 alpha_switch=resolved_alpha_switch,
                 alpha_abundance=resolved_alpha_abundance,
                 gene_reliability=gene_reliability,
+                node_stats=node_stats,
             )
 
             if cfg.checkpoint_dir is not None:
@@ -571,8 +637,29 @@ class VaeNetworkModel(NetworkModel):
         if leiden_selection is not None:
             calibration["leiden_selection"] = leiden_selection
         feature_scores = make_feature_scores(switch_matrix, feature_info, sample_table)
+        # VAE reconstruction of the full multiplex feature matrix (switch + abundance
+        # rows), saved so the gene graph can be re-projected post-hoc under different
+        # channel rules (switch-only / switch-primary / full-multiplex tiers) without
+        # re-fitting. The edge similarity is computed from this reconstruction, not
+        # from feature_scores (which is the raw switch matrix). x_recon_np is
+        # (n_samples, n_features); transpose to (n_features, n_samples) for storage.
+        feature_reconstruction = (
+            make_feature_scores(x_recon_np.T, feature_info, sample_table)
+            if x_recon_np is not None
+            else None
+        )
         trait_table, eigengene_table = self._trait_associations(module_table, feature_scores, sample_table)
         module_gene_roles = compute_module_gene_roles(module_table, feature_scores, sample_table)
+        node_diagnostics = _build_node_diagnostics(
+            feature_info=feature_info,
+            edge_rows=edge_rows,
+            module_table=module_table,
+            gene_reliability=gene_reliability,
+            node_stats=node_stats,
+            alpha_switch=self.config.alpha_switch,
+            min_module_size=self.config.min_module_size,
+            reliability_on=self.config.switch_reliability_weighting,
+        )
 
         checkpoint_path: Path | None = None
         if n_features >= 2 and self.config.checkpoint_dir is not None:
@@ -587,6 +674,8 @@ class VaeNetworkModel(NetworkModel):
             checkpoint_path=checkpoint_path,
             eigengene_table=eigengene_table,
             module_gene_roles=module_gene_roles,
+            node_diagnostics=node_diagnostics,
+            feature_reconstruction=feature_reconstruction,
         )
 
 

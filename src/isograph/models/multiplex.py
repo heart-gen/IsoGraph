@@ -123,6 +123,30 @@ def select_alpha_abundance(
     return max(alpha_abundance_grid)
 
 
+def reconstruction_to_similarity(x_recon: np.ndarray) -> np.ndarray:
+    """Double-centered, L2-normalized Pearson similarity over a VAE reconstruction.
+
+    ``x_recon`` is ``(n_samples, n_features)``; returns an ``(n_features, n_features)``
+    matrix with a zero diagonal. Uses a chunked float32 matmul so peak RAM stays at
+    O(n_features^2 * 4 bytes) instead of np.corrcoef's ~2x float64 overhead (which
+    OOMs for n_features ~ 37k). This is the single source of truth for the edge
+    similarity, shared by the VAE fit and by post-hoc multi-tier re-projection.
+    """
+    X = x_recon.T.astype(np.float32, copy=False)  # (n_features, n_samples)
+    X = X - X.mean(axis=1, keepdims=True)
+    X = X - X.mean(axis=0, keepdims=True)
+    norms = np.linalg.norm(X, axis=1)
+    X /= np.where(norms > 1e-12, norms, 1.0)[:, None]
+    n = X.shape[0]
+    sim = np.empty((n, n), dtype=np.float32)
+    _chunk = min(512, n)
+    for _start in range(0, n, _chunk):
+        _end = min(_start + _chunk, n)
+        sim[_start:_end] = X[_start:_end] @ X.T
+    np.fill_diagonal(sim, 0.0)
+    return sim
+
+
 def project_feature_similarity_to_gene_graph(
     similarity: np.ndarray,
     feature_info: pd.DataFrame,
@@ -131,6 +155,8 @@ def project_feature_similarity_to_gene_graph(
     alpha_switch: float | None = None,
     alpha_abundance: float | None = None,
     gene_reliability: dict[str, float] | None = None,
+    node_stats: dict[str, dict[str, float]] | None = None,
+    switch_only: bool = False,
 ) -> tuple[nx.Graph, list[dict[str, object]]]:
     """Aggregate feature-channel similarities into a gene-level graph.
 
@@ -147,6 +173,16 @@ def project_feature_similarity_to_gene_graph(
     channel. Abundance-involving edges are not reweighted (abundance is
     degradation-robust). Applied before thresholding so unreliable edges are
     filtered out.
+
+    ``node_stats`` (optional, populated in place) collects per-gene connectivity
+    evidence so a downstream node-fate diagnostic can explain why a target gene
+    is absent from every module. For each gene that participates in at least one
+    candidate pair, it records ``max_abs_assoc`` (the strongest |raw similarity|
+    to any partner, regardless of channel) and ``max_switch_assoc`` (the strongest
+    |raw switch-switch similarity|, *before* reliability downweighting). Both are
+    capped at the pre-filter floor ``min(alpha, alpha_switch, alpha_abundance)``:
+    genes whose best association falls below that floor never enter the loop and
+    are simply omitted from ``node_stats`` (caller treats them as "< min_alpha").
     """
     gene_ids = sorted(feature_info["gene_id"].astype(str).unique())
     genes_with_switch = set(
@@ -155,6 +191,11 @@ def project_feature_similarity_to_gene_graph(
     graph = nx.Graph()
     graph.add_nodes_from(gene_ids)
     best: dict[tuple[str, str], dict[str, object]] = {}
+
+    # Per-gene strongest raw association seen across candidate pairs (>= min_alpha),
+    # for the optional node-fate diagnostic. Tracked only when node_stats is given.
+    _max_assoc: dict[str, float] = {}
+    _max_switch_assoc: dict[str, float] = {}
 
     # Pre-extract arrays once to avoid per-row pandas overhead inside the loop.
     _gene_ids = feature_info["gene_id"].astype(str).to_numpy()
@@ -194,6 +235,11 @@ def project_feature_similarity_to_gene_graph(
             continue
         source_type = _feat_types[i]
         target_type = _feat_types[j]
+        # Pure isoform-switch ablation: keep only switch-switch edges (drop every
+        # abundance-involving edge, cross-channel included). The VAE still denoises
+        # the full multiplex feature matrix; only the gene graph is switch-restricted.
+        if switch_only and not (source_type == "switch" and target_type == "switch"):
+            continue
         if (
             not allow_abundance_abundance
             and source_type == "abundance"
@@ -209,6 +255,20 @@ def project_feature_similarity_to_gene_graph(
         ):
             continue
         weight = float(similarity[i, j])
+        # Record per-gene raw-association maxima (pre-threshold, pre-reliability)
+        # for the node-fate diagnostic. Switch-switch is tracked separately so the
+        # caller can tell "no partner at all" from "partner lost to downweighting".
+        if node_stats is not None:
+            raw_abs = abs(weight)
+            if raw_abs > _max_assoc.get(source_gene, 0.0):
+                _max_assoc[source_gene] = raw_abs
+            if raw_abs > _max_assoc.get(target_gene, 0.0):
+                _max_assoc[target_gene] = raw_abs
+            if source_type == "switch" and target_type == "switch":
+                if raw_abs > _max_switch_assoc.get(source_gene, 0.0):
+                    _max_switch_assoc[source_gene] = raw_abs
+                if raw_abs > _max_switch_assoc.get(target_gene, 0.0):
+                    _max_switch_assoc[target_gene] = raw_abs
         # Resolve per-channel threshold.
         if alpha_switch is not None and source_type == "switch" and target_type == "switch":
             effective_alpha = alpha_switch
@@ -241,4 +301,12 @@ def project_feature_similarity_to_gene_graph(
     edge_rows = sorted(best.values(), key=lambda row: (row["source"], row["target"]))
     for row in edge_rows:
         graph.add_edge(row["source"], row["target"], weight=float(row["weight"]))
+
+    if node_stats is not None:
+        for gene_id in _max_assoc.keys() | _max_switch_assoc.keys():
+            node_stats[gene_id] = {
+                "max_abs_assoc": _max_assoc.get(gene_id, float("nan")),
+                "max_switch_assoc": _max_switch_assoc.get(gene_id, float("nan")),
+            }
+
     return graph, edge_rows
