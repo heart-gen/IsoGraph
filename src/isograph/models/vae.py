@@ -13,7 +13,11 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from isograph.features.channels import gene_feature_channels, make_feature_scores
-from isograph.features.residualize import build_design_matrix, residualize_rows
+from isograph.features.residualize import (
+    build_design_matrix,
+    residualization_qc as residualization_qc_table,
+    residualize_rows,
+)
 from isograph.features.reliability import (
     degradation_direction,
     gene_switch_estimability,
@@ -421,28 +425,41 @@ class VaeNetworkModel(NetworkModel):
                 "PyTorch is required for the vae backend. Install it with: pip install torch"
             )
 
+        # Covariate residualization is a DISCOVERY knob: it cleans the matrix the
+        # VAE/Leiden embed (switch_matrix), but the persisted feature_scores keep the
+        # raw values (switch_matrix_raw) so the downstream trait test is the single
+        # place inference covariates enter.
+        residualization_qc: pd.DataFrame | None = None
         if self.config.residualize_composition:
-            # Regress covariates out of the CLR composition before PC1. The switch
-            # rows are therefore residualized exactly once (pre-PC1); only the
-            # abundance rows (which have no PC1) get the post-hoc residualization.
             design = build_design_matrix(sample_table, self.config.residualize_covariates)
             switch_matrix, feature_info = gene_feature_channels(
                 transcript_counts, transcript_table, gene_counts, gene_table,
                 switch_design=design,
             )
+            switch_matrix_raw = switch_matrix.copy()
             if switch_matrix.size:
                 is_abundance = (feature_info["feature_type"] == "abundance").to_numpy()
                 if is_abundance.any():
                     switch_matrix[is_abundance] = residualize_rows(
                         switch_matrix[is_abundance], design
                     )
+                    if design.shape[1] > 1:
+                        residualization_qc = residualization_qc_table(
+                            switch_matrix_raw[is_abundance], switch_matrix[is_abundance],
+                            design, feature_info.loc[is_abundance],
+                        )
         else:
             switch_matrix, feature_info = gene_feature_channels(
                 transcript_counts, transcript_table, gene_counts, gene_table
             )
+            switch_matrix_raw = switch_matrix.copy()
             if switch_matrix.size:
                 design = build_design_matrix(sample_table, self.config.residualize_covariates)
                 switch_matrix = residualize_rows(switch_matrix, design)
+                if design.shape[1] > 1:
+                    residualization_qc = residualization_qc_table(
+                        switch_matrix_raw, switch_matrix, design, feature_info,
+                    )
 
         # Per-gene switch reliability -> switch-switch edge downweighting. Two
         # sources: degradation-alignment (needs a covariate) or covariate-free
@@ -636,13 +653,13 @@ class VaeNetworkModel(NetworkModel):
         leiden_selection = getattr(self, "_leiden_selection", None)
         if leiden_selection is not None:
             calibration["leiden_selection"] = leiden_selection
-        feature_scores = make_feature_scores(switch_matrix, feature_info, sample_table)
+        feature_scores = make_feature_scores(switch_matrix_raw, feature_info, sample_table)
         # VAE reconstruction of the full multiplex feature matrix (switch + abundance
         # rows), saved so the gene graph can be re-projected post-hoc under different
         # channel rules (switch-only / switch-primary / full-multiplex tiers) without
         # re-fitting. The edge similarity is computed from this reconstruction, not
-        # from feature_scores (which is the raw switch matrix). x_recon_np is
-        # (n_samples, n_features); transpose to (n_features, n_samples) for storage.
+        # from feature_scores (which is the raw, pre-residualization matrix). x_recon_np
+        # is (n_samples, n_features); transpose to (n_features, n_samples) for storage.
         feature_reconstruction = (
             make_feature_scores(x_recon_np.T, feature_info, sample_table)
             if x_recon_np is not None
@@ -676,6 +693,7 @@ class VaeNetworkModel(NetworkModel):
             module_gene_roles=module_gene_roles,
             node_diagnostics=node_diagnostics,
             feature_reconstruction=feature_reconstruction,
+            residualization_qc=residualization_qc,
         )
 
 

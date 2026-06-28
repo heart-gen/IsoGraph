@@ -29,6 +29,7 @@ class FitArtifacts:
     module_gene_roles: pd.DataFrame | None = None
     node_diagnostics: pd.DataFrame | None = None
     feature_reconstruction: pd.DataFrame | None = None
+    residualization_qc: pd.DataFrame | None = None
 
 
 def _module_feature_subset(feature_scores: pd.DataFrame, genes: pd.Series | list[str]) -> pd.DataFrame:
