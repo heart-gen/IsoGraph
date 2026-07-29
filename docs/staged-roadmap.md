@@ -871,3 +871,32 @@ tuned benchmark configs for VAE, graph, latent, and WGCNA. The optional
 `xxlarge_multiplex_v1` stress fixture validates 12k-gene multiplex behavior; VAE detected
 the correct 16 modules with recovery 0.9266666666666667, while WGCNA over-segmented into
 1898 modules at similar recovery.
+
+## Requested Features (Backlog)
+
+### FR-1: First-class junction assay — `kind="junction"` ingestion + within-gene usage transform
+
+- **Status:** requested (2026-07-29), not started.
+- **Motivation:** the dataset manifest schema already declares `"junction"` as a valid
+  `FeatureTableSpec.kind` (`src/isograph/validation.py`), but the package has **no builder or
+  feature transform** that produces a junction assay — nothing reads a raw split-read/junction
+  matrix or computes within-gene junction usage. Downstream users must hand-roll ingestion. In
+  the brain-aging benchmark, orthogonally validating IsoGraph switch calls against split-read
+  evidence (independent of the Salmon/RSEM transcript quantifier that feeds IsoGraph) required a
+  bespoke script (`isograph_benchmark/inputs/build_gtex_junction_usage.py`) that streams a GTEx
+  STAR `junctions.gct`, annotates each junction to its gene, and computes per-sample
+  `reads_j / Σ(reads over the gene's junctions)`. That logic is reusable and belongs in the
+  package so junction assays are reproducible across cohorts.
+- **Proposed scope:**
+  1. `isograph.features` transform: junction count matrix (GCT or long/tidy) → within-gene
+     fractional usage, with QC filters (min total reads, min samples expressed) and gene
+     annotation via a provided junction→gene map (or a pre-annotated `Description`-style column).
+  2. Emit a validated `FeatureTable` of `kind="junction"` so it drops into the existing manifest.
+  3. Wire the junction channel into the typed multiplex graph as an independent splicing channel
+     (alongside switch + abundance), enabling a switch↔junction concordance role.
+  4. Deterministic snapshot + unit tests on a small fixture (mirror the switch/abundance channels).
+- **Value:** turns the currently bespoke, cohort-specific junction ingestion into a canonical,
+  tested, reproducible input path, and lets junction-derived splicing serve as either an
+  orthogonal validation layer or a genuine third multiplex channel.
+- **Reference implementation to promote:** `build_gtex_junction_usage.py` and the GTEx/BrainSEQ
+  orthogonal-validation CLI (`validate_switch_splicing.py`) in the brain-aging benchmark repo.
