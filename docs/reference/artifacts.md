@@ -39,10 +39,16 @@ JSON reports under `artifacts/reports/`.
 
 - `modules.parquet` — module assignment per gene (`gene_id`, `module_id`)
 - `edges.parquet` — inferred gene-gene edges with weights
-- `traits.parquet` — module–trait associations (Pearson r or Welch t, p value, BH q value)
+- `traits.parquet` — module–trait associations, one row per module × trait, with columns
+  `module_id`, `trait`, `effect`, `pvalue`. `effect` is the Pearson r for numeric traits and
+  the Welch group-mean difference for binary categorical traits. `pvalue` is **uncorrected** —
+  no q value is written; apply FDR control downstream.
 - `feature_scores.parquet` — per-feature switch and abundance scores; the `feature_type`
   column is `"switch"` for isoform-switch features and `"abundance"` for abundance
   features. Single-channel (switch-only) fits populate `"switch"` for all rows.
+  On the `vae` backend these are the **raw, pre-residualization** values even when
+  `residualize_covariates` is set; the other backends persist the residualized matrix — see
+  [Residualization is discovery-only](configuration.md#residualization-is-a-discovery-only-knob-vae-backend).
 - `module_gene_roles.parquet` — gene channel role classification for each module gene:
   - `module_id`, `gene_id`
   - `module_role`: one of `coupled`, `abundance_only`, `switch_only`, `discordant`, `inactive`
@@ -58,9 +64,33 @@ JSON reports under `artifacts/reports/`.
   (`selected_alpha_switch`, `selected_alpha_abundance`) and `leiden_selection`.
 
 ```{note}
-`FitArtifacts` also carries `node_diagnostics` and `feature_reconstruction` diagnostic
-tables in-process. These are available from the Python API (`model.fit(...)`) but are not
-written to disk by `isograph fit`.
+`FitArtifacts` also carries `node_diagnostics`, `feature_reconstruction`, and
+`residualization_qc` diagnostic tables in-process. These are available from the Python API
+(`model.fit(...)`) but are not written to disk by `isograph fit`.
+```
+
+### `residualization_qc`
+
+Populated on `FitArtifacts` by the `vae` backend only, whenever `residualize_covariates`
+resolves to at least one usable covariate (it is `None` otherwise, and on every other
+backend). One row per residualized feature, with the identifier columns
+available in the feature table (`feature_id`, `gene_id`, `feature_type`) plus:
+
+- `var_before`, `var_after` — per-feature variance before and after residualization
+- `var_retained_frac` — `var_after / var_before`; how much signal survived. Values near 0
+  mean the covariates absorbed nearly all of a feature's variance.
+- `confound_r2_before`, `confound_r2_after` — fraction of the feature's variance explained
+  by the covariate axis, before and after.
+
+A working residualization drives `confound_r2_after` toward zero; `var_retained_frac` is the
+collateral cost. This is the diagnostic that is observable on real data, where module
+recovery is not.
+
+```python
+artifacts = model.fit(...)
+qc = artifacts.residualization_qc
+qc["confound_r2_after"].max()        # should be ~0
+qc["var_retained_frac"].median()     # how much signal the covariates cost
 ```
 
 ## Explain Outputs

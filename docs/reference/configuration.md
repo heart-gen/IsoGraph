@@ -88,7 +88,7 @@ unless you override them:
 - `residualize_composition` (default `False`) — regress `residualize_covariates` out of each
   gene's CLR composition *before* the switch PC1 is derived, instead of out of the collapsed
   switch score afterward. Robust to confounds that rotate a gene's switch axis (e.g. 3′
-  degradation).
+  degradation). See [Residualization is a discovery-only knob](#residualization-is-a-discovery-only-knob-vae-backend).
 - `switch_reliability_weighting` (default `False`) — down-weight switch-switch edges by
   per-gene reliability so unreliable genes fall back to the abundance channel. Source is
   chosen with `switch_reliability_source`: `"degradation"` (needs `degradation_covariate`)
@@ -99,6 +99,33 @@ unless you override them:
 - `leiden_resolution` (default `5.0`) — Leiden community-detection resolution; higher gives
   more, smaller modules. The data-driven giant-component cap is automatic (the former
   `leiden_max_giant_frac` knob is deprecated).
+
+## Residualization Is a Discovery-Only Knob (VAE Backend)
+
+On the `vae` backend, `residualize_covariates` (and `residualize_composition`) affect
+**module discovery only**. The VAE and Leiden clustering embed the residualized matrix, but
+the persisted `feature_scores` keep the **raw, pre-residualization** values. Consequences:
+
+- Module assignments and edges reflect the residualized matrix, exactly as before.
+- `feature_scores.parquet`, module eigengenes, and therefore `traits.parquet` are computed
+  from raw values. The built-in trait test is **not** covariate-adjusted.
+- Covariates should enter inference exactly once — in your own downstream model. Previously
+  `feature_scores` held the residualized matrix, so a downstream model that re-adjusted the
+  same covariates double-residualized them.
+
+Inspect the effect with [`FitArtifacts.residualization_qc`](artifacts.md#residualization_qc).
+
+```{warning}
+This split currently applies to the `vae` backend only. The `baseline`, `graph`, `latent`,
+and `wgcna` backends still persist the **residualized** matrix in `feature_scores`, so on
+those backends a downstream model that re-adjusts the same covariates will double-adjust
+them. They also do not emit `residualization_qc`. If you switch backends, check which
+convention applies before running a covariate-adjusted downstream model.
+```
+
+`build_design_matrix` now emits a `RuntimeWarning` when a name in `residualize_covariates`
+is missing from the sample table, or is present but constant (no variance to regress out).
+Both cases are still skipped rather than raising, but they are no longer silent.
 
 ## Per-Fixture Overrides
 

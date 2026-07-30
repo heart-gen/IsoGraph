@@ -40,3 +40,7 @@ autodoc_typehints = "description"
 myst_enable_extensions = [
     "colon_fence",
 ]
+
+# Generate implicit anchors for h1-h3 so cross-file links like
+# `[...](configuration.md#residualization-is-a-discovery-only-knob)` resolve.
+myst_heading_anchors = 3
