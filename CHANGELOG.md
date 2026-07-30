@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] — 2026-07-30
+
+### Changed
+
+- **Residualization is now a discovery-only knob on the `vae` backend.** The VAE and Leiden
+  clustering still embed the residualized matrix, so module discovery is unchanged for a
+  fixed covariate set, but `FitArtifacts.feature_scores` now persists the raw,
+  pre-residualization values (`switch_matrix_raw`). The `baseline`, `graph`, `latent`, and
+  `wgcna` backends are unchanged and still persist the residualized matrix.
+  This fixes a double-residualization: `feature_scores` previously
+  held the residualized matrix, so any downstream model that adjusted for the same
+  covariates regressed them out twice. Module eigengenes and `traits.parquet` are therefore
+  computed from raw values, and the built-in trait test is not covariate-adjusted — apply
+  covariates once, in your own downstream model.
+
+### Added
+
+- **`FitArtifacts.residualization_qc`** — per-feature before/after QC for the residualized
+  matrix: `var_before`, `var_after`, `var_retained_frac`, `confound_r2_before`, and
+  `confound_r2_after`, joined to the available feature identifiers. A working
+  residualization drives `confound_r2_after` toward zero, while `var_retained_frac`
+  quantifies the collateral signal it cost. Populated by `residualization_qc()` in
+  `features/residualize.py` on the `vae` backend whenever at least one usable covariate
+  resolves. Available from the Python API; not written to disk by `isograph fit`.
+
+### Fixed
+
+- `build_design_matrix` now warns (`RuntimeWarning`) when a name in
+  `residualize_covariates` is missing from the sample table, or is present but constant,
+  instead of silently no-op'ing. Constant numeric columns and single-level categoricals are
+  dropped from the design rather than contributing a rank-deficient column.
+
 ## [0.1.4] — 2026-05-08
 
 ### Added
