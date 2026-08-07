@@ -91,7 +91,7 @@ def gene_degradation_sensitivity(
 
     For each multi-transcript gene, build the centered CLR composition matrix C
     (n_transcripts x n_samples) and compute the share of its total (Frobenius)
-    variance captured by the rank-1 ``direction`` axis:
+    variance captured by the rank-1 ``direction`` axis::
 
         sensitivity = ||C @ d_hat||^2 / ||C||_F^2  in [0, 1]
 

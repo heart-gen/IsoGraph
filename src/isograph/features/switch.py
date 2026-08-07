@@ -53,7 +53,7 @@ def gene_switch_loadings(
     design: np.ndarray | None = None,
 ) -> pd.DataFrame:
     """Per-transcript loadings on each gene's switch axis (PC1 of the within-gene CLR
-    composition). The transcript with the largest |loading| is the dominant switching
+    composition). The transcript with the largest absolute loading is the dominant switching
     isoform -- the gene's driver transcript. Returns a long table
     ``[gene_id, transcript_id, loading]`` (sign-stabilised the same way as
     :func:`gene_switch_coordinates`). ``design`` residualises the composition first,

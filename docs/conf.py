@@ -36,6 +36,11 @@ autosummary_generate = False
 autodoc_member_order = "bysource"
 autoclass_content = "both"
 autodoc_typehints = "description"
+# Heavy/optional runtime dependencies are not installed in the docs build
+# environment (see .readthedocs.yaml, which installs only the ``docs`` extra).
+# Mock them so autodoc can import and document the VAE and attribution modules
+# without pulling in PyTorch or Captum.
+autodoc_mock_imports = ["torch", "captum"]
 
 myst_enable_extensions = [
     "colon_fence",

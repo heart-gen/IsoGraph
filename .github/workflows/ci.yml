@@ -7,6 +7,25 @@ on:
       - main
 
 jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    # Advisory for now: the existing codebase has outstanding style findings, so
+    # ruff is reported but does not block CI. Flip continue-on-error to false once
+    # a formatting/lint cleanup pass has landed.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ruff
+        run: python -m pip install --upgrade pip "ruff==0.6.9"
+      - name: Ruff check
+        run: ruff check .
+      - name: Ruff format check
+        run: ruff format --check .
+
   test:
     name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
@@ -23,5 +42,32 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e .[dev]
-      - name: Run fast tests (no torch required)
-        run: pytest -m "not slow" --ignore=tests/test_stage4_gates.py --ignore=tests/test_stage6_gates.py --ignore=tests/test_stage7_gates.py
+          python -m pip install pytest-cov
+      - name: Run fast tests with coverage (no torch required)
+        run: >-
+          pytest -m "not slow"
+          --ignore=tests/test_stage4_gates.py
+          --ignore=tests/test_stage6_gates.py
+          --ignore=tests/test_stage7_gates.py
+          --cov=isograph --cov-report=term-missing --cov-report=xml
+      - name: Upload coverage report
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+
+  build:
+    name: Build (sdist + wheel)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build twine
+      - name: Build distributions
+        run: python -m build
+      - name: Check distribution metadata
+        run: twine check dist/*
