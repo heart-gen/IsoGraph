@@ -2,7 +2,8 @@ cff-version: 1.2.0
 message: "If you use IsoGraph in your research, please cite the software using the metadata in this file."
 title: "IsoGraph"
 type: software
-version: "0.1.4"
+version: "0.1.5"
+date-released: "2026-07-30"
 authors:
   - family-names: "Benjamin"
     given-names: "Kynon J. M."

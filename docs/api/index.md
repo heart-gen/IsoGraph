@@ -8,6 +8,9 @@ datasets, running analyses, or inspecting typed configurations.
 
 workflow-config
 io-artifacts
+features
+models-vae
+explain
 validation
 evaluation-runner
 evaluation-selection

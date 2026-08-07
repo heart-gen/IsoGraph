@@ -110,7 +110,7 @@ def compute_gene_driver_table(
     """Rank module genes by Pearson r with the module eigengene.
 
     Columns: gene_id, r, pvalue, qvalue, n_samples, missing_fraction.
-    Sorted descending by |r|.
+    Sorted descending by absolute r.
     """
     _empty = pd.DataFrame(
         columns=[

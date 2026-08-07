@@ -1,5 +1,12 @@
 # IsoGraph
 
+[![CI](https://github.com/heart-gen/IsoGraph/actions/workflows/ci.yml/badge.svg)](https://github.com/heart-gen/IsoGraph/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/isograph.svg)](https://pypi.org/project/isograph/)
+[![Python versions](https://img.shields.io/pypi/pyversions/isograph.svg)](https://pypi.org/project/isograph/)
+[![Docs](https://readthedocs.org/projects/isograph/badge/?version=latest)](https://isograph.readthedocs.io/en/latest/)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20007826.svg)](https://doi.org/10.5281/zenodo.20007826)
+
 IsoGraph discovers co-regulated transcript programs from bulk RNA-seq by treating gene
 abundance and isoform switching as separate channels in a multiplex network. Starting
 from transcript-level counts, it builds gene-local switch coordinates from compositional

@@ -28,11 +28,11 @@ def build_gene_graph(
     edge_types:
         Subset of {"corr", "same_gene"}.
     corr_threshold:
-        Minimum |Pearson r| for a corr-type edge.
+        Minimum absolute Pearson r for a corr-type edge.
 
     Returns
     -------
-    nx.Graph with gene_id node labels.  Edge attribute ``weight`` is |r| for
+    nx.Graph with gene_id node labels.  Edge attribute ``weight`` is absolute r for
     corr edges and 1.0 for same_gene edges.
     """
     graph = nx.Graph()
