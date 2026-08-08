@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 
 import matplotlib.axes
@@ -26,25 +27,33 @@ from isograph.explain.plots import (
     summarize_module,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixture helpers
 # ---------------------------------------------------------------------------
 
-def _make_result(n_genes: int = 10, n_samples: int = 20, seed: int = 0, module_id: str = "M000") -> ExplainResult:
+
+def _make_result(
+    n_genes: int = 10, n_samples: int = 20, seed: int = 0, module_id: str = "M000"
+) -> ExplainResult:
     rng = np.random.default_rng(seed)
     gene_ids = [f"G{i:04d}" for i in range(n_genes)]
     sample_ids = [f"S{i:03d}" for i in range(n_samples)]
     r_vals = rng.uniform(-1, 1, size=n_genes)
 
-    gene_driver_table = pd.DataFrame({
-        "gene_id": gene_ids,
-        "r": r_vals,
-        "pvalue": np.abs(r_vals) * 0.1,
-        "qvalue": np.abs(r_vals) * 0.15,
-        "n_samples": [n_samples] * n_genes,
-        "missing_fraction": [0.0] * n_genes,
-    }).sort_values("r", key=np.abs, ascending=False).reset_index(drop=True)
+    gene_driver_table = (
+        pd.DataFrame(
+            {
+                "gene_id": gene_ids,
+                "r": r_vals,
+                "pvalue": np.abs(r_vals) * 0.1,
+                "qvalue": np.abs(r_vals) * 0.15,
+                "n_samples": [n_samples] * n_genes,
+                "missing_fraction": [0.0] * n_genes,
+            }
+        )
+        .sort_values("r", key=np.abs, ascending=False)
+        .reset_index(drop=True)
+    )
 
     feature_ids = [f"{g}_T0" for g in gene_ids]
     mean_h = rng.uniform(0.3, 0.8, n_genes)
@@ -52,19 +61,21 @@ def _make_result(n_genes: int = 10, n_samples: int = 20, seed: int = 0, module_i
     delta = mean_h - mean_l
     se = rng.uniform(0.02, 0.1, n_genes)
 
-    high_vs_low_table = pd.DataFrame({
-        "feature_id": feature_ids,
-        "gene_id": gene_ids,
-        "mean_high": mean_h,
-        "mean_low": mean_l,
-        "delta": delta,
-        "se": se,
-        "tstat": delta / np.maximum(se, 1e-9),
-        "pvalue": rng.uniform(0, 0.1, n_genes),
-        "n_high": [n_samples // 2] * n_genes,
-        "n_low": [n_samples // 2] * n_genes,
-        "missing_fraction": [0.0] * n_genes,
-    })
+    high_vs_low_table = pd.DataFrame(
+        {
+            "feature_id": feature_ids,
+            "gene_id": gene_ids,
+            "mean_high": mean_h,
+            "mean_low": mean_l,
+            "delta": delta,
+            "se": se,
+            "tstat": delta / np.maximum(se, 1e-9),
+            "pvalue": rng.uniform(0, 0.1, n_genes),
+            "n_high": [n_samples // 2] * n_genes,
+            "n_low": [n_samples // 2] * n_genes,
+            "missing_fraction": [0.0] * n_genes,
+        }
+    )
 
     eigengene = rng.normal(0, 1, n_samples)
     return ExplainResult(
@@ -78,34 +89,50 @@ def _make_result(n_genes: int = 10, n_samples: int = 20, seed: int = 0, module_i
     )
 
 
-def _make_result_with_transcripts(n_genes: int = 8, n_tx_per_gene: int = 3,
-                                   n_samples: int = 20, seed: int = 1,
-                                   module_id: str = "M000") -> ExplainResult:
+def _make_result_with_transcripts(
+    n_genes: int = 8,
+    n_tx_per_gene: int = 3,
+    n_samples: int = 20,
+    seed: int = 1,
+    module_id: str = "M000",
+) -> ExplainResult:
     """ExplainResult with a populated transcript_polarity_table."""
     rng = np.random.default_rng(seed)
     gene_ids = [f"G{i:04d}" for i in range(n_genes)]
     sample_ids = [f"S{i:03d}" for i in range(n_samples)]
     r_vals = rng.uniform(-0.9, 0.9, size=n_genes)
 
-    gene_driver_table = pd.DataFrame({
-        "gene_id": gene_ids,
-        "r": r_vals,
-        "pvalue": np.abs(r_vals) * 0.1,
-        "qvalue": np.abs(r_vals) * 0.15,
-        "n_samples": [n_samples] * n_genes,
-        "missing_fraction": [0.0] * n_genes,
-    }).sort_values("r", key=np.abs, ascending=False).reset_index(drop=True)
+    gene_driver_table = (
+        pd.DataFrame(
+            {
+                "gene_id": gene_ids,
+                "r": r_vals,
+                "pvalue": np.abs(r_vals) * 0.1,
+                "qvalue": np.abs(r_vals) * 0.15,
+                "n_samples": [n_samples] * n_genes,
+                "missing_fraction": [0.0] * n_genes,
+            }
+        )
+        .sort_values("r", key=np.abs, ascending=False)
+        .reset_index(drop=True)
+    )
 
     tx_rows = []
     for gid in gene_ids:
         tx_rs = rng.uniform(-1, 1, size=n_tx_per_gene)
         for i, r in enumerate(tx_rs):
             fid = f"{gid}_T{i}"
-            tx_rows.append({
-                "feature_id": fid, "gene_id": gid, "r": float(r),
-                "pvalue": abs(r) * 0.1, "qvalue": abs(r) * 0.15,
-                "n_samples": n_samples, "missing_fraction": 0.0,
-            })
+            tx_rows.append(
+                {
+                    "feature_id": fid,
+                    "gene_id": gid,
+                    "r": float(r),
+                    "pvalue": abs(r) * 0.1,
+                    "qvalue": abs(r) * 0.15,
+                    "n_samples": n_samples,
+                    "missing_fraction": 0.0,
+                }
+            )
     tx_df = pd.DataFrame(tx_rows)
     # add switch_strength = max(r) - min(r) per gene
     ss = tx_df.groupby("gene_id")["r"].agg(lambda x: x.max() - x.min()).rename("switch_strength")
@@ -116,16 +143,21 @@ def _make_result_with_transcripts(n_genes: int = 8, n_tx_per_gene: int = 3,
     mean_l = rng.uniform(0.1, 0.5, len(feature_ids))
     delta = mean_h - mean_l
     se = rng.uniform(0.02, 0.1, len(feature_ids))
-    hvl_table = pd.DataFrame({
-        "feature_id": feature_ids,
-        "gene_id": [fid.rsplit("_", 1)[0] for fid in feature_ids],
-        "mean_high": mean_h, "mean_low": mean_l, "delta": delta, "se": se,
-        "tstat": delta / np.maximum(se, 1e-9),
-        "pvalue": rng.uniform(0, 0.1, len(feature_ids)),
-        "n_high": [n_samples // 2] * len(feature_ids),
-        "n_low": [n_samples // 2] * len(feature_ids),
-        "missing_fraction": [0.0] * len(feature_ids),
-    })
+    hvl_table = pd.DataFrame(
+        {
+            "feature_id": feature_ids,
+            "gene_id": [fid.rsplit("_", 1)[0] for fid in feature_ids],
+            "mean_high": mean_h,
+            "mean_low": mean_l,
+            "delta": delta,
+            "se": se,
+            "tstat": delta / np.maximum(se, 1e-9),
+            "pvalue": rng.uniform(0, 0.1, len(feature_ids)),
+            "n_high": [n_samples // 2] * len(feature_ids),
+            "n_low": [n_samples // 2] * len(feature_ids),
+            "missing_fraction": [0.0] * len(feature_ids),
+        }
+    )
 
     eigengene = rng.normal(0, 1, n_samples)
     return ExplainResult(
@@ -152,6 +184,7 @@ def _make_aligned_feature_table(result: ExplainResult, seed: int = 99) -> pd.Dat
 # plot_driver_bar tests
 # ---------------------------------------------------------------------------
 
+
 def test_plot_driver_bar_returns_axes():
     result = _make_result()
     ax = plot_driver_bar(result)
@@ -175,10 +208,12 @@ def test_plot_driver_bar_polarity_coloring():
     ax = plot_driver_bar(result, top_n=20)
     r_vals = result.gene_driver_table.head(20)["r"].to_numpy()
     patches = ax.patches
-    for patch, r in zip(patches, r_vals):
+    for patch, r in zip(patches, r_vals, strict=False):
         fc = patch.get_facecolor()
         expected = matplotlib.colors.to_rgba("tomato" if r > 0 else "steelblue")
-        assert fc == pytest.approx(expected, abs=1e-3), f"r={r:.3f}: expected {'tomato' if r > 0 else 'steelblue'}"
+        assert fc == pytest.approx(
+            expected, abs=1e-3
+        ), f"r={r:.3f}: expected {'tomato' if r > 0 else 'steelblue'}"
 
 
 def test_plot_driver_bar_ci_in_unit_range():
@@ -193,6 +228,7 @@ def test_plot_driver_bar_ci_in_unit_range():
 
 def test_plot_driver_bar_uses_provided_ax():
     import matplotlib.pyplot as plt
+
     result = _make_result()
     _, provided_ax = plt.subplots()
     returned_ax = plot_driver_bar(result, ax=provided_ax)
@@ -203,6 +239,7 @@ def test_plot_driver_bar_uses_provided_ax():
 # ---------------------------------------------------------------------------
 # plot_eigengene_heatmap tests
 # ---------------------------------------------------------------------------
+
 
 def test_plot_eigengene_heatmap_returns_figure_from_dict():
     results = {
@@ -250,6 +287,7 @@ def test_plot_eigengene_heatmap_samples_sorted():
 # plot_high_vs_low_violin tests
 # ---------------------------------------------------------------------------
 
+
 def test_plot_high_vs_low_returns_figure():
     result = _make_result()
     fig = plot_high_vs_low_violin(result)
@@ -275,6 +313,7 @@ def test_plot_high_vs_low_default_top_n():
 # plot_transcript_polarity_heatmap tests
 # ---------------------------------------------------------------------------
 
+
 def test_plot_transcript_polarity_heatmap_returns_figure():
     result = _make_result_with_transcripts()
     fig = plot_transcript_polarity_heatmap(result)
@@ -299,6 +338,7 @@ def test_plot_transcript_polarity_heatmap_raises_on_empty():
 # plot_switch_pair tests
 # ---------------------------------------------------------------------------
 
+
 def test_plot_switch_pair_returns_figure():
     result = _make_result_with_transcripts()
     fig = plot_switch_pair(result)
@@ -321,6 +361,7 @@ def test_plot_switch_pair_raises_on_empty():
 # ---------------------------------------------------------------------------
 # plot_isoform_gradient tests
 # ---------------------------------------------------------------------------
+
 
 def test_plot_isoform_gradient_returns_figure():
     result = _make_result_with_transcripts()
@@ -347,6 +388,7 @@ def test_plot_isoform_gradient_raises_on_empty_table():
 # summarize_module tests
 # ---------------------------------------------------------------------------
 
+
 def test_summarize_module_returns_dict():
     result = _make_result_with_transcripts()
     s = summarize_module(result)
@@ -357,10 +399,16 @@ def test_summarize_module_keys():
     result = _make_result_with_transcripts()
     s = summarize_module(result)
     expected_keys = {
-        "module_id", "n_module_genes", "top_driver_genes",
-        "n_positive_transcripts", "n_negative_transcripts",
-        "n_switch_genes", "top_switch_gene", "top_switch_pair",
-        "top_switch_strength", "mean_abs_driver_r",
+        "module_id",
+        "n_module_genes",
+        "top_driver_genes",
+        "n_positive_transcripts",
+        "n_negative_transcripts",
+        "n_switch_genes",
+        "top_switch_gene",
+        "top_switch_pair",
+        "top_switch_strength",
+        "mean_abs_driver_r",
     }
     assert expected_keys.issubset(s.keys())
 
@@ -375,6 +423,7 @@ def test_summarize_module_no_transcripts():
 # ---------------------------------------------------------------------------
 # plot_summary_panel tests
 # ---------------------------------------------------------------------------
+
 
 def test_plot_summary_panel_returns_figure():
     result = _make_result_with_transcripts()
@@ -399,6 +448,7 @@ def test_plot_summary_panel_no_feature_table():
 # No-mutation tests
 # ---------------------------------------------------------------------------
 
+
 def test_plot_functions_do_not_mutate_result():
     result = _make_result(n_genes=10)
     original_shape = result.gene_driver_table.shape
@@ -415,6 +465,7 @@ def test_plot_functions_do_not_mutate_result():
 # ---------------------------------------------------------------------------
 # Integration: plot=True / plot=False with explain_module()
 # ---------------------------------------------------------------------------
+
 
 def _build_explain_inputs(tmp_path: Path):
     """Write minimal artifact files and return (artifact_dir, feature_table, feature_meta)."""
@@ -439,19 +490,26 @@ def _build_explain_inputs(tmp_path: Path):
 
     artifact_dir = tmp_path / "artifact"
     artifact_dir.mkdir()
-    pq.write_table(pa.Table.from_pandas(modules_df, preserve_index=False), artifact_dir / "modules.parquet")
-    pq.write_table(pa.Table.from_pandas(feature_scores_df, preserve_index=False), artifact_dir / "feature_scores.parquet")
+    pq.write_table(
+        pa.Table.from_pandas(modules_df, preserve_index=False), artifact_dir / "modules.parquet"
+    )
+    pq.write_table(
+        pa.Table.from_pandas(feature_scores_df, preserve_index=False),
+        artifact_dir / "feature_scores.parquet",
+    )
 
     ft_data = {"sample_id": sample_ids}
     for fid in feature_ids:
         ft_data[fid] = rng.uniform(0, 1, n_samples)
     feature_table = pd.DataFrame(ft_data).set_index("sample_id")
 
-    feature_meta = pd.DataFrame({
-        "feature_id": feature_ids,
-        "gene_id": [fid.split("_")[0] for fid in feature_ids],
-        "feature_type": ["transcript_usage"] * len(feature_ids),
-    })
+    feature_meta = pd.DataFrame(
+        {
+            "feature_id": feature_ids,
+            "gene_id": [fid.split("_")[0] for fid in feature_ids],
+            "feature_type": ["transcript_usage"] * len(feature_ids),
+        }
+    )
 
     return artifact_dir, feature_table, feature_meta
 

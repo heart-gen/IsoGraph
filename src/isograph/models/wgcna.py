@@ -12,7 +12,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from isograph.features.channels import feature_sample_columns, gene_feature_channels, make_feature_scores
+from isograph.features.channels import (
+    feature_sample_columns,
+    gene_feature_channels,
+    make_feature_scores,
+)
 from isograph.features.residualize import build_design_matrix, residualize_rows
 from isograph.models.base import FitArtifacts, NetworkModel, compute_module_gene_roles
 from isograph.workflow.config import WgcnaModelConfig
@@ -60,9 +64,7 @@ class WgcnaNetworkModel(NetworkModel):
             df.index.name = "feature_id"
             df.to_csv(input_csv)
 
-            power_str = (
-                "auto" if self.config.power is None else str(self.config.power)
-            )
+            power_str = "auto" if self.config.power is None else str(self.config.power)
             power_range_str = ",".join(str(p) for p in self.config.power_range)
 
             cmd = [
@@ -101,18 +103,24 @@ class WgcnaNetworkModel(NetworkModel):
             module_table = module_table.rename(columns={"gene_id": "feature_id"})
             module_table["gene_id"] = module_table["feature_id"].map(feature_to_gene)
             module_table = module_table.dropna(subset=["gene_id"])
-            module_table = module_table[["gene_id", "module_id"]].drop_duplicates().reset_index(drop=True)
+            module_table = (
+                module_table[["gene_id", "module_id"]].drop_duplicates().reset_index(drop=True)
+            )
 
         edge_table = pd.DataFrame(result["edges"])
         if edge_table.empty:
             edge_table = pd.DataFrame(columns=["source", "target", "weight"])
         else:
             feature_to_gene = feature_info.set_index("feature_id")["gene_id"].to_dict()
-            edge_table = edge_table.rename(columns={"source": "source_feature_id", "target": "target_feature_id"})
+            edge_table = edge_table.rename(
+                columns={"source": "source_feature_id", "target": "target_feature_id"}
+            )
             edge_table["source"] = edge_table["source_feature_id"].map(feature_to_gene)
             edge_table["target"] = edge_table["target_feature_id"].map(feature_to_gene)
             edge_table = edge_table.dropna(subset=["source", "target"])
-            edge_table = edge_table.loc[edge_table["source"] != edge_table["target"]].reset_index(drop=True)
+            edge_table = edge_table.loc[edge_table["source"] != edge_table["target"]].reset_index(
+                drop=True
+            )
 
         trait_table = pd.DataFrame(columns=["module_id", "trait", "effect", "pvalue"])
 
@@ -120,7 +128,11 @@ class WgcnaNetworkModel(NetworkModel):
 
         calibration = result.get("calibration", {})
 
-        sample_ids = sample_table["sample_id"].tolist() if "sample_id" in sample_table.columns else list(range(len(sample_table)))
+        sample_ids = (
+            sample_table["sample_id"].tolist()
+            if "sample_id" in sample_table.columns
+            else list(range(len(sample_table)))
+        )
         score_sample_ids = feature_sample_columns(feature_scores)
         if not module_table.empty:
             eigengene_rows: dict[str, list] = {}

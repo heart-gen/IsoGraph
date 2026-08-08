@@ -12,7 +12,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 DEFAULT_STAGES = {
     "vae": "stress_multiplex_vae",
     "graph": "stress_multiplex_graph",
@@ -48,8 +47,7 @@ def _load_stage(report_root: Path, backend: str, stage: str) -> list[dict[str, A
     benchmark = _read_json(report_root / f"{stage}-benchmark.json")
     runtime = _read_json(report_root / f"{stage}-runtime-memory.json")
     peak_by_dataset = {
-        str(row["dataset"]): row.get("peak_memory_bytes")
-        for row in runtime.get("results", [])
+        str(row["dataset"]): row.get("peak_memory_bytes") for row in runtime.get("results", [])
     }
     cal_by_dataset = _calibration_by_fixture(report_root, stage)
 
@@ -85,11 +83,7 @@ def build_summary(report_root: Path, stages: dict[str, str]) -> dict[str, Any]:
     for backend, stage in stages.items():
         rows.extend(_load_stage(report_root, backend, stage))
 
-    wgcna_by_dataset = {
-        row["dataset"]: row
-        for row in rows
-        if row["backend"] == "wgcna"
-    }
+    wgcna_by_dataset = {row["dataset"]: row for row in rows if row["backend"] == "wgcna"}
     for row in rows:
         ref = wgcna_by_dataset.get(row["dataset"])
         if ref is None or row["backend"] == "wgcna":

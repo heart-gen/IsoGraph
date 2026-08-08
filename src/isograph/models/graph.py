@@ -24,7 +24,10 @@ from isograph.models.base import (
     compute_trait_associations,
 )
 from isograph.models.denoise import denoise_features_per_channel
-from isograph.models.multiplex import project_feature_similarity_to_gene_graph, select_alpha_abundance
+from isograph.models.multiplex import (
+    project_feature_similarity_to_gene_graph,
+    select_alpha_abundance,
+)
 from isograph.workflow.config import GraphModelConfig
 
 
@@ -49,7 +52,9 @@ class GraphNetworkModel(NetworkModel):
         feature_scores: pd.DataFrame,
         sample_table: pd.DataFrame,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        return compute_trait_associations(module_table, feature_scores, sample_table, self.config.trait_columns)
+        return compute_trait_associations(
+            module_table, feature_scores, sample_table, self.config.trait_columns
+        )
 
     def fit(
         self,
@@ -96,9 +101,11 @@ class GraphNetworkModel(NetworkModel):
                 corr = np.corrcoef(switch_matrix)
                 np.fill_diagonal(corr, 0.0)
                 rows, cols = np.where(np.abs(corr) >= self.config.corr_threshold)
-                for i, j in zip(rows, cols):
+                for i, j in zip(rows, cols, strict=False):
                     if i < j:
-                        feature_graph.add_edge(feature_ids[i], feature_ids[j], weight=float(abs(corr[i, j])))
+                        feature_graph.add_edge(
+                            feature_ids[i], feature_ids[j], weight=float(abs(corr[i, j]))
+                        )
             if "same_gene" in self.config.edge_types:
                 for _, frame in feature_info.groupby("gene_id"):
                     ids = frame["feature_id"].tolist()
@@ -109,17 +116,21 @@ class GraphNetworkModel(NetworkModel):
 
             # Apply Laplacian smoothing; gamma=0 returns switch_matrix unchanged
             smoothed = laplacian_smooth(switch_matrix, L, self.config.gamma)
-            smoothing_rmse = float(
-                np.sqrt(np.mean((smoothed - switch_matrix) ** 2))
-            ) if self.config.gamma > 0 else 0.0
+            smoothing_rmse = (
+                float(np.sqrt(np.mean((smoothed - switch_matrix) ** 2)))
+                if self.config.gamma > 0
+                else 0.0
+            )
 
             degrees = dict(feature_graph.degree())
-            calibration.update({
-                "graph_n_nodes": feature_graph.number_of_nodes(),
-                "graph_n_edges": feature_graph.number_of_edges(),
-                "graph_mean_degree": float(np.mean(list(degrees.values()))),
-                "graph_smoothing_rmse": smoothing_rmse,
-            })
+            calibration.update(
+                {
+                    "graph_n_nodes": feature_graph.number_of_nodes(),
+                    "graph_n_edges": feature_graph.number_of_edges(),
+                    "graph_mean_degree": float(np.mean(list(degrees.values()))),
+                    "graph_smoothing_rmse": smoothing_rmse,
+                }
+            )
 
             # FA per multiplex channel on the smoothed matrix (same denoising as
             # Stage 2): denoise switch and abundance independently so a
@@ -139,12 +150,17 @@ class GraphNetworkModel(NetworkModel):
             resolved_alpha_abundance = self.config.alpha_abundance
             if self.config.alpha_abundance_grid is not None:
                 resolved_alpha_abundance = select_alpha_abundance(
-                    partial, feature_info, self.config.alpha, self.config.alpha_abundance_grid,
+                    partial,
+                    feature_info,
+                    self.config.alpha,
+                    self.config.alpha_abundance_grid,
                     alpha_switch=self.config.alpha_switch,
                 )
                 calibration["selected_alpha_abundance"] = resolved_alpha_abundance
             net_graph, edge_rows = project_feature_similarity_to_gene_graph(
-                partial, feature_info, self.config.alpha,
+                partial,
+                feature_info,
+                self.config.alpha,
                 allow_abundance_abundance=self.config.allow_abundance_abundance,
                 alpha_switch=self.config.alpha_switch,
                 alpha_abundance=resolved_alpha_abundance,
@@ -152,7 +168,9 @@ class GraphNetworkModel(NetworkModel):
 
         module_table = self._module_table(net_graph)
         feature_scores = make_feature_scores(switch_matrix, feature_info, sample_table)
-        trait_table, eigengene_table = self._trait_associations(module_table, feature_scores, sample_table)
+        trait_table, eigengene_table = self._trait_associations(
+            module_table, feature_scores, sample_table
+        )
         module_gene_roles = compute_module_gene_roles(module_table, feature_scores, sample_table)
 
         return FitArtifacts(

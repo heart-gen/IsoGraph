@@ -152,8 +152,11 @@ def test_graph_gamma_zero_matches_latent(tmp_path: Path) -> None:
 
     latent_cfg = LatentModelConfig(alpha=0.01, min_module_size=2)
     graph_cfg = GraphModelConfig(
-        alpha=0.01, min_module_size=2,
-        gamma=0.0, edge_types=["corr"], corr_threshold=0.3,
+        alpha=0.01,
+        min_module_size=2,
+        gamma=0.0,
+        edge_types=["corr"],
+        corr_threshold=0.3,
     )
 
     latent_arts = LatentNetworkModel(latent_cfg).fit(
@@ -175,9 +178,9 @@ def test_graph_gamma_zero_matches_latent(tmp_path: Path) -> None:
     # Module tables should agree (same FA path → same network)
     latent_mods = set(latent_arts.module_table["gene_id"].tolist())
     graph_mods = set(graph_arts.module_table["gene_id"].tolist())
-    assert latent_mods == graph_mods, (
-        "gamma=0 graph model assigned different genes to modules vs LatentNetworkModel"
-    )
+    assert (
+        latent_mods == graph_mods
+    ), "gamma=0 graph model assigned different genes to modules vs LatentNetworkModel"
 
 
 # ---------------------------------------------------------------------------
@@ -194,12 +197,21 @@ def test_graph_calibration_fields_present(tmp_path: Path) -> None:
     assert artifacts.calibration is not None, "calibration must not be None"
 
     stage2_keys = {
-        "mean_log_likelihood", "reconstruction_rmse", "mean_noise_variance",
-        "n_components_used", "n_iter", "converged", "n_components_selected_by",
+        "mean_log_likelihood",
+        "reconstruction_rmse",
+        "mean_noise_variance",
+        "n_components_used",
+        "n_iter",
+        "converged",
+        "n_components_selected_by",
     }
     graph_keys = {
-        "graph_n_nodes", "graph_n_edges", "graph_mean_degree",
-        "graph_edge_types_used", "graph_gamma", "graph_corr_threshold",
+        "graph_n_nodes",
+        "graph_n_edges",
+        "graph_mean_degree",
+        "graph_edge_types_used",
+        "graph_gamma",
+        "graph_corr_threshold",
         "graph_smoothing_rmse",
     }
     required = stage2_keys | graph_keys
@@ -235,9 +247,9 @@ def test_graph_api_compatibility(tmp_path: Path) -> None:
         assert "gene_id" in artifacts.module_table.columns
         assert "module_id" in artifacts.module_table.columns
     if not artifacts.edge_table.empty:
-        assert set(["source", "target", "weight"]).issubset(artifacts.edge_table.columns)
+        assert {"source", "target", "weight"}.issubset(artifacts.edge_table.columns)
     if not artifacts.trait_table.empty:
-        assert set(["module_id", "trait", "effect", "pvalue"]).issubset(artifacts.trait_table.columns)
+        assert {"module_id", "trait", "effect", "pvalue"}.issubset(artifacts.trait_table.columns)
     assert isinstance(artifacts.eigengene_table, pd.DataFrame)
     assert "module_id" in artifacts.eigengene_table.columns
 
@@ -300,9 +312,13 @@ def test_graph_determinism_medium_v1(tmp_path: Path) -> None:
     for snap_dir in (snap_a, snap_b):
         artifacts, bundle = _fit_graph(medium_dir, _MEDIUM_CONFIG)
         truth = bundle.truth_tables.get("truth_modules.parquet")
-        recovery = module_recovery_score(artifacts.module_table, truth) if truth is not None else None
+        recovery = (
+            module_recovery_score(artifacts.module_table, truth) if truth is not None else None
+        )
         metrics = {
-            "n_modules": 0 if artifacts.module_table.empty else artifacts.module_table["module_id"].nunique(),
+            "n_modules": 0
+            if artifacts.module_table.empty
+            else artifacts.module_table["module_id"].nunique(),
             "n_edges": len(artifacts.edge_table),
             "recovery": recovery,
             "runtime_seconds": 0.0,
@@ -317,8 +333,8 @@ def test_graph_determinism_medium_v1(tmp_path: Path) -> None:
         )
 
     report = compare_snapshot_dirs(snap_a, snap_b)
-    assert report["passed"], (
-        "medium_v1 graph snapshots are not deterministic:\n" + "\n".join(report["differences"])
+    assert report["passed"], "medium_v1 graph snapshots are not deterministic:\n" + "\n".join(
+        report["differences"]
     )
 
 
@@ -337,13 +353,9 @@ def test_graph_ablation_empty_equals_no_smoothing(tmp_path: Path) -> None:
     bundle = load_dataset_bundle(medium_dir)
 
     # empty_graph: L is zero matrix because no edges → smoothing is identity
-    cfg_empty = GraphModelConfig(
-        alpha=0.01, min_module_size=2, gamma=0.5, edge_types=[]
-    )
+    cfg_empty = GraphModelConfig(alpha=0.01, min_module_size=2, gamma=0.5, edge_types=[])
     # no_smoothing: gamma=0 → laplacian_smooth returns input unchanged
-    cfg_no_smooth = GraphModelConfig(
-        alpha=0.01, min_module_size=2, gamma=0.0, edge_types=["corr"]
-    )
+    cfg_no_smooth = GraphModelConfig(alpha=0.01, min_module_size=2, gamma=0.0, edge_types=["corr"])
 
     arts_empty = GraphNetworkModel(cfg_empty).fit(
         transcript_counts=bundle.matrices["transcript_counts"],
@@ -399,8 +411,11 @@ def test_graph_prior_edges_enriched_in_modules(tmp_path: Path) -> None:
 
     gene_ids = feature_info["gene_id"].tolist()
     gene_graph = build_gene_graph(
-        switch_matrix, gene_ids, bundle.feature_tables["transcript"],
-        _MEDIUM_CONFIG.edge_types, _MEDIUM_CONFIG.corr_threshold,
+        switch_matrix,
+        gene_ids,
+        bundle.feature_tables["transcript"],
+        _MEDIUM_CONFIG.edge_types,
+        _MEDIUM_CONFIG.corr_threshold,
     )
 
     report = graph_prior_edge_report(gene_graph, artifacts.edge_table, truth)
@@ -442,8 +457,14 @@ def test_graph_ablation_report_structure(tmp_path: Path) -> None:
     truth = bundle.truth_tables.get("truth_modules.parquet")
 
     ablations = [
-        ("full_graph", GraphModelConfig(alpha=0.01, min_module_size=2, gamma=0.5, edge_types=["corr"])),
-        ("no_smoothing", GraphModelConfig(alpha=0.01, min_module_size=2, gamma=0.0, edge_types=["corr"])),
+        (
+            "full_graph",
+            GraphModelConfig(alpha=0.01, min_module_size=2, gamma=0.5, edge_types=["corr"]),
+        ),
+        (
+            "no_smoothing",
+            GraphModelConfig(alpha=0.01, min_module_size=2, gamma=0.0, edge_types=["corr"]),
+        ),
         ("empty_graph", GraphModelConfig(alpha=0.01, min_module_size=2, gamma=0.5, edge_types=[])),
     ]
 
@@ -474,9 +495,9 @@ def test_graph_ablation_report_structure(tmp_path: Path) -> None:
     # no_smoothing and empty_graph should have equal edge counts (both are L=0 effective)
     no_smooth_row = next(r for r in report["ablations"] if r["label"] == "no_smoothing")
     empty_row = next(r for r in report["ablations"] if r["label"] == "empty_graph")
-    assert no_smooth_row["n_edges"] == empty_row["n_edges"], (
-        "no_smoothing and empty_graph should produce identical edge counts"
-    )
+    assert (
+        no_smooth_row["n_edges"] == empty_row["n_edges"]
+    ), "no_smoothing and empty_graph should produce identical edge counts"
 
 
 # ---------------------------------------------------------------------------
@@ -510,7 +531,9 @@ def test_graph_benchmark_runner(tmp_path: Path) -> None:
     assert len(data["results"]) == 1
     toy_row = data["results"][0]
     assert toy_row["dataset"] == "toy_v1"
-    assert toy_row["recovery"] == 1.0, f"toy_v1 graph recovery={toy_row['recovery']:.4f}, expected 1.0"
+    assert (
+        toy_row["recovery"] == 1.0
+    ), f"toy_v1 graph recovery={toy_row['recovery']:.4f}, expected 1.0"
     assert data["gate_failures"] == [], f"Unexpected gate failures: {data['gate_failures']}"
     assert data["backend"] == "graph"
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import networkx as nx
@@ -32,7 +32,9 @@ class FitArtifacts:
     residualization_qc: pd.DataFrame | None = None
 
 
-def _module_feature_subset(feature_scores: pd.DataFrame, genes: pd.Series | list[str]) -> pd.DataFrame:
+def _module_feature_subset(
+    feature_scores: pd.DataFrame, genes: pd.Series | list[str]
+) -> pd.DataFrame:
     return feature_scores.loc[feature_scores["gene_id"].isin(set(genes))]
 
 
@@ -106,7 +108,14 @@ def compute_trait_associations(
                 if mask.sum() < 10:
                     continue
                 effect, pvalue = stats.pearsonr(eigengene[mask], vals[mask])
-                rows.append({"module_id": module_id, "trait": col, "effect": float(effect), "pvalue": float(pvalue)})
+                rows.append(
+                    {
+                        "module_id": module_id,
+                        "trait": col,
+                        "effect": float(effect),
+                        "pvalue": float(pvalue),
+                    }
+                )
             else:
                 cats = sorted(series.dropna().unique())
                 if len(cats) != 2:
@@ -118,7 +127,14 @@ def compute_trait_associations(
                     continue
                 ttest = stats.ttest_ind(grp0, grp1, equal_var=False)
                 effect = float(grp1.mean() - grp0.mean())
-                rows.append({"module_id": module_id, "trait": col, "effect": effect, "pvalue": float(ttest.pvalue)})
+                rows.append(
+                    {
+                        "module_id": module_id,
+                        "trait": col,
+                        "effect": effect,
+                        "pvalue": float(ttest.pvalue),
+                    }
+                )
     eigengene_table = (
         pd.DataFrame(eigengene_rows, index=sample_ids)
         .T.reset_index()
@@ -174,7 +190,9 @@ def compute_module_gene_roles(
             abundance_r = channel_r.get("abundance", np.nan)
             switch_abundance_r = np.nan
             if "switch" in channel_values and "abundance" in channel_values:
-                switch_abundance_r = _safe_corr(channel_values["switch"], channel_values["abundance"])
+                switch_abundance_r = _safe_corr(
+                    channel_values["switch"], channel_values["abundance"]
+                )
             switch_active = bool(np.isfinite(switch_r) and abs(switch_r) >= min_abs_r)
             abundance_active = bool(np.isfinite(abundance_r) and abs(abundance_r) >= min_abs_r)
             if switch_active and abundance_active:
@@ -331,7 +349,7 @@ class NetworkModel:
                     grid = getattr(self.config, "leiden_resolution_grid", None)
                     if not grid:
                         base_r = resolution if resolution is not None else 1.0
-                        grid = [base_r * (2 ** i) for i in range(6)]
+                        grid = [base_r * (2**i) for i in range(6)]
                     grid = sorted({float(r) for r in grid})
                     tried: list[dict] = []
                     chosen: tuple[float, float, list[set]] | None = None
@@ -339,7 +357,9 @@ class NetworkModel:
                     for r in grid:
                         comms = _partition(r)
                         gf = _giant_frac(comms)
-                        tried.append({"resolution": r, "giant_fraction": gf, "n_modules": len(comms)})
+                        tried.append(
+                            {"resolution": r, "giant_fraction": gf, "n_modules": len(comms)}
+                        )
                         if best is None or gf < best[1]:
                             best = (r, gf, comms)
                         if gf <= max_giant_frac:
@@ -351,7 +371,9 @@ class NetworkModel:
                         _log.warning(
                             "leiden_max_giant_frac=%.3f not reached on the resolution grid "
                             "(best giant fraction %.3f at resolution %.4g); using best effort.",
-                            max_giant_frac, gf_sel, r_sel,
+                            max_giant_frac,
+                            gf_sel,
+                            r_sel,
                         )
                     self._leiden_selection = {
                         "mode": "auto",

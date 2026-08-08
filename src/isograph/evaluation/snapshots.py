@@ -40,7 +40,11 @@ def _module_summary(module_table: pd.DataFrame) -> pd.DataFrame:
 
 
 def _sorted_feature_scores(feature_scores: pd.DataFrame) -> pd.DataFrame:
-    sort_cols = [column for column in ("gene_id", "feature_type", "feature_id") if column in feature_scores.columns]
+    sort_cols = [
+        column
+        for column in ("gene_id", "feature_type", "feature_id")
+        if column in feature_scores.columns
+    ]
     return feature_scores.sort_values(sort_cols).reset_index(drop=True)
 
 
@@ -89,9 +93,13 @@ def save_snapshot(
 
     # eigengene_table.parquet (optional — present when modules exist)
     if fit_artifacts.eigengene_table is not None:
-        fit_artifacts.eigengene_table.to_parquet(output_dir / "eigengene_table.parquet", index=False)
+        fit_artifacts.eigengene_table.to_parquet(
+            output_dir / "eigengene_table.parquet", index=False
+        )
     if fit_artifacts.module_gene_roles is not None:
-        fit_artifacts.module_gene_roles.to_parquet(output_dir / "module_gene_roles.parquet", index=False)
+        fit_artifacts.module_gene_roles.to_parquet(
+            output_dir / "module_gene_roles.parquet", index=False
+        )
 
     # run_config.yaml
     config_dict = dataclass_to_jsonable(model_config)
@@ -126,8 +134,12 @@ def compare_snapshot_dirs(
                 differences.append(f"{label} snapshot is missing file: {name}")
 
     if differences:
-        return {"passed": False, "differences": differences,
-                "reference": str(reference_dir), "candidate": str(candidate_dir)}
+        return {
+            "passed": False,
+            "differences": differences,
+            "reference": str(reference_dir),
+            "candidate": str(candidate_dir),
+        }
 
     # Compare metrics.json
     ref_metrics: dict[str, Any] = json.loads((reference_dir / "metrics.json").read_text())
@@ -142,7 +154,9 @@ def compare_snapshot_dirs(
     ref_rec = ref_metrics.get("recovery")
     cand_rec = cand_metrics.get("recovery")
     if (ref_rec is None) != (cand_rec is None):
-        differences.append(f"metrics.recovery nullability differs: reference={ref_rec} candidate={cand_rec}")
+        differences.append(
+            f"metrics.recovery nullability differs: reference={ref_rec} candidate={cand_rec}"
+        )
     elif ref_rec is not None and cand_rec is not None:
         if abs(float(ref_rec) - float(cand_rec)) > recovery_tolerance:
             differences.append(
@@ -187,7 +201,11 @@ def compare_snapshot_dirs(
             )
         except AssertionError as exc:
             differences.append(f"switch_features.parquet numeric values differ: {exc}")
-        id_cols = [column for column in ("feature_id", "gene_id", "feature_type") if column in ref_feat_s.columns]
+        id_cols = [
+            column
+            for column in ("feature_id", "gene_id", "feature_type")
+            if column in ref_feat_s.columns
+        ]
         for column in id_cols:
             if not ref_feat_s[column].equals(cand_feat_s[column]):
                 differences.append(f"switch_features.parquet {column} ordering differs")

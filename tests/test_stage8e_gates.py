@@ -13,12 +13,14 @@ from isograph.explain.config import ExplainConfig, ExplainResult
 
 try:
     import torch as _torch
+
     _TORCH_AVAILABLE = True
 except ImportError:
     _TORCH_AVAILABLE = False
 
 try:
     import captum as _captum  # noqa: F401
+
     _CAPTUM_AVAILABLE = True
 except ImportError:
     _CAPTUM_AVAILABLE = False
@@ -48,31 +50,39 @@ def _make_synthetic_explain_inputs(
     module_assignment = np.repeat(np.arange(n_modules), genes_per_module)[:n_genes]
     module_latent = rng.normal(size=(n_modules, n_samples))
 
-    switch_coords = np.vstack([
-        module_latent[module_assignment[i]] + rng.normal(0, 0.3, n_samples)
-        for i in range(n_genes)
-    ])
+    switch_coords = np.vstack(
+        [
+            module_latent[module_assignment[i]] + rng.normal(0, 0.3, n_samples)
+            for i in range(n_genes)
+        ]
+    )
     feature_scores = pd.DataFrame(switch_coords, columns=sample_ids)
     feature_scores.insert(0, "gene_id", gene_ids)
 
-    modules = pd.DataFrame({
-        "gene_id": gene_ids,
-        "module_id": [f"M{m:03d}" for m in module_assignment],
-    })
+    modules = pd.DataFrame(
+        {
+            "gene_id": gene_ids,
+            "module_id": [f"M{m:03d}" for m in module_assignment],
+        }
+    )
 
-    transcript_ids = [f"G{i:04d}_T{t}" for i in range(n_genes) for t in range(n_transcripts_per_gene)]
+    transcript_ids = [
+        f"G{i:04d}_T{t}" for i in range(n_genes) for t in range(n_transcripts_per_gene)
+    ]
     tx_data = rng.uniform(0.1, 0.9, (n_samples, len(transcript_ids)))
     feature_table = pd.DataFrame(tx_data, index=sample_ids, columns=transcript_ids)
-    feature_meta = pd.DataFrame([
-        {
-            "feature_id": f"G{i:04d}_T{t}",
-            "gene_id": f"G{i:04d}",
-            "transcript_id": f"G{i:04d}_T{t}",
-            "feature_type": "transcript_usage",
-        }
-        for i in range(n_genes)
-        for t in range(n_transcripts_per_gene)
-    ])
+    feature_meta = pd.DataFrame(
+        [
+            {
+                "feature_id": f"G{i:04d}_T{t}",
+                "gene_id": f"G{i:04d}",
+                "transcript_id": f"G{i:04d}_T{t}",
+                "feature_type": "transcript_usage",
+            }
+            for i in range(n_genes)
+            for t in range(n_transcripts_per_gene)
+        ]
+    )
     return modules, feature_scores, feature_table, feature_meta, sample_ids
 
 
@@ -93,6 +103,7 @@ def _make_vae_checkpoint(
     seed: int = 42,
 ) -> Path:
     import torch
+
     from isograph.models.vae import _Decoder, _Encoder
 
     torch.manual_seed(seed)
@@ -260,7 +271,9 @@ def test_compute_ig_zero_baseline_default(tmp_path):
 
     eigengene = np.random.default_rng(3).normal(size=len(sample_ids))
     result_default = compute_integrated_gradients(chk, eigengene, feature_scores, n_steps=5)
-    result_zero = compute_integrated_gradients(chk, eigengene, feature_scores, n_steps=5, baseline="zero")
+    result_zero = compute_integrated_gradients(
+        chk, eigengene, feature_scores, n_steps=5, baseline="zero"
+    )
     np.testing.assert_array_equal(result_default["ig_score"].values, result_zero["ig_score"].values)
 
 
@@ -273,8 +286,12 @@ def test_compute_ig_mean_baseline_differs_from_zero(tmp_path):
     chk = _make_vae_checkpoint(artifact_dir, n_genes=12)
 
     eigengene = np.random.default_rng(4).normal(size=len(sample_ids))
-    result_zero = compute_integrated_gradients(chk, eigengene, feature_scores, n_steps=10, baseline="zero")
-    result_mean = compute_integrated_gradients(chk, eigengene, feature_scores, n_steps=10, baseline="mean")
+    result_zero = compute_integrated_gradients(
+        chk, eigengene, feature_scores, n_steps=10, baseline="zero"
+    )
+    result_mean = compute_integrated_gradients(
+        chk, eigengene, feature_scores, n_steps=10, baseline="mean"
+    )
     # Mean baseline should produce different scores (feature_scores are nonzero)
     assert not np.allclose(result_zero["ig_score"].values, result_mean["ig_score"].values)
 
@@ -283,19 +300,26 @@ def test_compute_ig_mean_baseline_differs_from_zero(tmp_path):
 def test_compute_ig_completeness_approx(tmp_path):
     """Sum of IG scores * n_samples ≈ f(X) - f(baseline) (IG completeness axiom, within ±5%)."""
     import torch
+
     from isograph.explain.captum_attribution import compute_integrated_gradients
     from isograph.models.vae import _Encoder
 
-    modules, feature_scores, _, _, sample_ids = _make_synthetic_explain_inputs(n_genes=8, n_samples=20)
+    modules, feature_scores, _, _, sample_ids = _make_synthetic_explain_inputs(
+        n_genes=8, n_samples=20
+    )
     artifact_dir = _write_artifact(tmp_path, modules, feature_scores)
     chk = _make_vae_checkpoint(artifact_dir, n_genes=8, latent_dim=3)
 
     eigengene = np.random.default_rng(5).normal(size=len(sample_ids))
-    result = compute_integrated_gradients(chk, eigengene, feature_scores, n_steps=100, baseline="zero")
+    result = compute_integrated_gradients(
+        chk, eigengene, feature_scores, n_steps=100, baseline="zero"
+    )
 
     # Reconstruct f(X) - f(baseline) for verification
     data = torch.load(chk, map_location="cpu", weights_only=True)
-    encoder = _Encoder(data["n_genes"], data["hidden_dim"], data["latent_dim"], data["n_hidden_layers"])
+    encoder = _Encoder(
+        data["n_genes"], data["hidden_dim"], data["latent_dim"], data["n_hidden_layers"]
+    )
     encoder.load_state_dict(data["encoder"])
     encoder.eval()
 
@@ -332,10 +356,13 @@ def test_compute_ig_eigengene_length_mismatch_raises(tmp_path):
 def test_compute_ig_n_steps_affects_precision(tmp_path):
     """Higher n_steps produces closer approximation to the completeness bound."""
     import torch
+
     from isograph.explain.captum_attribution import compute_integrated_gradients
     from isograph.models.vae import _Encoder
 
-    modules, feature_scores, _, _, sample_ids = _make_synthetic_explain_inputs(n_genes=8, n_samples=20)
+    modules, feature_scores, _, _, sample_ids = _make_synthetic_explain_inputs(
+        n_genes=8, n_samples=20
+    )
     artifact_dir = _write_artifact(tmp_path, modules, feature_scores)
     chk = _make_vae_checkpoint(artifact_dir, n_genes=8, latent_dim=3)
     eigengene = np.random.default_rng(6).normal(size=len(sample_ids))
@@ -344,7 +371,9 @@ def test_compute_ig_n_steps_affects_precision(tmp_path):
     result_high = compute_integrated_gradients(chk, eigengene, feature_scores, n_steps=200)
 
     data = torch.load(chk, map_location="cpu", weights_only=True)
-    encoder = _Encoder(data["n_genes"], data["hidden_dim"], data["latent_dim"], data["n_hidden_layers"])
+    encoder = _Encoder(
+        data["n_genes"], data["hidden_dim"], data["latent_dim"], data["n_hidden_layers"]
+    )
     encoder.load_state_dict(data["encoder"])
     encoder.eval()
     scores_df = feature_scores.set_index("gene_id")
@@ -358,7 +387,9 @@ def test_compute_ig_n_steps_affects_precision(tmp_path):
     err_low = abs(result_low["ig_score"].sum() * len(sample_ids) - expected)
     err_high = abs(result_high["ig_score"].sum() * len(sample_ids) - expected)
     # high-step result should be at least as close (within tolerance for floating point)
-    assert err_high <= err_low + 1e-4, "Higher n_steps should produce better completeness approximation"
+    assert (
+        err_high <= err_low + 1e-4
+    ), "Higher n_steps should produce better completeness approximation"
 
 
 @_skip_no_captum
@@ -379,6 +410,7 @@ def test_compute_ig_dtype_float64(tmp_path):
 def test_compute_ig_latent_r_matches_encoder(tmp_path):
     """latent_r in output should equal Pearson r between encoder mu[j_star] and eigengene."""
     import torch
+
     from isograph.explain.captum_attribution import compute_integrated_gradients
     from isograph.models.vae import _Encoder
 
@@ -393,7 +425,9 @@ def test_compute_ig_latent_r_matches_encoder(tmp_path):
 
     # Recompute Pearson r independently
     data = torch.load(chk, map_location="cpu", weights_only=True)
-    encoder = _Encoder(data["n_genes"], data["hidden_dim"], data["latent_dim"], data["n_hidden_layers"])
+    encoder = _Encoder(
+        data["n_genes"], data["hidden_dim"], data["latent_dim"], data["n_hidden_layers"]
+    )
     encoder.load_state_dict(data["encoder"])
     encoder.eval()
     scores_df = feature_scores.set_index("gene_id")
@@ -405,7 +439,11 @@ def test_compute_ig_latent_r_matches_encoder(tmp_path):
     eg = eigengene - eigengene.mean()
     eg_std = eg.std()
     col_std = col.std()
-    expected_r = float(np.dot(eg / eg_std, (col - col.mean()) / col_std) / len(eg)) if eg_std > 0 and col_std > 0 else 0.0
+    expected_r = (
+        float(np.dot(eg / eg_std, (col - col.mean()) / col_std) / len(eg))
+        if eg_std > 0 and col_std > 0
+        else 0.0
+    )
 
     assert abs(reported_r - expected_r) < 1e-5, f"latent_r mismatch: {reported_r} vs {expected_r}"
 
@@ -565,13 +603,18 @@ def test_cli_integrated_gradients_flag():
     from isograph.workflow.cli import build_parser
 
     parser = build_parser()
-    args = parser.parse_args([
-        "explain-module",
-        "--artifact-dir", "x",
-        "--feature-table", "x",
-        "--feature-meta", "x",
-        "--integrated-gradients",
-    ])
+    args = parser.parse_args(
+        [
+            "explain-module",
+            "--artifact-dir",
+            "x",
+            "--feature-table",
+            "x",
+            "--feature-meta",
+            "x",
+            "--integrated-gradients",
+        ]
+    )
     assert args.integrated_gradients is True
 
 
@@ -579,13 +622,19 @@ def test_cli_ig_n_steps_flag():
     from isograph.workflow.cli import build_parser
 
     parser = build_parser()
-    args = parser.parse_args([
-        "explain-module",
-        "--artifact-dir", "x",
-        "--feature-table", "x",
-        "--feature-meta", "x",
-        "--ig-n-steps", "100",
-    ])
+    args = parser.parse_args(
+        [
+            "explain-module",
+            "--artifact-dir",
+            "x",
+            "--feature-table",
+            "x",
+            "--feature-meta",
+            "x",
+            "--ig-n-steps",
+            "100",
+        ]
+    )
     assert args.ig_n_steps == 100
 
 
@@ -593,11 +642,17 @@ def test_cli_ig_baseline_flag():
     from isograph.workflow.cli import build_parser
 
     parser = build_parser()
-    args = parser.parse_args([
-        "explain-module",
-        "--artifact-dir", "x",
-        "--feature-table", "x",
-        "--feature-meta", "x",
-        "--ig-baseline", "mean",
-    ])
+    args = parser.parse_args(
+        [
+            "explain-module",
+            "--artifact-dir",
+            "x",
+            "--feature-table",
+            "x",
+            "--feature-meta",
+            "x",
+            "--ig-baseline",
+            "mean",
+        ]
+    )
     assert args.ig_baseline == "mean"

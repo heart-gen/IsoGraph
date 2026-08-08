@@ -10,10 +10,6 @@ jobs:
   lint:
     name: Lint (ruff)
     runs-on: ubuntu-latest
-    # Advisory for now: the existing codebase has outstanding style findings, so
-    # ruff is reported but does not block CI. Flip continue-on-error to false once
-    # a formatting/lint cleanup pass has landed.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

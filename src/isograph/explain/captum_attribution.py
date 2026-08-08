@@ -112,11 +112,16 @@ def compute_integrated_gradients(
         return mu[:, j_star]
 
     ig = IntegratedGradients(_project)
-    attributions = ig.attribute(
-        inputs=X,
-        baselines=baseline_tensor,
-        n_steps=n_steps,
-    ).detach().cpu().numpy()  # (n_samples, n_genes)
+    attributions = (
+        ig.attribute(
+            inputs=X,
+            baselines=baseline_tensor,
+            n_steps=n_steps,
+        )
+        .detach()
+        .cpu()
+        .numpy()
+    )  # (n_samples, n_genes)
 
     ig_score = attributions.mean(axis=0).astype(np.float64)
     ig_score_abs_mean = np.abs(attributions).mean(axis=0).astype(np.float64)
@@ -170,9 +175,8 @@ def filter_ig_drivers(
             ]
         )
 
-    ig_gene = (
-        ig_df.sort_values("ig_score_abs_mean", ascending=False)
-        .drop_duplicates("gene_id", keep="first")
+    ig_gene = ig_df.sort_values("ig_score_abs_mean", ascending=False).drop_duplicates(
+        "gene_id", keep="first"
     )
     keep_cols = [
         column

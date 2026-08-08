@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import dataclasses
-
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -46,7 +44,7 @@ def edge_topology_report(
     """
     module_map: dict[str, str] = {}
     if truth_modules is not None and not truth_modules.empty:
-        module_map = dict(zip(truth_modules["gene_id"], truth_modules["module_id"]))
+        module_map = dict(zip(truth_modules["gene_id"], truth_modules["module_id"], strict=False))
 
     # Build set of all true within-module pairs
     genes_by_module: dict = {}
@@ -56,7 +54,7 @@ def edge_topology_report(
     true_within: set[frozenset] = set()
     for members in genes_by_module.values():
         for i, a in enumerate(members):
-            for b in members[i + 1:]:
+            for b in members[i + 1 :]:
                 true_within.add(frozenset({a, b}))
 
     n_possible_within = len(true_within)
@@ -65,10 +63,12 @@ def edge_topology_report(
     inferred_edges: list[tuple[frozenset, float]] = []
     if not edge_table.empty:
         for _, row in edge_table.iterrows():
-            inferred_edges.append((
-                frozenset({row["source"], row["target"]}),
-                float(row["weight"]),
-            ))
+            inferred_edges.append(
+                (
+                    frozenset({row["source"], row["target"]}),
+                    float(row["weight"]),
+                )
+            )
 
     n_inferred = len(inferred_edges)
 
@@ -96,7 +96,7 @@ def edge_topology_report(
 
     # Hub genes by degree
     degree_counter: dict[str, int] = {}
-    for (e, _) in inferred_edges:
+    for e, _ in inferred_edges:
         a, b = tuple(e)
         degree_counter[a] = degree_counter.get(a, 0) + 1
         degree_counter[b] = degree_counter.get(b, 0) + 1
@@ -142,9 +142,7 @@ def graph_prior_edge_report(
       within_module_prior_fraction, between_module_prior_fraction
       (last two are None when truth_modules is None).
     """
-    prior_edges: set[frozenset] = {
-        frozenset({u, v}) for u, v in gene_graph.edges()
-    }
+    prior_edges: set[frozenset] = {frozenset({u, v}) for u, v in gene_graph.edges()}
     inferred_edges: set[frozenset] = set()
     if not edge_table.empty:
         for _, row in edge_table.iterrows():
@@ -165,7 +163,7 @@ def graph_prior_edge_report(
     }
 
     if truth_modules is not None and not truth_modules.empty and n_prior > 0:
-        module_map = dict(zip(truth_modules["gene_id"], truth_modules["module_id"]))
+        module_map = dict(zip(truth_modules["gene_id"], truth_modules["module_id"], strict=False))
         gene_ids_in_graph = list(gene_graph.nodes())
 
         # Count possible within/between pairs in the graph
@@ -202,11 +200,19 @@ def graph_prior_edge_report(
         result["within_module_prior_fraction"] = within / total if total > 0 else 0.0
         result["between_module_prior_fraction"] = between / total if total > 0 else 0.0
         # Edge rate: edges per possible pair — enrichment signal for sparse graphs
-        result["within_module_edge_rate"] = within / n_within_possible if n_within_possible > 0 else 0.0
-        result["between_module_edge_rate"] = between / n_between_possible if n_between_possible > 0 else 0.0
+        result["within_module_edge_rate"] = (
+            within / n_within_possible if n_within_possible > 0 else 0.0
+        )
+        result["between_module_edge_rate"] = (
+            between / n_between_possible if n_between_possible > 0 else 0.0
+        )
         # Mean edge weight: enrichment signal for dense graphs where rate saturates at 1.0
-        result["within_module_mean_weight"] = float(np.mean(within_weights)) if within_weights else 0.0
-        result["between_module_mean_weight"] = float(np.mean(between_weights)) if between_weights else 0.0
+        result["within_module_mean_weight"] = (
+            float(np.mean(within_weights)) if within_weights else 0.0
+        )
+        result["between_module_mean_weight"] = (
+            float(np.mean(between_weights)) if between_weights else 0.0
+        )
 
     return result
 
@@ -247,11 +253,15 @@ def graph_ablation_report(
         recovery = None
         if truth_modules is not None and not truth_modules.empty:
             recovery = float(module_recovery_score(artifacts.module_table, truth_modules))
-        results.append({
-            "label": label,
-            "recovery": recovery,
-            "n_edges": len(artifacts.edge_table),
-            "n_modules": artifacts.module_table["module_id"].nunique() if not artifacts.module_table.empty else 0,
-            "calibration": artifacts.calibration,
-        })
+        results.append(
+            {
+                "label": label,
+                "recovery": recovery,
+                "n_edges": len(artifacts.edge_table),
+                "n_modules": artifacts.module_table["module_id"].nunique()
+                if not artifacts.module_table.empty
+                else 0,
+                "calibration": artifacts.calibration,
+            }
+        )
     return {"ablations": results}

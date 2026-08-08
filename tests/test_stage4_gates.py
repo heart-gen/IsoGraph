@@ -18,11 +18,8 @@ Covers Stage 4 checklist items:
 
 from __future__ import annotations
 
-import importlib
-import sys
 import time
 from pathlib import Path
-from unittest import mock
 
 import numpy as np
 import pandas as pd
@@ -45,16 +42,31 @@ from isograph.validation import DatasetManifest
 from isograph.workflow.config import BenchmarkCommandConfig, VaeModelConfig
 
 _TOY_CONFIG = VaeModelConfig(
-    latent_dim=4, hidden_dim=64, n_epochs=500, beta=0.5, alpha=0.70,
-    min_module_size=2, random_state=7,
+    latent_dim=4,
+    hidden_dim=64,
+    n_epochs=500,
+    beta=0.5,
+    alpha=0.70,
+    min_module_size=2,
+    random_state=7,
 )
 _MEDIUM_CONFIG = VaeModelConfig(
-    latent_dim=12, hidden_dim=128, n_epochs=500, beta=0.5, alpha=0.70,
-    min_module_size=2, random_state=7,
+    latent_dim=12,
+    hidden_dim=128,
+    n_epochs=500,
+    beta=0.5,
+    alpha=0.70,
+    min_module_size=2,
+    random_state=7,
 )
 _NONLINEAR_CONFIG = VaeModelConfig(
-    latent_dim=4, hidden_dim=128, n_epochs=800, beta=0.5, alpha=0.80,
-    min_module_size=2, random_state=7,
+    latent_dim=4,
+    hidden_dim=128,
+    n_epochs=800,
+    beta=0.5,
+    alpha=0.80,
+    min_module_size=2,
+    random_state=7,
 )
 
 _REQUIRED_CALIBRATION_KEYS = {
@@ -176,14 +188,15 @@ def test_vae_determinism_medium_v1(core_suite, tmp_path):
     arts2, _ = _fit_vae(core_suite["medium_v1"], _MEDIUM_CONFIG)
     snap1 = tmp_path / "snap1"
     snap2 = tmp_path / "snap2"
-    snap1.mkdir(); snap2.mkdir()
+    snap1.mkdir()
+    snap2.mkdir()
     model_config = _MEDIUM_CONFIG
     metrics = {"n_modules": 0, "n_edges": 0, "recovery": None, "runtime_seconds": 0.0}
     save_snapshot(arts1, model_config, metrics, snap1, "det_v1", "medium_v1")
     save_snapshot(arts2, model_config, metrics, snap2, "det_v1", "medium_v1")
     report = compare_snapshot_dirs(snap1, snap2)
-    assert report["passed"], (
-        "medium_v1 VAE snapshots are not deterministic:\n" + "\n".join(report["differences"])
+    assert report["passed"], "medium_v1 VAE snapshots are not deterministic:\n" + "\n".join(
+        report["differences"]
     )
 
 
@@ -192,8 +205,15 @@ def test_vae_seed_sensitivity_toy_v1(core_suite):
     truth = bundle.truth_tables.get("truth_modules.parquet", pd.DataFrame())
     recoveries = []
     for seed in range(5):
-        cfg = VaeModelConfig(latent_dim=4, hidden_dim=64, n_epochs=500, beta=0.5, alpha=0.70,
-                             min_module_size=2, random_state=seed)
+        cfg = VaeModelConfig(
+            latent_dim=4,
+            hidden_dim=64,
+            n_epochs=500,
+            beta=0.5,
+            alpha=0.70,
+            min_module_size=2,
+            random_state=seed,
+        )
         model = VaeNetworkModel(cfg)
         arts = model.fit(
             transcript_counts=bundle.matrices["transcript_counts"],
@@ -207,8 +227,17 @@ def test_vae_seed_sensitivity_toy_v1(core_suite):
 
 def test_vae_checkpoint_save_load(core_suite, tmp_path):
     from isograph.models.vae import load_vae_checkpoint
-    cfg = VaeModelConfig(latent_dim=4, hidden_dim=32, n_epochs=200, beta=0.5, alpha=0.70,
-                         min_module_size=2, random_state=7, checkpoint_dir=tmp_path)
+
+    cfg = VaeModelConfig(
+        latent_dim=4,
+        hidden_dim=32,
+        n_epochs=200,
+        beta=0.5,
+        alpha=0.70,
+        min_module_size=2,
+        random_state=7,
+        checkpoint_dir=tmp_path,
+    )
     bundle = load_dataset_bundle(core_suite["toy_v1"])
     model = VaeNetworkModel(cfg)
     model.fit(
@@ -220,6 +249,7 @@ def test_vae_checkpoint_save_load(core_suite, tmp_path):
     assert chk_path.exists(), "Checkpoint file not saved"
 
     import torch
+
     data = torch.load(chk_path, map_location="cpu", weights_only=True)
     n_genes = data["n_genes"]
     loaded = load_vae_checkpoint(chk_path, cfg, n_genes)
@@ -231,8 +261,13 @@ def test_vae_single_isoform_handling():
     gene_ids = ["G0000"]
     tx_ids = ["G0000_tx1", "G0000_tx2"]
     transcript_table = pd.DataFrame(
-        {"transcript_id": tx_ids, "gene_id": [gene_ids[0], gene_ids[0]],
-         "chrom": ["chr1", "chr1"], "start": [0, 0], "end": [100, 100]}
+        {
+            "transcript_id": tx_ids,
+            "gene_id": [gene_ids[0], gene_ids[0]],
+            "chrom": ["chr1", "chr1"],
+            "start": [0, 0],
+            "end": [100, 100],
+        }
     )
     rng = np.random.default_rng(0)
     transcript_counts = rng.integers(0, 10, size=(2, n_samples)).astype(float)
@@ -250,13 +285,20 @@ def test_vae_single_isoform_handling():
 def test_vae_latent_dim_grid_selects_k(core_suite):
     """Grid sweep selects a latent_dim that achieves at least baseline recovery."""
     cfg = VaeModelConfig(
-        latent_dim_grid=[2, 4, 8], hidden_dim=64, n_epochs=500, beta=0.5,
-        alpha=0.70, min_module_size=2, random_state=7,
+        latent_dim_grid=[2, 4, 8],
+        hidden_dim=64,
+        n_epochs=500,
+        beta=0.5,
+        alpha=0.70,
+        min_module_size=2,
+        random_state=7,
     )
     arts, bundle = _fit_vae(core_suite["toy_v1"], cfg)
     assert arts.calibration is not None
     assert "latent_dim_selected" in arts.calibration, "latent_dim_selected missing from calibration"
-    assert "latent_dim_grid_rmses" in arts.calibration, "latent_dim_grid_rmses missing from calibration"
+    assert (
+        "latent_dim_grid_rmses" in arts.calibration
+    ), "latent_dim_grid_rmses missing from calibration"
     assert arts.calibration["latent_dim_selected"] in [2, 4, 8]
     truth = bundle.truth_tables.get("truth_modules.parquet", pd.DataFrame())
     recovery = module_recovery_score(arts.module_table, truth)
@@ -266,6 +308,7 @@ def test_vae_latent_dim_grid_selects_k(core_suite):
 def test_vae_no_torch_graceful_error(core_suite):
     """When torch is absent, fit() should raise ImportError with a clear message."""
     import isograph.models.vae as vae_module
+
     original = vae_module._TORCH_AVAILABLE
     try:
         vae_module._TORCH_AVAILABLE = False
@@ -306,6 +349,7 @@ def test_vae_benchmark_runner(core_suite, tmp_path):
     result = benchmark(cfg)
     assert "report" in result
     import json
+
     report = json.loads(result["report"].read_text())
     rows = {r["dataset"]: r for r in report["results"]}
     assert rows["toy_v1"]["recovery"] == 1.0
@@ -318,8 +362,15 @@ def test_vae_nonlinear_v1_multi_seed(core_suite):
     truth = bundle.truth_tables.get("truth_modules.parquet", pd.DataFrame())
     recoveries = []
     for seed in [0, 1, 2]:
-        cfg = VaeModelConfig(latent_dim=4, hidden_dim=128, n_epochs=800, beta=0.5, alpha=0.80,
-                             min_module_size=2, random_state=seed)
+        cfg = VaeModelConfig(
+            latent_dim=4,
+            hidden_dim=128,
+            n_epochs=800,
+            beta=0.5,
+            alpha=0.80,
+            min_module_size=2,
+            random_state=seed,
+        )
         model = VaeNetworkModel(cfg)
         arts = model.fit(
             transcript_counts=bundle.matrices["transcript_counts"],

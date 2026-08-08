@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import numpy as np
+import pandas as pd
 import pytest
 from pydantic import ValidationError
 
-import numpy as np
-import pandas as pd
-
-from isograph.io.artifacts import DatasetBundle, load_dataset_bundle, save_dataset_bundle
+from isograph.io.artifacts import (
+    DatasetBundle,
+    build_feature_spec,
+    build_matrix_spec,
+    load_dataset_bundle,
+    save_dataset_bundle,
+)
 from isograph.validation import DatasetManifest
-from isograph.io.artifacts import build_feature_spec, build_matrix_spec
 
 
 def test_manifest_rejects_missing_feature_tables() -> None:

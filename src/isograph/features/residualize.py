@@ -19,7 +19,9 @@ def build_design_matrix(sample_table: pd.DataFrame, covariates: list[str]) -> np
         series = sample_table[column]
         if pd.api.types.is_numeric_dtype(series):
             values = series.to_numpy(dtype=float)
-            values = np.nan_to_num(values, nan=float(np.nanmean(values) if np.isnan(values).any() else 0.0))
+            values = np.nan_to_num(
+                values, nan=float(np.nanmean(values) if np.isnan(values).any() else 0.0)
+            )
             if np.ptp(values) == 0.0:
                 constant.append(column)
                 continue

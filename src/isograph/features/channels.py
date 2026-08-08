@@ -55,7 +55,9 @@ def abundance_channel(
     matrix = _zscore_rows(np.log2(cpm + 0.5))
     info = pd.DataFrame(
         {
-            "feature_id": [f"{gene_id}::abundance" for gene_id in gene_table["gene_id"].astype(str)],
+            "feature_id": [
+                f"{gene_id}::abundance" for gene_id in gene_table["gene_id"].astype(str)
+            ],
             "gene_id": gene_table["gene_id"].astype(str).tolist(),
             "feature_type": "abundance",
         }
@@ -101,7 +103,9 @@ def gene_feature_channels(
 
     matrix = np.vstack(matrices) if matrices else np.zeros((0, transcript_counts.shape[1]))
     feature_info = pd.concat(infos, ignore_index=True)
-    feature_info = feature_info.sort_values(["gene_id", "feature_type", "feature_id"]).reset_index(drop=True)
+    feature_info = feature_info.sort_values(["gene_id", "feature_type", "feature_id"]).reset_index(
+        drop=True
+    )
 
     order = []
     lookup = {fid: idx for idx, fid in enumerate(pd.concat(infos, ignore_index=True)["feature_id"])}

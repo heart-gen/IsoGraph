@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import gzip
 import json
-import warnings
 from pathlib import Path
 
 import numpy as np
@@ -25,7 +24,6 @@ from isograph.explain.structure import (
     compare_pair,
     parse_gtf,
 )
-
 
 # ---------------------------------------------------------------------------
 # GTF fixture helpers
@@ -100,17 +98,23 @@ def _make_synthetic_explain_inputs(
     genes_per_module = n_genes // n_modules
     module_assignment = np.repeat(np.arange(n_modules), genes_per_module)[:n_genes]
     module_latent = rng.normal(size=(n_modules, n_samples))
-    switch_coords = np.vstack([
-        module_latent[module_assignment[i]] + rng.normal(0, 0.3, n_samples)
-        for i in range(n_genes)
-    ])
+    switch_coords = np.vstack(
+        [
+            module_latent[module_assignment[i]] + rng.normal(0, 0.3, n_samples)
+            for i in range(n_genes)
+        ]
+    )
     feature_scores = pd.DataFrame(switch_coords, columns=sample_ids)
     feature_scores.insert(0, "gene_id", gene_ids)
-    modules = pd.DataFrame({
-        "gene_id": gene_ids,
-        "module_id": [f"M{m:03d}" for m in module_assignment],
-    })
-    transcript_ids = [f"G{i:04d}_T{t}" for i in range(n_genes) for t in range(n_transcripts_per_gene)]
+    modules = pd.DataFrame(
+        {
+            "gene_id": gene_ids,
+            "module_id": [f"M{m:03d}" for m in module_assignment],
+        }
+    )
+    transcript_ids = [
+        f"G{i:04d}_T{t}" for i in range(n_genes) for t in range(n_transcripts_per_gene)
+    ]
     tx_data = np.zeros((n_samples, len(transcript_ids)))
     for i in range(n_genes):
         signal = module_latent[module_assignment[i]] * 0.2
@@ -121,16 +125,18 @@ def _make_synthetic_explain_inputs(
             1.0 - tx_data[:, col0] + rng.normal(0, 0.05, n_samples), 0.01, 0.99
         )
     feature_table = pd.DataFrame(tx_data, index=sample_ids, columns=transcript_ids)
-    feature_meta = pd.DataFrame([
-        {
-            "feature_id": f"G{i:04d}_T{t}",
-            "gene_id": f"G{i:04d}",
-            "transcript_id": f"G{i:04d}_T{t}",
-            "feature_type": "transcript_usage",
-        }
-        for i in range(n_genes)
-        for t in range(n_transcripts_per_gene)
-    ])
+    feature_meta = pd.DataFrame(
+        [
+            {
+                "feature_id": f"G{i:04d}_T{t}",
+                "gene_id": f"G{i:04d}",
+                "transcript_id": f"G{i:04d}_T{t}",
+                "feature_type": "transcript_usage",
+            }
+            for i in range(n_genes)
+            for t in range(n_transcripts_per_gene)
+        ]
+    )
     return modules, feature_scores, feature_table, feature_meta, sample_ids
 
 
@@ -144,10 +150,10 @@ def _write_artifact(tmp_path: Path, modules: pd.DataFrame, feature_scores: pd.Da
 
 def _make_annotation_df(gene_ids: list[str], transcript_ids: list[str]) -> pd.DataFrame:
     """Build a minimal annotation DataFrame for the given transcripts."""
-    n = len(transcript_ids)
+    len(transcript_ids)
     rng = np.random.default_rng(42)
     row_list = []
-    for tx_id, gene_id in zip(transcript_ids, gene_ids):
+    for tx_id, gene_id in zip(transcript_ids, gene_ids, strict=False):
         row: dict = {"feature_id": tx_id, "gene_id": gene_id}
         for col in _BOOLEAN_ANNOTATION_COLUMNS:
             row[col] = bool(rng.integers(0, 2))
@@ -249,8 +255,7 @@ def test_compare_pair_internal_exon_difference():
 
 
 def test_compare_pair_coding_status_change():
-    tx1 = _make_tx("T1", "G1", [(1000, 1500), (2000, 2500)],
-                   cds=[(1100, 1500), (2000, 2400)])
+    tx1 = _make_tx("T1", "G1", [(1000, 1500), (2000, 2500)], cds=[(1100, 1500), (2000, 2400)])
     tx2 = _make_tx("T2", "G1", [(1000, 1500), (2000, 2500)], cds=[], biotype="retained_intron")
     result = compare_pair(tx1, tx2)
     assert result["coding_status_change"] is True
@@ -304,11 +309,13 @@ def test_annotate_switch_pairs_per_transcript_aggregation(tmp_path):
     gtf_path = tmp_path / "test.gtf"
     _write_gtf(gtf_path, lines)
     # T1 vs T2: first exon differs; T1 vs T3: first exon same
-    pairs = pd.DataFrame({
-        "gene_id": ["G1", "G1"],
-        "transcript_id_1": ["T1", "T1"],
-        "transcript_id_2": ["T2", "T3"],
-    })
+    pairs = pd.DataFrame(
+        {
+            "gene_id": ["G1", "G1"],
+            "transcript_id_1": ["T1", "T1"],
+            "transcript_id_2": ["T2", "T3"],
+        }
+    )
     result = annotate_switch_pairs(pairs, gtf_path)
     t1_row = result[result["transcript_id"] == "T1"].iloc[0]
     assert t1_row["first_exon_changed"] == True  # noqa: E712 — any() across pairs
@@ -317,11 +324,13 @@ def test_annotate_switch_pairs_per_transcript_aggregation(tmp_path):
 def test_annotate_switch_pairs_missing_transcript_warns(tmp_path):
     gtf_path = tmp_path / "test.gtf"
     _write_gtf(gtf_path, _simple_gtf_lines())
-    pairs = pd.DataFrame({
-        "gene_id": ["G1"],
-        "transcript_id_1": ["T1"],
-        "transcript_id_2": ["TX_MISSING"],
-    })
+    pairs = pd.DataFrame(
+        {
+            "gene_id": ["G1"],
+            "transcript_id_1": ["T1"],
+            "transcript_id_2": ["TX_MISSING"],
+        }
+    )
     with pytest.warns(UserWarning, match="not found in GTF"):
         result = annotate_switch_pairs(pairs, gtf_path)
     # T1 should still appear (with pd.NA labels since partner missing)
@@ -341,10 +350,16 @@ def test_annotate_switch_pairs_boolean_dtype(tmp_path):
     _write_gtf(gtf_path, _simple_gtf_lines())
     pairs = _make_switch_pairs_df("G1", "T1", "T2")
     result = annotate_switch_pairs(pairs, gtf_path)
-    for col in ["first_exon_changed", "last_exon_changed", "cds_changed",
-                "coding_status_change", "biotype_switch"]:
-        assert isinstance(result[col].dtype, pd.BooleanDtype), \
-            f"Expected BooleanDtype for {col}, got {result[col].dtype}"
+    for col in [
+        "first_exon_changed",
+        "last_exon_changed",
+        "cds_changed",
+        "coding_status_change",
+        "biotype_switch",
+    ]:
+        assert isinstance(
+            result[col].dtype, pd.BooleanDtype
+        ), f"Expected BooleanDtype for {col}, got {result[col].dtype}"
 
 
 # ===========================================================================
@@ -353,7 +368,6 @@ def test_annotate_switch_pairs_boolean_dtype(tmp_path):
 
 
 def test_load_annotation_table_tsv_path(tmp_path):
-    gene_ids = ["G0000"] * 4
     tx_ids = ["G0000_T0", "G0000_T1", "G0001_T0", "G0001_T1"]
     gene_ids_full = ["G0000", "G0000", "G0001", "G0001"]
     df = _make_annotation_df(gene_ids_full, tx_ids)
@@ -365,11 +379,13 @@ def test_load_annotation_table_tsv_path(tmp_path):
 
 
 def test_load_annotation_table_transcript_id_alias(tmp_path):
-    df = pd.DataFrame({
-        "transcript_id": ["T1", "T2"],
-        "gene_id": ["G1", "G1"],
-        "first_exon_changed": [True, False],
-    })
+    df = pd.DataFrame(
+        {
+            "transcript_id": ["T1", "T2"],
+            "gene_id": ["G1", "G1"],
+            "first_exon_changed": [True, False],
+        }
+    )
     loaded = load_annotation_table(df)
     assert "feature_id" in loaded.columns
     assert "transcript_id" not in loaded.columns
@@ -389,11 +405,13 @@ def test_load_annotation_table_missing_feature_id_raises():
 
 
 def test_load_annotation_table_isa_alias_cassette_exon():
-    df = pd.DataFrame({
-        "feature_id": ["T1", "T2"],
-        "gene_id": ["G1", "G1"],
-        "cassette_exon": ["TRUE", "FALSE"],
-    })
+    df = pd.DataFrame(
+        {
+            "feature_id": ["T1", "T2"],
+            "gene_id": ["G1", "G1"],
+            "cassette_exon": ["TRUE", "FALSE"],
+        }
+    )
     loaded = load_annotation_table(df)
     assert "internal_exon_difference" in loaded.columns
     assert "cassette_exon" not in loaded.columns
@@ -418,14 +436,16 @@ def test_annotate_driver_table_appends_columns():
     tx_ids = ["G0000_T0", "G0000_T1", "G0001_T0", "G0001_T1", "G0002_T0", "G0002_T1"]
     gene_ids_full = ["G0000"] * 2 + ["G0001"] * 2 + ["G0002"] * 2
     annotation = _make_annotation_df(gene_ids_full, tx_ids)
-    gene_driver = pd.DataFrame({
-        "gene_id": gene_ids,
-        "r": [0.9, 0.8, 0.7],
-        "pvalue": [0.01, 0.02, 0.03],
-        "qvalue": [0.02, 0.03, 0.04],
-        "n_samples": [48, 48, 48],
-        "missing_fraction": [0.0, 0.0, 0.0],
-    })
+    gene_driver = pd.DataFrame(
+        {
+            "gene_id": gene_ids,
+            "r": [0.9, 0.8, 0.7],
+            "pvalue": [0.01, 0.02, 0.03],
+            "qvalue": [0.02, 0.03, 0.04],
+            "n_samples": [48, 48, 48],
+            "missing_fraction": [0.0, 0.0, 0.0],
+        }
+    )
     result = annotate_driver_table(gene_driver, annotation)
     assert set(gene_driver.columns).issubset(set(result.columns))
     new_cols = set(result.columns) - set(gene_driver.columns)
@@ -433,22 +453,26 @@ def test_annotate_driver_table_appends_columns():
 
 
 def test_annotate_driver_table_gene_level_any_aggregation():
-    annotation = pd.DataFrame({
-        "feature_id": ["T_a", "T_b"],
-        "gene_id": ["G1", "G1"],
-        "first_exon_changed": pd.array([True, False], dtype=pd.BooleanDtype()),
-    })
+    annotation = pd.DataFrame(
+        {
+            "feature_id": ["T_a", "T_b"],
+            "gene_id": ["G1", "G1"],
+            "first_exon_changed": pd.array([True, False], dtype=pd.BooleanDtype()),
+        }
+    )
     gene_driver = pd.DataFrame({"gene_id": ["G1"], "r": [0.9]})
     result = annotate_driver_table(gene_driver, annotation)
     assert result.loc[result["gene_id"] == "G1", "first_exon_changed"].iloc[0] == True  # noqa: E712
 
 
 def test_annotate_driver_table_all_false_stays_false():
-    annotation = pd.DataFrame({
-        "feature_id": ["T_a", "T_b"],
-        "gene_id": ["G2", "G2"],
-        "first_exon_changed": pd.array([False, False], dtype=pd.BooleanDtype()),
-    })
+    annotation = pd.DataFrame(
+        {
+            "feature_id": ["T_a", "T_b"],
+            "gene_id": ["G2", "G2"],
+            "first_exon_changed": pd.array([False, False], dtype=pd.BooleanDtype()),
+        }
+    )
     gene_driver = pd.DataFrame({"gene_id": ["G2"], "r": [0.7]})
     result = annotate_driver_table(gene_driver, annotation)
     val = result.loc[result["gene_id"] == "G2", "first_exon_changed"].iloc[0]
@@ -456,11 +480,13 @@ def test_annotate_driver_table_all_false_stays_false():
 
 
 def test_annotate_driver_table_unmatched_gene_gets_na():
-    annotation = pd.DataFrame({
-        "feature_id": ["T1"],
-        "gene_id": ["G1"],
-        "first_exon_changed": pd.array([True], dtype=pd.BooleanDtype()),
-    })
+    annotation = pd.DataFrame(
+        {
+            "feature_id": ["T1"],
+            "gene_id": ["G1"],
+            "first_exon_changed": pd.array([True], dtype=pd.BooleanDtype()),
+        }
+    )
     gene_driver = pd.DataFrame({"gene_id": ["G_UNKNOWN"], "r": [0.5]})
     result = annotate_driver_table(gene_driver, annotation)
     val = result.loc[result["gene_id"] == "G_UNKNOWN", "first_exon_changed"].iloc[0]
@@ -468,21 +494,25 @@ def test_annotate_driver_table_unmatched_gene_gets_na():
 
 
 def test_annotate_driver_table_no_gene_id_raises():
-    annotation = pd.DataFrame({
-        "feature_id": ["T1"],
-        "first_exon_changed": pd.array([True], dtype=pd.BooleanDtype()),
-    })
+    annotation = pd.DataFrame(
+        {
+            "feature_id": ["T1"],
+            "first_exon_changed": pd.array([True], dtype=pd.BooleanDtype()),
+        }
+    )
     gene_driver = pd.DataFrame({"gene_id": ["G1"], "r": [0.9]})
     with pytest.raises(ValueError, match="gene_id"):
         annotate_driver_table(gene_driver, annotation)
 
 
 def test_annotate_driver_table_no_mutation():
-    annotation = pd.DataFrame({
-        "feature_id": ["T1"],
-        "gene_id": ["G1"],
-        "cds_changed": pd.array([True], dtype=pd.BooleanDtype()),
-    })
+    annotation = pd.DataFrame(
+        {
+            "feature_id": ["T1"],
+            "gene_id": ["G1"],
+            "cds_changed": pd.array([True], dtype=pd.BooleanDtype()),
+        }
+    )
     gene_driver = pd.DataFrame({"gene_id": ["G1"], "r": [0.9]})
     orig_annot_cols = list(annotation.columns)
     orig_driver_cols = list(gene_driver.columns)
@@ -497,60 +527,74 @@ def test_annotate_driver_table_no_mutation():
 
 
 def test_annotate_transcript_table_appends_columns():
-    annotation = pd.DataFrame({
-        "feature_id": ["T1", "T2"],
-        "gene_id": ["G1", "G1"],
-        "first_exon_changed": pd.array([True, False], dtype=pd.BooleanDtype()),
-    })
-    tx_table = pd.DataFrame({
-        "feature_id": ["T1", "T2"],
-        "gene_id": ["G1", "G1"],
-        "r": [0.9, -0.8],
-        "switch_strength": [0.7, 0.6],
-    })
+    annotation = pd.DataFrame(
+        {
+            "feature_id": ["T1", "T2"],
+            "gene_id": ["G1", "G1"],
+            "first_exon_changed": pd.array([True, False], dtype=pd.BooleanDtype()),
+        }
+    )
+    tx_table = pd.DataFrame(
+        {
+            "feature_id": ["T1", "T2"],
+            "gene_id": ["G1", "G1"],
+            "r": [0.9, -0.8],
+            "switch_strength": [0.7, 0.6],
+        }
+    )
     result = annotate_transcript_table(tx_table, annotation)
     assert "first_exon_changed" in result.columns
     assert set(tx_table.columns).issubset(set(result.columns))
 
 
 def test_annotate_transcript_table_feature_id_join():
-    annotation = pd.DataFrame({
-        "feature_id": ["T1", "T2"],
-        "gene_id": ["G1", "G1"],
-        "cds_changed": pd.array([True, False], dtype=pd.BooleanDtype()),
-    })
-    tx_table = pd.DataFrame({
-        "feature_id": ["T1", "T2"],
-        "gene_id": ["G1", "G1"],
-        "r": [0.9, -0.8],
-    })
+    annotation = pd.DataFrame(
+        {
+            "feature_id": ["T1", "T2"],
+            "gene_id": ["G1", "G1"],
+            "cds_changed": pd.array([True, False], dtype=pd.BooleanDtype()),
+        }
+    )
+    tx_table = pd.DataFrame(
+        {
+            "feature_id": ["T1", "T2"],
+            "gene_id": ["G1", "G1"],
+            "r": [0.9, -0.8],
+        }
+    )
     result = annotate_transcript_table(tx_table, annotation)
     assert result.loc[result["feature_id"] == "T1", "cds_changed"].iloc[0] == True  # noqa: E712
     assert result.loc[result["feature_id"] == "T2", "cds_changed"].iloc[0] == False  # noqa: E712
 
 
 def test_annotate_transcript_table_unmatched_feature_gets_na():
-    annotation = pd.DataFrame({
-        "feature_id": ["T1"],
-        "gene_id": ["G1"],
-        "first_exon_changed": pd.array([True], dtype=pd.BooleanDtype()),
-    })
-    tx_table = pd.DataFrame({
-        "feature_id": ["T1", "T_UNKNOWN"],
-        "gene_id": ["G1", "G1"],
-        "r": [0.9, 0.5],
-    })
+    annotation = pd.DataFrame(
+        {
+            "feature_id": ["T1"],
+            "gene_id": ["G1"],
+            "first_exon_changed": pd.array([True], dtype=pd.BooleanDtype()),
+        }
+    )
+    tx_table = pd.DataFrame(
+        {
+            "feature_id": ["T1", "T_UNKNOWN"],
+            "gene_id": ["G1", "G1"],
+            "r": [0.9, 0.5],
+        }
+    )
     result = annotate_transcript_table(tx_table, annotation)
     val = result.loc[result["feature_id"] == "T_UNKNOWN", "first_exon_changed"].iloc[0]
     assert pd.isna(val)
 
 
 def test_annotate_transcript_table_empty_returns_unchanged():
-    annotation = pd.DataFrame({
-        "feature_id": ["T1"],
-        "gene_id": ["G1"],
-        "first_exon_changed": pd.array([True], dtype=pd.BooleanDtype()),
-    })
+    annotation = pd.DataFrame(
+        {
+            "feature_id": ["T1"],
+            "gene_id": ["G1"],
+            "first_exon_changed": pd.array([True], dtype=pd.BooleanDtype()),
+        }
+    )
     empty_table = pd.DataFrame(columns=["feature_id", "gene_id", "r"])
     result = annotate_transcript_table(empty_table, annotation)
     assert result.empty
@@ -574,7 +618,9 @@ def test_explain_module_with_annotation_table(tmp_path):
     annotation = _make_annotation_df(gene_ids, tx_ids)
 
     results = explain_module(
-        artifact_dir, feature_table, feature_meta,
+        artifact_dir,
+        feature_table,
+        feature_meta,
         module_ids=["M000"],
         annotation_table=annotation,
     )
@@ -582,14 +628,25 @@ def test_explain_module_with_annotation_table(tmp_path):
     assert isinstance(result, ExplainResult)
     # gene_driver_table should have at least one new annotation column
     new_cols = set(result.gene_driver_table.columns) - {
-        "gene_id", "r", "pvalue", "qvalue", "n_samples", "missing_fraction"
+        "gene_id",
+        "r",
+        "pvalue",
+        "qvalue",
+        "n_samples",
+        "missing_fraction",
     }
     assert len(new_cols) > 0
     # transcript_polarity_table should also have annotation columns (if non-empty)
     if not result.transcript_polarity_table.empty:
         new_tx_cols = set(result.transcript_polarity_table.columns) - {
-            "feature_id", "gene_id", "r", "switch_strength", "pvalue", "qvalue",
-            "n_samples", "missing_fraction",
+            "feature_id",
+            "gene_id",
+            "r",
+            "switch_strength",
+            "pvalue",
+            "qvalue",
+            "n_samples",
+            "missing_fraction",
         }
         assert len(new_tx_cols) > 0
 
@@ -604,7 +661,9 @@ def test_explain_module_annotation_manifest_fields(tmp_path):
     annotation = _make_annotation_df(gene_ids, tx_ids)
 
     explain_module(
-        artifact_dir, feature_table, feature_meta,
+        artifact_dir,
+        feature_table,
+        feature_meta,
         output_dir=output_dir,
         annotation_table=annotation,
     )
@@ -622,7 +681,9 @@ def test_explain_module_no_annotation_regression(tmp_path):
     output_dir = tmp_path / "out"
 
     results = explain_module(
-        artifact_dir, feature_table, feature_meta,
+        artifact_dir,
+        feature_table,
+        feature_meta,
         output_dir=output_dir,
     )
     manifest = json.loads((output_dir / "module_explanation_manifest.json").read_text())

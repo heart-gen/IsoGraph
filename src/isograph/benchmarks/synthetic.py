@@ -16,10 +16,10 @@ from isograph.io.artifacts import (
 )
 from isograph.validation import DatasetManifest
 
-
 # ---------------------------------------------------------------------------
 # Simple (idealized) fixtures — toy_v1 and medium_v1
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class SyntheticDatasetSpec:
@@ -35,25 +35,31 @@ def _module_assignments(n_genes: int, n_modules: int) -> np.ndarray:
     return modules.astype(int)
 
 
-def _generate_dataset(spec: SyntheticDatasetSpec, suite_name: str, description: str) -> DatasetBundle:
+def _generate_dataset(
+    spec: SyntheticDatasetSpec, suite_name: str, description: str
+) -> DatasetBundle:
     rng = np.random.default_rng(spec.seed)
     sample_ids = [f"S{i:03d}" for i in range(spec.n_samples)]
     gene_ids = [f"G{i:04d}" for i in range(spec.n_genes)]
     module_ids = _module_assignments(spec.n_genes, spec.n_modules)
 
-    dx = np.array(["Control"] * (spec.n_samples // 2) + ["SCZD"] * (spec.n_samples - spec.n_samples // 2))
+    dx = np.array(
+        ["Control"] * (spec.n_samples // 2) + ["SCZD"] * (spec.n_samples - spec.n_samples // 2)
+    )
     age = np.linspace(30, 70, spec.n_samples) + rng.normal(0, 2, spec.n_samples)
     sex = np.where(np.arange(spec.n_samples) % 2 == 0, "F", "M")
     sample_table = pd.DataFrame({"sample_id": sample_ids, "Dx": dx, "Age": age, "Sex": sex})
 
     module_latent = rng.normal(size=(spec.n_modules, spec.n_samples))
     module_latent += (dx == "SCZD")[None, :] * np.linspace(0.8, 1.2, spec.n_modules)[:, None]
-    module_latent += ((age - age.mean()) / age.std())[None, :] * np.linspace(0.4, 0.7, spec.n_modules)[:, None]
+    module_latent += ((age - age.mean()) / age.std())[None, :] * np.linspace(
+        0.4, 0.7, spec.n_modules
+    )[:, None]
 
     gene_totals = rng.gamma(shape=10.0, scale=30.0, size=(spec.n_genes, spec.n_samples))
     switch_signal = np.vstack([module_latent[module_ids[index]] for index in range(spec.n_genes)])
     p1 = 1.0 / (1.0 + np.exp(-switch_signal))
-    p2 = 1.0 - p1
+    1.0 - p1
     transcript_counts = np.zeros((spec.n_genes * 2, spec.n_samples), dtype=float)
     transcript_feature_rows: list[dict[str, object]] = []
     for index, gene_id in enumerate(gene_ids):
@@ -72,10 +78,17 @@ def _generate_dataset(spec: SyntheticDatasetSpec, suite_name: str, description: 
     gene_counts = transcript_counts.reshape(spec.n_genes, 2, spec.n_samples).sum(axis=1)
     psi = np.clip(p1 + rng.normal(0, 0.03, size=p1.shape), 1e-4, 1 - 1e-4)
     gene_table = pd.DataFrame(
-        {"gene_id": gene_ids, "chrom": "chrSynthetic", "start": np.arange(spec.n_genes), "end": np.arange(spec.n_genes) + 100}
+        {
+            "gene_id": gene_ids,
+            "chrom": "chrSynthetic",
+            "start": np.arange(spec.n_genes),
+            "end": np.arange(spec.n_genes) + 100,
+        }
     )
     transcript_table = pd.DataFrame(transcript_feature_rows)
-    psi_table = pd.DataFrame({"psi_uid": [f"PSI_{gene_id}" for gene_id in gene_ids], "gene_id": gene_ids})
+    psi_table = pd.DataFrame(
+        {"psi_uid": [f"PSI_{gene_id}" for gene_id in gene_ids], "gene_id": gene_ids}
+    )
     truth_modules = pd.DataFrame({"gene_id": gene_ids, "module_id": module_ids})
     truth_switch = pd.DataFrame({"gene_id": gene_ids, "has_switch": True})
 
@@ -135,6 +148,7 @@ def _generate_dataset(spec: SyntheticDatasetSpec, suite_name: str, description: 
 #   realistic_unequal_v1  — power-law-sized modules (adds size imbalance)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class RealisticDatasetSpec:
     name: str
@@ -159,7 +173,7 @@ class RealisticDatasetSpec:
 
 # Isoform-count distribution: 2=45 %, 3=30 %, 4=15 %, 5=10 %
 _ISOFORM_CHOICES = np.array([2, 3, 4, 5])
-_ISOFORM_PROBS   = np.array([0.45, 0.30, 0.15, 0.10])
+_ISOFORM_PROBS = np.array([0.45, 0.30, 0.15, 0.10])
 
 
 def _equal_module_sizes(n_switching: int, n_modules: int) -> list[int]:
@@ -169,9 +183,7 @@ def _equal_module_sizes(n_switching: int, n_modules: int) -> list[int]:
     return sizes
 
 
-def _nb_counts(
-    rng: np.random.Generator, mean: float, dispersion: float, size: int
-) -> np.ndarray:
+def _nb_counts(rng: np.random.Generator, mean: float, dispersion: float, size: int) -> np.ndarray:
     """Negative-binomial via Gamma-Poisson mixture. Supports float dispersion."""
     rates = rng.gamma(shape=dispersion, scale=mean / dispersion, size=size)
     return rng.poisson(rates).astype(float)
@@ -186,9 +198,7 @@ def _nb_counts_from_mean(
     return rng.poisson(rates).astype(float)
 
 
-def _dirichlet_props(
-    rng: np.random.Generator, alpha: np.ndarray
-) -> np.ndarray:
+def _dirichlet_props(rng: np.random.Generator, alpha: np.ndarray) -> np.ndarray:
     """Vectorised Dirichlet draw.  alpha shape: (k, n_samples) → output (k, n_samples)."""
     g = rng.gamma(shape=np.maximum(alpha, 1e-6), scale=1.0)
     return g / g.sum(axis=0, keepdims=True)
@@ -206,19 +216,17 @@ def _generate_realistic_dataset(
     # ------------------------------------------------------------------
     sample_ids = [f"S{i:03d}" for i in range(n_samples)]
     n_ctrl = n_samples // 2
-    dx  = np.array(["Control"] * n_ctrl + ["SCZD"] * (n_samples - n_ctrl))
+    dx = np.array(["Control"] * n_ctrl + ["SCZD"] * (n_samples - n_ctrl))
     age = rng.normal(50, 12, n_samples).clip(25, 85)
     sex = rng.choice(["F", "M"], size=n_samples)
-    sample_table = pd.DataFrame(
-        {"sample_id": sample_ids, "Dx": dx, "Age": age, "Sex": sex}
-    )
+    sample_table = pd.DataFrame({"sample_id": sample_ids, "Dx": dx, "Age": age, "Sex": sex})
 
     # ------------------------------------------------------------------
     # Gene partitioning: switching vs non-switching
     # ------------------------------------------------------------------
-    n_switching    = int(round(n_genes * spec.switching_fraction))
-    n_nonswitching = n_genes - n_switching
-    gene_ids       = [f"G{i:04d}" for i in range(n_genes)]
+    n_switching = int(round(n_genes * spec.switching_fraction))
+    n_genes - n_switching
+    gene_ids = [f"G{i:04d}" for i in range(n_genes)]
 
     if spec.module_sizes is not None:
         if sum(spec.module_sizes) != n_switching:
@@ -262,7 +270,7 @@ def _generate_realistic_dataset(
     truth_switch_rows: list[dict] = []
 
     for gene_idx, gene_id in enumerate(gene_ids):
-        k     = int(n_isoforms[gene_idx])
+        k = int(n_isoforms[gene_idx])
         is_sw = gene_idx < n_switching
 
         # NB total reads for this gene across all samples
@@ -276,7 +284,7 @@ def _generate_realistic_dataset(
             if k == 2:
                 raw = np.stack([p1, 1.0 - p1], axis=0)  # (2, n_samples)
             else:
-                p_rest = (1.0 - p1) / (k - 1)           # (n_samples,)
+                p_rest = (1.0 - p1) / (k - 1)  # (n_samples,)
                 raw = np.vstack([p1[None, :], np.tile(p_rest[None, :], (k - 1, 1))])
             # Add Dirichlet noise (concentration controls isoform proportion noise)
             props = _dirichlet_props(rng, raw * spec.switching_concentration)
@@ -285,7 +293,7 @@ def _generate_realistic_dataset(
             truth_module_rows.append({"gene_id": gene_id, "module_id": mod})
         else:
             # Non-switching: stable gene-specific proportions + small noise
-            base = rng.dirichlet(np.ones(k) * 3)          # (k,) fixed per gene
+            base = rng.dirichlet(np.ones(k) * 3)  # (k,) fixed per gene
             alpha = np.tile(base[:, None], (1, n_samples)) * spec.nonswitching_concentration
             props = _dirichlet_props(rng, alpha)
 
@@ -299,47 +307,51 @@ def _generate_realistic_dataset(
 
         all_tx_counts.append(tx)
         for j in range(k):
-            all_tx_rows.append({
-                "transcript_id": f"{gene_id}_T{j + 1}",
-                "gene_id": gene_id,
-                "length": 1000 - j * 50,
-            })
+            all_tx_rows.append(
+                {
+                    "transcript_id": f"{gene_id}_T{j + 1}",
+                    "gene_id": gene_id,
+                    "length": 1000 - j * 50,
+                }
+            )
 
-    transcript_counts = np.vstack(all_tx_counts)        # (total_tx, n_samples)
-    transcript_table  = pd.DataFrame(all_tx_rows)
+    transcript_counts = np.vstack(all_tx_counts)  # (total_tx, n_samples)
+    transcript_table = pd.DataFrame(all_tx_rows)
 
     # ------------------------------------------------------------------
     # Derived feature matrices
     # ------------------------------------------------------------------
     gene_counts = np.zeros((n_genes, n_samples))
-    psi         = np.zeros((n_genes, n_samples))
-    tx_offset   = 0
+    psi = np.zeros((n_genes, n_samples))
+    tx_offset = 0
     for gene_idx in range(n_genes):
         k = int(n_isoforms[gene_idx])
         block = transcript_counts[tx_offset : tx_offset + k]
         total = block.sum(axis=0)
         gene_counts[gene_idx] = total
         psi_raw = block[0] / np.maximum(total, 1)
-        psi[gene_idx] = np.clip(
-            psi_raw + rng.normal(0, 0.02, n_samples), 1e-4, 1 - 1e-4
-        )
+        psi[gene_idx] = np.clip(psi_raw + rng.normal(0, 0.02, n_samples), 1e-4, 1 - 1e-4)
         tx_offset += k
 
     # ------------------------------------------------------------------
     # Tables and truth
     # ------------------------------------------------------------------
-    gene_table = pd.DataFrame({
-        "gene_id": gene_ids,
-        "chrom":   "chrRealistic",
-        "start":   np.arange(n_genes) * 1000,
-        "end":     np.arange(n_genes) * 1000 + 500,
-    })
-    psi_table = pd.DataFrame({
-        "psi_uid": [f"PSI_{g}" for g in gene_ids],
-        "gene_id": gene_ids,
-    })
+    gene_table = pd.DataFrame(
+        {
+            "gene_id": gene_ids,
+            "chrom": "chrRealistic",
+            "start": np.arange(n_genes) * 1000,
+            "end": np.arange(n_genes) * 1000 + 500,
+        }
+    )
+    psi_table = pd.DataFrame(
+        {
+            "psi_uid": [f"PSI_{g}" for g in gene_ids],
+            "gene_id": gene_ids,
+        }
+    )
     truth_modules_df = pd.DataFrame(truth_module_rows)
-    truth_switch_df  = pd.DataFrame(truth_switch_rows)
+    truth_switch_df = pd.DataFrame(truth_switch_rows)
 
     # ------------------------------------------------------------------
     # Bundle
@@ -350,24 +362,24 @@ def _generate_realistic_dataset(
         description=description,
         sample_table="samples.parquet",
         feature_tables=[
-            build_feature_spec("gene",         "genes.parquet",           gene_table),
-            build_feature_spec("transcript",   "transcripts.parquet",     transcript_table),
-            build_feature_spec("psi",          "psi.parquet",             psi_table),
-            build_feature_spec("truth_module", "truth_modules.parquet",   truth_modules_df),
-            build_feature_spec("truth_switch", "truth_switch.parquet",    truth_switch_df),
+            build_feature_spec("gene", "genes.parquet", gene_table),
+            build_feature_spec("transcript", "transcripts.parquet", transcript_table),
+            build_feature_spec("psi", "psi.parquet", psi_table),
+            build_feature_spec("truth_module", "truth_modules.parquet", truth_modules_df),
+            build_feature_spec("truth_switch", "truth_switch.parquet", truth_switch_df),
         ],
         matrices=[
-            build_matrix_spec("gene_counts",       "gene_counts.npz",       gene_counts),
+            build_matrix_spec("gene_counts", "gene_counts.npz", gene_counts),
             build_matrix_spec("transcript_counts", "transcript_counts.npz", transcript_counts),
-            build_matrix_spec("psi",               "psi.npz",               psi),
+            build_matrix_spec("psi", "psi.npz", psi),
         ],
         provenance={
-            "generator":          "realistic_v1",
-            "seed":               str(spec.seed),
+            "generator": "realistic_v1",
+            "seed": str(spec.seed),
             "switching_fraction": str(spec.switching_fraction),
-            "confounder_weight":  str(spec.confounder_weight),
-            "count_dispersion":   str(spec.count_dispersion),
-            "module_sizes":       str(sizes),
+            "confounder_weight": str(spec.confounder_weight),
+            "count_dispersion": str(spec.count_dispersion),
+            "module_sizes": str(sizes),
         },
         truth_tables=["truth_modules.parquet", "truth_switch.parquet"],
     )
@@ -375,20 +387,20 @@ def _generate_realistic_dataset(
         manifest=manifest,
         sample_table=sample_table,
         feature_tables={
-            "gene":         gene_table,
-            "transcript":   transcript_table,
-            "psi":          psi_table,
+            "gene": gene_table,
+            "transcript": transcript_table,
+            "psi": psi_table,
             "truth_module": truth_modules_df,
             "truth_switch": truth_switch_df,
         },
         matrices={
-            "gene_counts":       gene_counts,
+            "gene_counts": gene_counts,
             "transcript_counts": transcript_counts,
-            "psi":               psi,
+            "psi": psi,
         },
         truth_tables={
             "truth_modules.parquet": truth_modules_df,
-            "truth_switch.parquet":  truth_switch_df,
+            "truth_switch.parquet": truth_switch_df,
         },
     )
 
@@ -421,16 +433,16 @@ class NonlinearDatasetSpec:
     n_genes: int
     n_samples: int
     n_modules: int = 4
-    n_nonlinear_modules: int = 4      # must be a multiple of 4; remaining are linear
+    n_nonlinear_modules: int = 4  # must be a multiple of 4; remaining are linear
     module_sizes: list[int] | None = None
     switching_fraction: float = 0.5
     count_dispersion: float = 5.0
     mean_gene_total: float = 300.0
-    state_effect_size: float = 2.5    # within-quadrant signal strength (nonlinear)
-    state_background: float = 0.15    # per-module noise std
+    state_effect_size: float = 2.5  # within-quadrant signal strength (nonlinear)
+    state_background: float = 0.15  # per-module noise std
     confounder_weight: float = 0.2
-    dx_effect_range: tuple[float, float] = (0.4, 0.9)   # linear modules only
-    age_effect_range: tuple[float, float] = (0.15, 0.45) # linear modules only
+    dx_effect_range: tuple[float, float] = (0.4, 0.9)  # linear modules only
+    age_effect_range: tuple[float, float] = (0.15, 0.45)  # linear modules only
     switching_concentration: float = 20.0
     nonswitching_concentration: float = 100.0
     seed: int = 0
@@ -448,22 +460,20 @@ def _generate_nonlinear_dataset(
     # ------------------------------------------------------------------
     sample_ids = [f"S{i:03d}" for i in range(n_samples)]
     n_ctrl = n_samples // 2
-    dx  = np.array(["Control"] * n_ctrl + ["SCZD"] * (n_samples - n_ctrl))
+    dx = np.array(["Control"] * n_ctrl + ["SCZD"] * (n_samples - n_ctrl))
     age = rng.normal(50, 12, n_samples).clip(25, 85)
     sex = rng.choice(["F", "M"], size=n_samples)
-    sample_table = pd.DataFrame(
-        {"sample_id": sample_ids, "Dx": dx, "Age": age, "Sex": sex}
-    )
+    sample_table = pd.DataFrame({"sample_id": sample_ids, "Dx": dx, "Age": age, "Sex": sex})
 
     # ------------------------------------------------------------------
     # Two latent factors correlated with Dx and Age
     # ------------------------------------------------------------------
     f1 = rng.normal(0, 0.8, n_samples)
-    f1 += (dx == "SCZD").astype(float) * 1.5   # SCZD pushes f1 positive
+    f1 += (dx == "SCZD").astype(float) * 1.5  # SCZD pushes f1 positive
 
     age_z = (age - age.mean()) / age.std()
     f2 = rng.normal(0, 0.8, n_samples)
-    f2 += age_z * 1.2                            # older samples push f2 positive
+    f2 += age_z * 1.2  # older samples push f2 positive
 
     # Shared confounder (induces residual between-module correlation)
     z_confound = rng.normal(size=n_samples)
@@ -481,7 +491,7 @@ def _generate_nonlinear_dataset(
     # FA recovers f1 and f2 individually but cannot represent r² or f1·f2.
     # ------------------------------------------------------------------
     n_switching = int(round(n_genes * spec.switching_fraction))
-    n_nonswitching = n_genes - n_switching
+    n_genes - n_switching
     gene_ids = [f"G{i:04d}" for i in range(n_genes)]
 
     if spec.module_sizes is not None:
@@ -495,17 +505,17 @@ def _generate_nonlinear_dataset(
 
     module_assignments = np.repeat(np.arange(spec.n_modules), sizes)
 
-    r_sq   = f1**2 + f2**2
-    prod   = f1 * f2
-    p35_r  = float(np.percentile(r_sq, 35))
-    p65_r  = float(np.percentile(r_sq, 65))
-    p65_p  = float(np.percentile(np.abs(prod), 65))
+    r_sq = f1**2 + f2**2
+    prod = f1 * f2
+    p35_r = float(np.percentile(r_sq, 35))
+    p65_r = float(np.percentile(r_sq, 65))
+    p65_p = float(np.percentile(np.abs(prod), 65))
 
     nonlinear_masks = [
-        r_sq < p35_r,          # inner ring
-        r_sq > p65_r,          # outer ring
-        prod > p65_p,          # strong positive product  (SCZD–old or Control–young)
-        prod < -p65_p,         # strong negative product  (SCZD–young or Control–old)
+        r_sq < p35_r,  # inner ring
+        r_sq > p65_r,  # outer ring
+        prod > p65_p,  # strong positive product  (SCZD–old or Control–young)
+        prod < -p65_p,  # strong negative product  (SCZD–young or Control–old)
     ]
 
     n_nl = spec.n_nonlinear_modules
@@ -521,10 +531,11 @@ def _generate_nonlinear_dataset(
             )
         else:
             # Linear: weighted sum of the same latent factors f1 and f2
-            dx_eff  = rng.uniform(*spec.dx_effect_range)
+            dx_eff = rng.uniform(*spec.dx_effect_range)
             age_eff = rng.uniform(*spec.age_effect_range)
             module_latent[m] = (
-                dx_eff * f1 + age_eff * f2
+                dx_eff * f1
+                + age_eff * f2
                 + rng.normal(0, spec.state_background, n_samples)
                 + spec.confounder_weight * z_confound
             )
@@ -543,7 +554,7 @@ def _generate_nonlinear_dataset(
     truth_switch_rows: list[dict] = []
 
     for gene_idx, gene_id in enumerate(gene_ids):
-        k     = int(n_isoforms[gene_idx])
+        k = int(n_isoforms[gene_idx])
         is_sw = gene_idx < n_switching
 
         total = _nb_counts(rng, spec.mean_gene_total, spec.count_dispersion, n_samples)
@@ -551,7 +562,7 @@ def _generate_nonlinear_dataset(
 
         if is_sw:
             mod = int(module_assignments[gene_idx])
-            p1  = 1.0 / (1.0 + np.exp(-module_latent[mod]))
+            p1 = 1.0 / (1.0 + np.exp(-module_latent[mod]))
             if k == 2:
                 raw = np.stack([p1, 1.0 - p1], axis=0)
             else:
@@ -561,7 +572,7 @@ def _generate_nonlinear_dataset(
             truth_switch_rows.append({"gene_id": gene_id, "has_switch": True})
             truth_module_rows.append({"gene_id": gene_id, "module_id": mod})
         else:
-            base  = rng.dirichlet(np.ones(k) * 3)
+            base = rng.dirichlet(np.ones(k) * 3)
             alpha = np.tile(base[:, None], (1, n_samples)) * spec.nonswitching_concentration
             props = _dirichlet_props(rng, alpha)
             truth_switch_rows.append({"gene_id": gene_id, "has_switch": False})
@@ -573,47 +584,51 @@ def _generate_nonlinear_dataset(
 
         all_tx_counts.append(tx)
         for j in range(k):
-            all_tx_rows.append({
-                "transcript_id": f"{gene_id}_T{j + 1}",
-                "gene_id": gene_id,
-                "length": 1000 - j * 50,
-            })
+            all_tx_rows.append(
+                {
+                    "transcript_id": f"{gene_id}_T{j + 1}",
+                    "gene_id": gene_id,
+                    "length": 1000 - j * 50,
+                }
+            )
 
     transcript_counts = np.vstack(all_tx_counts)
-    transcript_table  = pd.DataFrame(all_tx_rows)
+    transcript_table = pd.DataFrame(all_tx_rows)
 
     # ------------------------------------------------------------------
     # Derived feature matrices
     # ------------------------------------------------------------------
     gene_counts = np.zeros((n_genes, n_samples))
-    psi         = np.zeros((n_genes, n_samples))
-    tx_offset   = 0
+    psi = np.zeros((n_genes, n_samples))
+    tx_offset = 0
     for gene_idx in range(n_genes):
-        k     = int(n_isoforms[gene_idx])
+        k = int(n_isoforms[gene_idx])
         block = transcript_counts[tx_offset : tx_offset + k]
         total = block.sum(axis=0)
         gene_counts[gene_idx] = total
         psi_raw = block[0] / np.maximum(total, 1)
-        psi[gene_idx] = np.clip(
-            psi_raw + rng.normal(0, 0.02, n_samples), 1e-4, 1 - 1e-4
-        )
+        psi[gene_idx] = np.clip(psi_raw + rng.normal(0, 0.02, n_samples), 1e-4, 1 - 1e-4)
         tx_offset += k
 
     # ------------------------------------------------------------------
     # Tables and truth
     # ------------------------------------------------------------------
-    gene_table = pd.DataFrame({
-        "gene_id": gene_ids,
-        "chrom":   "chrNonlinear",
-        "start":   np.arange(n_genes) * 1000,
-        "end":     np.arange(n_genes) * 1000 + 500,
-    })
-    psi_table = pd.DataFrame({
-        "psi_uid": [f"PSI_{g}" for g in gene_ids],
-        "gene_id": gene_ids,
-    })
+    gene_table = pd.DataFrame(
+        {
+            "gene_id": gene_ids,
+            "chrom": "chrNonlinear",
+            "start": np.arange(n_genes) * 1000,
+            "end": np.arange(n_genes) * 1000 + 500,
+        }
+    )
+    psi_table = pd.DataFrame(
+        {
+            "psi_uid": [f"PSI_{g}" for g in gene_ids],
+            "gene_id": gene_ids,
+        }
+    )
     truth_modules_df = pd.DataFrame(truth_module_rows)
-    truth_switch_df  = pd.DataFrame(truth_switch_rows)
+    truth_switch_df = pd.DataFrame(truth_switch_rows)
 
     manifest = DatasetManifest(
         dataset_name=spec.name,
@@ -621,22 +636,22 @@ def _generate_nonlinear_dataset(
         description=description,
         sample_table="samples.parquet",
         feature_tables=[
-            build_feature_spec("gene",         "genes.parquet",           gene_table),
-            build_feature_spec("transcript",   "transcripts.parquet",     transcript_table),
-            build_feature_spec("psi",          "psi.parquet",             psi_table),
-            build_feature_spec("truth_module", "truth_modules.parquet",   truth_modules_df),
-            build_feature_spec("truth_switch", "truth_switch.parquet",    truth_switch_df),
+            build_feature_spec("gene", "genes.parquet", gene_table),
+            build_feature_spec("transcript", "transcripts.parquet", transcript_table),
+            build_feature_spec("psi", "psi.parquet", psi_table),
+            build_feature_spec("truth_module", "truth_modules.parquet", truth_modules_df),
+            build_feature_spec("truth_switch", "truth_switch.parquet", truth_switch_df),
         ],
         matrices=[
-            build_matrix_spec("gene_counts",       "gene_counts.npz",       gene_counts),
+            build_matrix_spec("gene_counts", "gene_counts.npz", gene_counts),
             build_matrix_spec("transcript_counts", "transcript_counts.npz", transcript_counts),
-            build_matrix_spec("psi",               "psi.npz",               psi),
+            build_matrix_spec("psi", "psi.npz", psi),
         ],
         provenance={
-            "generator":        "nonlinear_v1",
-            "seed":             str(spec.seed),
+            "generator": "nonlinear_v1",
+            "seed": str(spec.seed),
             "state_effect_size": str(spec.state_effect_size),
-            "n_modules":        str(spec.n_modules),
+            "n_modules": str(spec.n_modules),
         },
         truth_tables=["truth_modules.parquet", "truth_switch.parquet"],
     )
@@ -644,20 +659,20 @@ def _generate_nonlinear_dataset(
         manifest=manifest,
         sample_table=sample_table,
         feature_tables={
-            "gene":         gene_table,
-            "transcript":   transcript_table,
-            "psi":          psi_table,
+            "gene": gene_table,
+            "transcript": transcript_table,
+            "psi": psi_table,
             "truth_module": truth_modules_df,
             "truth_switch": truth_switch_df,
         },
         matrices={
-            "gene_counts":       gene_counts,
+            "gene_counts": gene_counts,
             "transcript_counts": transcript_counts,
-            "psi":               psi,
+            "psi": psi,
         },
         truth_tables={
             "truth_modules.parquet": truth_modules_df,
-            "truth_switch.parquet":  truth_switch_df,
+            "truth_switch.parquet": truth_switch_df,
         },
     )
 
@@ -665,6 +680,7 @@ def _generate_nonlinear_dataset(
 # ---------------------------------------------------------------------------
 # Core suite
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class MultiplexDatasetSpec:
@@ -754,9 +770,7 @@ def _generate_multiplex_dataset(
     age = rng.normal(50, 12, spec.n_samples).clip(25, 85)
     age_z = (age - age.mean()) / age.std()
     sex = rng.choice(["F", "M"], size=spec.n_samples)
-    sample_table = pd.DataFrame(
-        {"sample_id": sample_ids, "Dx": dx, "Age": age, "Sex": sex}
-    )
+    sample_table = pd.DataFrame({"sample_id": sample_ids, "Dx": dx, "Age": age, "Sex": sex})
 
     missing_roles = set(_MULTIPLEX_ROLES) - set(spec.role_counts_per_module)
     if missing_roles:
@@ -992,7 +1006,7 @@ def generate_core_suite(root: Path, seed: int) -> list[Path]:
             n_genes=200,
             n_samples=160,
             n_modules=5,
-            module_sizes=None,   # equal: [20, 20, 20, 20, 20]
+            module_sizes=None,  # equal: [20, 20, 20, 20, 20]
             switching_fraction=0.5,
             confounder_weight=0.3,
             count_dispersion=5.0,
@@ -1014,7 +1028,7 @@ def generate_core_suite(root: Path, seed: int) -> list[Path]:
             n_genes=200,
             n_samples=160,
             n_modules=5,
-            module_sizes=[38, 25, 17, 12, 8],   # power-law, sum=100
+            module_sizes=[38, 25, 17, 12, 8],  # power-law, sum=100
             switching_fraction=0.5,
             confounder_weight=0.3,
             count_dispersion=5.0,
@@ -1049,14 +1063,14 @@ def generate_core_suite(root: Path, seed: int) -> list[Path]:
             n_genes=300,
             n_samples=100,
             n_modules=8,
-            module_sizes=[22, 18, 14, 11, 9, 8, 7, 6],   # power-law, sum=95
-            switching_fraction=95 / 300,                   # ≈ 31.7 %
+            module_sizes=[22, 18, 14, 11, 9, 8, 7, 6],  # power-law, sum=95
+            switching_fraction=95 / 300,  # ≈ 31.7 %
             confounder_weight=0.6,
             count_dispersion=15.0,
             mean_gene_total=300.0,
             dx_effect_range=(0.2, 0.6),
             age_effect_range=(0.1, 0.25),
-            switching_concentration=10.0,   # noisier isoform splits
+            switching_concentration=10.0,  # noisier isoform splits
             nonswitching_concentration=80.0,
             seed=seed + 4,
         ),
@@ -1089,7 +1103,7 @@ def generate_core_suite(root: Path, seed: int) -> list[Path]:
             n_samples=120,
             n_modules=10,
             module_sizes=[40, 32, 25, 20, 18, 16, 15, 13, 12, 9],  # power-law, sum=200
-            switching_fraction=200 / 800,   # 25 %
+            switching_fraction=200 / 800,  # 25 %
             confounder_weight=0.4,
             count_dispersion=7.0,
             mean_gene_total=300.0,
@@ -1129,7 +1143,7 @@ def generate_core_suite(root: Path, seed: int) -> list[Path]:
             n_genes=200,
             n_samples=200,
             n_modules=4,
-            module_sizes=[30, 25, 25, 20],   # slightly unequal, sum=100
+            module_sizes=[30, 25, 25, 20],  # slightly unequal, sum=100
             switching_fraction=0.5,
             count_dispersion=5.0,
             mean_gene_total=300.0,
@@ -1151,13 +1165,13 @@ def generate_core_suite(root: Path, seed: int) -> list[Path]:
     )
 
     return [
-        save_dataset_bundle(toy,               suite_dir / "toy_v1"),
-        save_dataset_bundle(medium,            suite_dir / "medium_v1"),
-        save_dataset_bundle(realistic,         suite_dir / "realistic_v1"),
+        save_dataset_bundle(toy, suite_dir / "toy_v1"),
+        save_dataset_bundle(medium, suite_dir / "medium_v1"),
+        save_dataset_bundle(realistic, suite_dir / "realistic_v1"),
         save_dataset_bundle(realistic_unequal, suite_dir / "realistic_unequal_v1"),
-        save_dataset_bundle(noisy,             suite_dir / "noisy_v1"),
-        save_dataset_bundle(large,             suite_dir / "large_v1"),
-        save_dataset_bundle(nonlinear,         suite_dir / "nonlinear_v1"),
+        save_dataset_bundle(noisy, suite_dir / "noisy_v1"),
+        save_dataset_bundle(large, suite_dir / "large_v1"),
+        save_dataset_bundle(nonlinear, suite_dir / "nonlinear_v1"),
     ]
 
 
@@ -1208,9 +1222,7 @@ def generate_multiplex_suite(root: Path, seed: int, *, include_xxlarge: bool = F
             seed=seed + 1,
         ),
         suite_name="multiplex_v1",
-        description=(
-            "Medium multiplex simulation with mixed module roles and background genes."
-        ),
+        description=("Medium multiplex simulation with mixed module roles and background genes."),
     )
     noisy = _generate_multiplex_dataset(
         MultiplexDatasetSpec(
@@ -1259,9 +1271,7 @@ def generate_multiplex_suite(root: Path, seed: int, *, include_xxlarge: bool = F
             seed=seed + 3,
         ),
         suite_name="multiplex_v1",
-        description=(
-            "Large multiplex scale test with mixed switch and abundance truth modules."
-        ),
+        description=("Large multiplex scale test with mixed switch and abundance truth modules."),
     )
 
     paths = [
@@ -1357,7 +1367,24 @@ def generate_scale_suite(root: Path, seed: int) -> list[Path]:
             n_genes=12000,
             n_samples=240,
             n_modules=16,
-            module_sizes=[515, 412, 322, 258, 232, 206, 193, 167, 155, 116, 103, 90, 77, 64, 52, 38],  # power-law, sum=3000
+            module_sizes=[
+                515,
+                412,
+                322,
+                258,
+                232,
+                206,
+                193,
+                167,
+                155,
+                116,
+                103,
+                90,
+                77,
+                64,
+                52,
+                38,
+            ],  # power-law, sum=3000
             switching_fraction=3000 / 12000,
             confounder_weight=0.4,
             count_dispersion=7.0,
@@ -1395,7 +1422,32 @@ def generate_scale_suite(root: Path, seed: int) -> list[Path]:
             n_genes=12000,
             n_samples=240,
             n_modules=24,
-            module_sizes=[140, 96, 79, 70, 64, 58, 54, 51, 48, 46, 44, 42, 40, 39, 38, 36, 35, 34, 33, 32, 31, 30, 30, 30],  # power-law, sum=1200, ~10%
+            module_sizes=[
+                140,
+                96,
+                79,
+                70,
+                64,
+                58,
+                54,
+                51,
+                48,
+                46,
+                44,
+                42,
+                40,
+                39,
+                38,
+                36,
+                35,
+                34,
+                33,
+                32,
+                31,
+                30,
+                30,
+                30,
+            ],  # power-law, sum=1200, ~10%
             switching_fraction=1200 / 12000,
             confounder_weight=0.55,
             count_dispersion=15.0,
@@ -1417,7 +1469,7 @@ def generate_scale_suite(root: Path, seed: int) -> list[Path]:
     )
 
     return [
-        save_dataset_bundle(xlarge,        suite_dir / "xlarge_v1"),
-        save_dataset_bundle(xxlarge,       suite_dir / "xxlarge_v1"),
+        save_dataset_bundle(xlarge, suite_dir / "xlarge_v1"),
+        save_dataset_bundle(xxlarge, suite_dir / "xxlarge_v1"),
         save_dataset_bundle(xxlarge_stress, suite_dir / "xxlarge_stress_v1"),
     ]

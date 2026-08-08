@@ -9,7 +9,6 @@ from pathlib import Path
 
 import pandas as pd
 
-
 _BOOLEAN_LABELS = [
     "first_exon_changed",
     "last_exon_changed",
@@ -69,8 +68,8 @@ def _extract_attr_fast(attributes: str, key: str) -> str:
 
 def _build_records(df: pd.DataFrame) -> dict[str, TranscriptRecord]:
     """Build TranscriptRecord dict from a flat DataFrame (feature/start/end rows)."""
-    tx_df  = df[df["feature"] == "transcript"]
-    ex_df  = df[df["feature"] == "exon"]
+    tx_df = df[df["feature"] == "transcript"]
+    ex_df = df[df["feature"] == "exon"]
     cds_df = df[df["feature"] == "CDS"]
 
     records: dict[str, TranscriptRecord] = {}
@@ -125,8 +124,7 @@ def _read_gtf_as_df(path: Path) -> pd.DataFrame:
         header=None,
         usecols=[0, 2, 3, 4, 6, 8],
         names=["chrom", "feature", "start", "end", "strand", "attrs"],
-        dtype={"chrom": "category", "feature": "category", "strand": "category",
-               "attrs": str},
+        dtype={"chrom": "category", "feature": "category", "strand": "category", "attrs": str},
         compression=compression,
         low_memory=False,
     )
@@ -141,8 +139,8 @@ def _read_gtf_as_df(path: Path) -> pd.DataFrame:
     df["biotype"] = attrs.str.extract(r'transcript_type "([^"]+)"', expand=False)
     mask_missing = df["biotype"].isna()
     if mask_missing.any():
-        df.loc[mask_missing, "biotype"] = (
-            attrs[mask_missing].str.extract(r'transcript_biotype "([^"]+)"', expand=False)
+        df.loc[mask_missing, "biotype"] = attrs[mask_missing].str.extract(
+            r'transcript_biotype "([^"]+)"', expand=False
         )
     df["biotype"] = df["biotype"].fillna("")
     df = df.dropna(subset=["transcript_id"])
@@ -235,9 +233,7 @@ def _utr_changed(tx1: TranscriptRecord, tx2: TranscriptRecord) -> bool:
     return utr1 != utr2
 
 
-def compare_pair(
-    tx1: TranscriptRecord, tx2: TranscriptRecord
-) -> dict[str, bool | int | float]:
+def compare_pair(tx1: TranscriptRecord, tx2: TranscriptRecord) -> dict[str, bool | int | float]:
     """Compute structural labels for a pair of transcripts from the same gene."""
     oe1 = _ordered_exons(tx1)
     oe2 = _ordered_exons(tx2)
@@ -338,12 +334,8 @@ def annotate_switch_pairs(
         row_dict["transcript_length_delta"] = float(
             max(c["transcript_length_delta"] for c in comps)
         )
-        row_dict["cds_length_delta"] = float(
-            max(c["cds_length_delta"] for c in comps)
-        )
-        row_dict["shared_exon_fraction"] = float(
-            min(c["shared_exon_fraction"] for c in comps)
-        )
+        row_dict["cds_length_delta"] = float(max(c["cds_length_delta"] for c in comps))
+        row_dict["shared_exon_fraction"] = float(min(c["shared_exon_fraction"] for c in comps))
         rows.append(row_dict)
 
     if not rows:

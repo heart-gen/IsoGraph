@@ -21,7 +21,9 @@ def test_sample_permutation_keeps_module_assignments(synthetic_suite) -> None:
     permuted = model.fit(
         transcript_counts=bundle.matrices["transcript_counts"][:, perm],
         transcript_table=bundle.feature_tables["transcript"],
-        sample_table=bundle.sample_table.rename(columns={"sample_id": "RNum"}).iloc[perm].reset_index(drop=True),
+        sample_table=bundle.sample_table.rename(columns={"sample_id": "RNum"})
+        .iloc[perm]
+        .reset_index(drop=True),
     )
 
     left = original.module_table.sort_values(["gene_id", "module_id"]).reset_index(drop=True)
@@ -38,9 +40,9 @@ def test_transcript_relabeling_preserves_gene_assignments(synthetic_suite) -> No
         sample_table=bundle.sample_table.rename(columns={"sample_id": "RNum"}),
     )
     transcript_table = bundle.feature_tables["transcript"].copy()
-    transcript_table["transcript_id"] = transcript_table["transcript_id"].sample(
-        frac=1.0, random_state=11
-    ).to_numpy()
+    transcript_table["transcript_id"] = (
+        transcript_table["transcript_id"].sample(frac=1.0, random_state=11).to_numpy()
+    )
     result = model.fit(
         transcript_counts=bundle.matrices["transcript_counts"],
         transcript_table=transcript_table,

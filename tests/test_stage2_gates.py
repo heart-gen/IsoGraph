@@ -24,18 +24,21 @@ import pytest
 from isograph.benchmarks.synthetic import generate_core_suite
 from isograph.evaluation.metrics import module_recovery_score
 from isograph.evaluation.runner import benchmark
+from isograph.evaluation.selection import stability_selection
 from isograph.evaluation.snapshots import compare_snapshot_dirs, save_snapshot
 from isograph.io.artifacts import (
     DatasetBundle,
     build_feature_spec,
     build_matrix_spec,
     load_dataset_bundle,
-    save_dataset_bundle,
 )
-from isograph.evaluation.selection import stability_selection
 from isograph.models.latent import LatentNetworkModel
 from isograph.validation import DatasetManifest
-from isograph.workflow.config import BenchmarkCommandConfig, LatentModelConfig, StabilitySelectionConfig
+from isograph.workflow.config import (
+    BenchmarkCommandConfig,
+    LatentModelConfig,
+    StabilitySelectionConfig,
+)
 
 _TOY_CONFIG = LatentModelConfig(alpha=0.05, min_module_size=2)
 _MEDIUM_CONFIG = LatentModelConfig(alpha=0.01, min_module_size=2)
@@ -141,8 +144,13 @@ def test_latent_calibration_fields_present(tmp_path: Path) -> None:
     assert artifacts.calibration is not None, "calibration must not be None"
 
     required_keys = {
-        "mean_log_likelihood", "reconstruction_rmse", "mean_noise_variance",
-        "n_components_used", "n_iter", "converged", "n_components_selected_by",
+        "mean_log_likelihood",
+        "reconstruction_rmse",
+        "mean_noise_variance",
+        "n_components_used",
+        "n_iter",
+        "converged",
+        "n_components_selected_by",
     }
     missing = required_keys - set(artifacts.calibration.keys())
     assert not missing, f"calibration missing keys: {missing}"
@@ -232,9 +240,13 @@ def test_latent_determinism_medium_v1(tmp_path: Path) -> None:
     for snap_dir in (snap_a, snap_b):
         artifacts, bundle = _fit_latent(medium_dir, _MEDIUM_CONFIG)
         truth = bundle.truth_tables.get("truth_modules.parquet")
-        recovery = module_recovery_score(artifacts.module_table, truth) if truth is not None else None
+        recovery = (
+            module_recovery_score(artifacts.module_table, truth) if truth is not None else None
+        )
         metrics = {
-            "n_modules": 0 if artifacts.module_table.empty else artifacts.module_table["module_id"].nunique(),
+            "n_modules": 0
+            if artifacts.module_table.empty
+            else artifacts.module_table["module_id"].nunique(),
             "n_edges": len(artifacts.edge_table),
             "recovery": recovery,
             "runtime_seconds": 0.0,
@@ -249,8 +261,8 @@ def test_latent_determinism_medium_v1(tmp_path: Path) -> None:
         )
 
     report = compare_snapshot_dirs(snap_a, snap_b)
-    assert report["passed"], (
-        "medium_v1 latent snapshots are not deterministic:\n" + "\n".join(report["differences"])
+    assert report["passed"], "medium_v1 latent snapshots are not deterministic:\n" + "\n".join(
+        report["differences"]
     )
 
 
@@ -284,7 +296,9 @@ def test_latent_benchmark_runner(tmp_path: Path) -> None:
     assert len(data["results"]) == 1
     toy_row = data["results"][0]
     assert toy_row["dataset"] == "toy_v1"
-    assert toy_row["recovery"] == 1.0, f"toy_v1 latent recovery={toy_row['recovery']:.4f}, expected 1.0"
+    assert (
+        toy_row["recovery"] == 1.0
+    ), f"toy_v1 latent recovery={toy_row['recovery']:.4f}, expected 1.0"
     assert data["gate_failures"] == [], f"Unexpected gate failures: {data['gate_failures']}"
     assert data["backend"] == "latent"
 
@@ -343,9 +357,9 @@ def test_stability_selection_recovers_known_alpha(tmp_path: Path) -> None:
     )
     truth = bundle.truth_tables.get("truth_modules.parquet")
     recovery = module_recovery_score(arts.module_table, truth)
-    assert recovery == 1.0, (
-        f"Stability-selected alpha={result.recommended_alpha} gives recovery={recovery:.4f}"
-    )
+    assert (
+        recovery == 1.0
+    ), f"Stability-selected alpha={result.recommended_alpha} gives recovery={recovery:.4f}"
 
 
 def test_stability_selection_edge_structure_matches_ground_truth(tmp_path: Path) -> None:
@@ -365,7 +379,9 @@ def test_stability_selection_edge_structure_matches_ground_truth(tmp_path: Path)
     assert truth is not None
 
     # Build module membership from truth table
-    module_membership: dict[str, int] = dict(zip(truth["gene_id"], truth["module_id"]))
+    module_membership: dict[str, int] = dict(
+        zip(truth["gene_id"], truth["module_id"], strict=False)
+    )
 
     model = LatentNetworkModel(_TOY_CONFIG)
     stability_threshold = 0.6

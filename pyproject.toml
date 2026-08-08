@@ -82,6 +82,16 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "N", "C4"]
+# N803/N806: allow scientific single-capital array/matrix names (X, R, A, L, D, M),
+#   which match the surrounding linear-algebra notation and are clearer than lowercase.
+# E501: code line length is enforced by `ruff format`; the residual long lines are
+#   unsplittable strings, comments, and URLs, so we do not double-flag them here.
+ignore = ["N803", "N806", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests gate optional-backend coverage with `pytest.importorskip("torch")` and place
+# the guarded imports after it (E402); `import torch` is the availability probe (F401).
+"tests/**" = ["E402", "F401"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

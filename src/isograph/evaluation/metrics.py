@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from isograph.models.base import FitArtifacts
 
 
-def calibration_metrics(artifacts_by_fixture: dict[str, "FitArtifacts"]) -> dict:
+def calibration_metrics(artifacts_by_fixture: dict[str, FitArtifacts]) -> dict:
     """Aggregate calibration dicts from fit artifacts keyed by fixture name."""
     rows = []
     for fixture_name, arts in artifacts_by_fixture.items():
@@ -57,17 +57,16 @@ def role_aware_recall(
         return {r: 0.0 for r in roles}
 
     truth_module_sets: dict[object, set[str]] = {
-        mid: set(grp["gene_id"].astype(str))
-        for mid, grp in truth_role_active.groupby("module_id")
+        mid: set(grp["gene_id"].astype(str)) for mid, grp in truth_role_active.groupby("module_id")
     }
     pred_module_sets: list[set[str]] = [
-        set(grp["gene_id"].astype(str))
-        for _, grp in predicted_modules.groupby("module_id")
+        set(grp["gene_id"].astype(str)) for _, grp in predicted_modules.groupby("module_id")
     ]
     gene_role: dict[str, str] = dict(
         zip(
             truth_role_active["gene_id"].astype(str),
             truth_role_active["truth_role"].astype(str),
+            strict=False,
         )
     )
 
@@ -95,10 +94,7 @@ def role_aware_recall(
             if gene in best_pred:
                 role_recovered[role] += 1
 
-    return {
-        r: (role_recovered[r] / role_total[r] if role_total[r] > 0 else 0.0)
-        for r in roles
-    }
+    return {r: (role_recovered[r] / role_total[r] if role_total[r] > 0 else 0.0) for r in roles}
 
 
 def giant_component_fraction(edge_table: pd.DataFrame, n_genes: int) -> float:

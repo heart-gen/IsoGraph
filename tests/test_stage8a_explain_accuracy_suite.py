@@ -17,12 +17,11 @@ All tests are marked slow. Run with:
 
 from __future__ import annotations
 
+import math
 import tempfile
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-
-import math
 
 import numpy as np
 import pandas as pd
@@ -52,7 +51,7 @@ _NOISY_SPEC = RealisticDatasetSpec(
     n_genes=300,
     n_samples=100,
     n_modules=8,
-    module_sizes=[22, 18, 14, 11, 9, 8, 7, 6],   # power-law, sum=95
+    module_sizes=[22, 18, 14, 11, 9, 8, 7, 6],  # power-law, sum=95
     switching_fraction=95 / 300,
     confounder_weight=0.6,
     count_dispersion=15.0,
@@ -91,7 +90,7 @@ _XLARGE_MINI_SPEC = RealisticDatasetSpec(
     n_genes=600,
     n_samples=240,
     n_modules=12,
-    module_sizes=None,             # equal: 84//12 = 7 genes per module
+    module_sizes=None,  # equal: 84//12 = 7 genes per module
     switching_fraction=84 / 600,
     confounder_weight=0.4,
     count_dispersion=7.0,
@@ -111,7 +110,7 @@ _XXLARGE_MINI_SPEC = RealisticDatasetSpec(
     n_genes=400,
     n_samples=240,
     n_modules=16,
-    module_sizes=None,             # equal: 96//16 = 6 genes per module
+    module_sizes=None,  # equal: 96//16 = 6 genes per module
     switching_fraction=96 / 400,
     confounder_weight=0.4,
     count_dispersion=7.0,
@@ -127,6 +126,7 @@ _XXLARGE_MINI_SPEC = RealisticDatasetSpec(
 # ---------------------------------------------------------------------------
 # Shared helpers (identical to test_stage8a_explain_accuracy.py)
 # ---------------------------------------------------------------------------
+
 
 def _make_bundle(spec):
     if isinstance(spec, NonlinearDatasetSpec):
@@ -146,7 +146,9 @@ def _build_transcript_usage(
         block = transcript_counts[idx]
         totals = block.sum(axis=0, keepdims=True)
         usage[idx] = block / np.maximum(totals, 1.0)
-    return pd.DataFrame(usage.T, index=sample_ids, columns=transcript_table["transcript_id"].tolist())
+    return pd.DataFrame(
+        usage.T, index=sample_ids, columns=transcript_table["transcript_id"].tolist()
+    )
 
 
 def _fit_and_write_artifacts(bundle, artifact_dir: Path) -> pd.DataFrame:
@@ -154,7 +156,9 @@ def _fit_and_write_artifacts(bundle, artifact_dir: Path) -> pd.DataFrame:
     # Stage 9A doubles the feature space (switch + abundance), which requires a lower
     # alpha than the default 0.12 to compensate for stronger LedoitWolf shrinkage.
     # Stage 9B will address this with per-channel alpha thresholds.
-    config = BaselineModelConfig(alpha=0.08, min_module_size=3, trait_columns=[], residualize_covariates=[])
+    config = BaselineModelConfig(
+        alpha=0.08, min_module_size=3, trait_columns=[], residualize_covariates=[]
+    )
     model = BaselineNetworkModel(config)
     artifacts = model.fit(
         transcript_counts=bundle.matrices["transcript_counts"],
@@ -164,7 +168,7 @@ def _fit_and_write_artifacts(bundle, artifact_dir: Path) -> pd.DataFrame:
     fs = artifacts.feature_scores.copy()
     meta = set(FEATURE_SCORE_METADATA_COLUMNS)
     int_cols = [c for c in fs.columns if c not in meta]
-    fs = fs.rename(columns={old: new for old, new in zip(int_cols, sample_ids)})
+    fs = fs.rename(columns=dict(zip(int_cols, sample_ids, strict=False)))
     artifacts.module_table.to_parquet(artifact_dir / "modules.parquet", index=False)
     fs.to_parquet(artifact_dir / "feature_scores.parquet", index=False)
     return artifacts.module_table
@@ -176,12 +180,14 @@ def _run_explain(bundle, artifact_dir: Path):
     feature_table = _build_transcript_usage(
         bundle.matrices["transcript_counts"], transcript_table, sample_ids
     )
-    feature_meta = pd.DataFrame({
-        "feature_id": transcript_table["transcript_id"].tolist(),
-        "gene_id": transcript_table["gene_id"].tolist(),
-        "transcript_id": transcript_table["transcript_id"].tolist(),
-        "feature_type": "transcript_usage",
-    })
+    feature_meta = pd.DataFrame(
+        {
+            "feature_id": transcript_table["transcript_id"].tolist(),
+            "gene_id": transcript_table["gene_id"].tolist(),
+            "transcript_id": transcript_table["transcript_id"].tolist(),
+            "feature_type": "transcript_usage",
+        }
+    )
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         return explain_module(
@@ -255,8 +261,10 @@ def _compute_accuracy(results, truth_switch) -> _AccuracyMetrics:
 # Session-scoped fixtures (fit + explain each bundle once)
 # ---------------------------------------------------------------------------
 
+
 def _make_explain_fixture(spec):
     """Return a pytest session-scoped fixture that builds, fits, and explains a bundle."""
+
     @pytest.fixture(scope="module")
     def _fixture():
         bundle = _make_bundle(spec)
@@ -269,6 +277,7 @@ def _make_explain_fixture(spec):
             results = _run_explain(bundle, artifact_dir)
         metrics = _compute_accuracy(results, truth_switch)
         return metrics
+
     return _fixture
 
 
@@ -294,6 +303,7 @@ def _require_both_classes(m: _AccuracyMetrics) -> None:
 # Tests — noisy_v1
 # ---------------------------------------------------------------------------
 
+
 class TestNoisyAccuracy:
     """noisy_v1: high NB dispersion (15×), strong confounder (0.6), 8 small power-law modules."""
 
@@ -301,16 +311,14 @@ class TestNoisyAccuracy:
         m = noisy_metrics
         if math.isnan(m.mean_r_switching):
             pytest.skip("No switching genes found in modules.")
-        assert m.mean_r_switching >= 0.50, (
-            f"noisy mean |r| switching={m.mean_r_switching:.3f} < 0.50"
-        )
+        assert (
+            m.mean_r_switching >= 0.50
+        ), f"noisy mean |r| switching={m.mean_r_switching:.3f} < 0.50"
 
     def test_gene_driver_auc(self, noisy_metrics):
         _require_both_classes(noisy_metrics)
         m = noisy_metrics
-        assert m.gene_driver_auc >= 0.60, (
-            f"noisy gene driver AUC={m.gene_driver_auc:.3f} < 0.60"
-        )
+        assert m.gene_driver_auc >= 0.60, f"noisy gene driver AUC={m.gene_driver_auc:.3f} < 0.60"
 
     def test_mean_r_direction(self, noisy_metrics):
         _require_both_classes(noisy_metrics)
@@ -324,9 +332,9 @@ class TestNoisyAccuracy:
         m = noisy_metrics
         if math.isnan(m.switch_strength_auc):
             pytest.skip(_STAGE9B_SKIP)
-        assert m.switch_strength_auc >= 0.55, (
-            f"noisy switch_strength AUC={m.switch_strength_auc:.3f} < 0.55"
-        )
+        assert (
+            m.switch_strength_auc >= 0.55
+        ), f"noisy switch_strength AUC={m.switch_strength_auc:.3f} < 0.55"
 
     def test_switch_strength_direction(self, noisy_metrics):
         _require_both_classes(noisy_metrics)
@@ -341,6 +349,7 @@ class TestNoisyAccuracy:
 # Tests — nonlinear_v1
 # ---------------------------------------------------------------------------
 
+
 class TestNonlinearAccuracy:
     """nonlinear_v1: radial/product module activation (bimodal latent, not linear)."""
 
@@ -348,16 +357,16 @@ class TestNonlinearAccuracy:
         m = nonlinear_metrics
         if math.isnan(m.mean_r_switching):
             pytest.skip("No switching genes found in modules.")
-        assert m.mean_r_switching >= 0.50, (
-            f"nonlinear mean |r| switching={m.mean_r_switching:.3f} < 0.50"
-        )
+        assert (
+            m.mean_r_switching >= 0.50
+        ), f"nonlinear mean |r| switching={m.mean_r_switching:.3f} < 0.50"
 
     def test_gene_driver_auc(self, nonlinear_metrics):
         _require_both_classes(nonlinear_metrics)
         m = nonlinear_metrics
-        assert m.gene_driver_auc >= 0.60, (
-            f"nonlinear gene driver AUC={m.gene_driver_auc:.3f} < 0.60"
-        )
+        assert (
+            m.gene_driver_auc >= 0.60
+        ), f"nonlinear gene driver AUC={m.gene_driver_auc:.3f} < 0.60"
 
     def test_mean_r_direction(self, nonlinear_metrics):
         _require_both_classes(nonlinear_metrics)
@@ -371,9 +380,9 @@ class TestNonlinearAccuracy:
         m = nonlinear_metrics
         if math.isnan(m.switch_strength_auc):
             pytest.skip(_STAGE9B_SKIP)
-        assert m.switch_strength_auc >= 0.55, (
-            f"nonlinear switch_strength AUC={m.switch_strength_auc:.3f} < 0.55"
-        )
+        assert (
+            m.switch_strength_auc >= 0.55
+        ), f"nonlinear switch_strength AUC={m.switch_strength_auc:.3f} < 0.55"
 
     def test_switch_strength_direction(self, nonlinear_metrics):
         _require_both_classes(nonlinear_metrics)
@@ -388,6 +397,7 @@ class TestNonlinearAccuracy:
 # Tests — xlarge_mini (xlarge_v1 structural params at 1/10 gene scale)
 # ---------------------------------------------------------------------------
 
+
 class TestXlargeMiniAccuracy:
     """xlarge_mini: 12 modules, ~14% switching, dispersion=7, confounder=0.4."""
 
@@ -395,16 +405,16 @@ class TestXlargeMiniAccuracy:
         m = xlarge_mini_metrics
         if math.isnan(m.mean_r_switching):
             pytest.skip("No switching genes found in modules.")
-        assert m.mean_r_switching >= 0.50, (
-            f"xlarge_mini mean |r| switching={m.mean_r_switching:.3f} < 0.50"
-        )
+        assert (
+            m.mean_r_switching >= 0.50
+        ), f"xlarge_mini mean |r| switching={m.mean_r_switching:.3f} < 0.50"
 
     def test_gene_driver_auc(self, xlarge_mini_metrics):
         _require_both_classes(xlarge_mini_metrics)
         m = xlarge_mini_metrics
-        assert m.gene_driver_auc >= 0.60, (
-            f"xlarge_mini gene driver AUC={m.gene_driver_auc:.3f} < 0.60"
-        )
+        assert (
+            m.gene_driver_auc >= 0.60
+        ), f"xlarge_mini gene driver AUC={m.gene_driver_auc:.3f} < 0.60"
 
     def test_mean_r_direction(self, xlarge_mini_metrics):
         _require_both_classes(xlarge_mini_metrics)
@@ -427,6 +437,7 @@ class TestXlargeMiniAccuracy:
 # Tests — xxlarge_mini (xxlarge_v1 structural params at 1/10 gene scale)
 # ---------------------------------------------------------------------------
 
+
 class TestXxlargeMiniAccuracy:
     """xxlarge_mini: 16 modules, 24% switching, dispersion=7, confounder=0.4."""
 
@@ -434,16 +445,16 @@ class TestXxlargeMiniAccuracy:
         m = xxlarge_mini_metrics
         if math.isnan(m.mean_r_switching):
             pytest.skip("No switching genes found in modules.")
-        assert m.mean_r_switching >= 0.50, (
-            f"xxlarge_mini mean |r| switching={m.mean_r_switching:.3f} < 0.50"
-        )
+        assert (
+            m.mean_r_switching >= 0.50
+        ), f"xxlarge_mini mean |r| switching={m.mean_r_switching:.3f} < 0.50"
 
     def test_gene_driver_auc(self, xxlarge_mini_metrics):
         _require_both_classes(xxlarge_mini_metrics)
         m = xxlarge_mini_metrics
-        assert m.gene_driver_auc >= 0.60, (
-            f"xxlarge_mini gene driver AUC={m.gene_driver_auc:.3f} < 0.60"
-        )
+        assert (
+            m.gene_driver_auc >= 0.60
+        ), f"xxlarge_mini gene driver AUC={m.gene_driver_auc:.3f} < 0.60"
 
     def test_mean_r_direction(self, xxlarge_mini_metrics):
         _require_both_classes(xxlarge_mini_metrics)

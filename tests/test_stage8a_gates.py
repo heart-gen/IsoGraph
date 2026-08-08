@@ -10,8 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from isograph.explain import ExplainConfig, ExplainResult, explain_module
-
+from isograph.explain import ExplainResult, explain_module
 
 # ---------------------------------------------------------------------------
 # Synthetic fixture helpers
@@ -34,20 +33,26 @@ def _make_synthetic_explain_inputs(
 
     # Switch coordinates: signal from module latent + noise
     module_latent = rng.normal(size=(n_modules, n_samples))
-    switch_coords = np.vstack([
-        module_latent[module_assignment[i]] + rng.normal(0, 0.3, n_samples)
-        for i in range(n_genes)
-    ])
+    switch_coords = np.vstack(
+        [
+            module_latent[module_assignment[i]] + rng.normal(0, 0.3, n_samples)
+            for i in range(n_genes)
+        ]
+    )
     feature_scores = pd.DataFrame(switch_coords, columns=sample_ids)
     feature_scores.insert(0, "gene_id", gene_ids)
 
-    modules = pd.DataFrame({
-        "gene_id": gene_ids,
-        "module_id": [f"M{m:03d}" for m in module_assignment],
-    })
+    modules = pd.DataFrame(
+        {
+            "gene_id": gene_ids,
+            "module_id": [f"M{m:03d}" for m in module_assignment],
+        }
+    )
 
     # Transcript usages: two transcripts per gene, proportions sum to ~1
-    transcript_ids = [f"G{i:04d}_T{t}" for i in range(n_genes) for t in range(n_transcripts_per_gene)]
+    transcript_ids = [
+        f"G{i:04d}_T{t}" for i in range(n_genes) for t in range(n_transcripts_per_gene)
+    ]
     # Base usage drawn from Dirichlet; first transcript weakly correlated with module score
     tx_data = np.zeros((n_samples, len(transcript_ids)))
     for i in range(n_genes):
@@ -63,16 +68,18 @@ def _make_synthetic_explain_inputs(
 
     feature_table = pd.DataFrame(tx_data, index=sample_ids, columns=transcript_ids)
 
-    feature_meta = pd.DataFrame([
-        {
-            "feature_id": f"G{i:04d}_T{t}",
-            "gene_id": f"G{i:04d}",
-            "transcript_id": f"G{i:04d}_T{t}",
-            "feature_type": "transcript_usage",
-        }
-        for i in range(n_genes)
-        for t in range(n_transcripts_per_gene)
-    ])
+    feature_meta = pd.DataFrame(
+        [
+            {
+                "feature_id": f"G{i:04d}_T{t}",
+                "gene_id": f"G{i:04d}",
+                "transcript_id": f"G{i:04d}_T{t}",
+                "feature_type": "transcript_usage",
+            }
+            for i in range(n_genes)
+            for t in range(n_transcripts_per_gene)
+        ]
+    )
 
     return modules, feature_scores, feature_table, feature_meta, sample_ids
 
@@ -162,7 +169,16 @@ def test_transcript_polarity_schema(tmp_path):
     artifact_dir = _write_artifact(tmp_path, modules, feature_scores)
     results = explain_module(artifact_dir, feature_table, feature_meta, module_ids=["M000"])
     df = results["M000"].transcript_polarity_table
-    required = {"feature_id", "gene_id", "r", "pvalue", "qvalue", "n_samples", "missing_fraction", "switch_strength"}
+    required = {
+        "feature_id",
+        "gene_id",
+        "r",
+        "pvalue",
+        "qvalue",
+        "n_samples",
+        "missing_fraction",
+        "switch_strength",
+    }
     assert required.issubset(set(df.columns))
 
 
@@ -205,7 +221,19 @@ def test_high_vs_low_schema(tmp_path):
     artifact_dir = _write_artifact(tmp_path, modules, feature_scores)
     results = explain_module(artifact_dir, feature_table, feature_meta, module_ids=["M000"])
     df = results["M000"].high_vs_low_table
-    required = {"feature_id", "gene_id", "mean_high", "mean_low", "delta", "se", "tstat", "pvalue", "n_high", "n_low", "missing_fraction"}
+    required = {
+        "feature_id",
+        "gene_id",
+        "mean_high",
+        "mean_low",
+        "delta",
+        "se",
+        "tstat",
+        "pvalue",
+        "n_high",
+        "n_low",
+        "missing_fraction",
+    }
     assert required.issubset(set(df.columns))
 
 
@@ -219,7 +247,9 @@ def test_high_vs_low_delta_correct(tmp_path):
 
 
 def test_high_vs_low_n_total_le_n_samples(tmp_path):
-    modules, feature_scores, feature_table, feature_meta, _ = _make_synthetic_explain_inputs(n_samples=48)
+    modules, feature_scores, feature_table, feature_meta, _ = _make_synthetic_explain_inputs(
+        n_samples=48
+    )
     artifact_dir = _write_artifact(tmp_path, modules, feature_scores)
     results = explain_module(artifact_dir, feature_table, feature_meta, module_ids=["M000"])
     df = results["M000"].high_vs_low_table
@@ -232,7 +262,9 @@ def test_high_vs_low_n_total_le_n_samples(tmp_path):
 
 
 def test_module_score_override(tmp_path):
-    modules, feature_scores, feature_table, feature_meta, sample_ids = _make_synthetic_explain_inputs()
+    modules, feature_scores, feature_table, feature_meta, sample_ids = (
+        _make_synthetic_explain_inputs()
+    )
     artifact_dir = _write_artifact(tmp_path, modules, feature_scores)
 
     rng = np.random.default_rng(99)
@@ -254,7 +286,9 @@ def test_output_files_written(tmp_path):
     modules, feature_scores, feature_table, feature_meta, _ = _make_synthetic_explain_inputs()
     artifact_dir = _write_artifact(tmp_path, modules, feature_scores)
     out_dir = tmp_path / "explain_out"
-    explain_module(artifact_dir, feature_table, feature_meta, module_ids=["M000"], output_dir=out_dir)
+    explain_module(
+        artifact_dir, feature_table, feature_meta, module_ids=["M000"], output_dir=out_dir
+    )
     assert (out_dir / "module_explanation_manifest.json").exists()
     assert (out_dir / "M000" / "gene_driver_table.parquet").exists()
     assert (out_dir / "M000" / "transcript_polarity_table.parquet").exists()
@@ -294,7 +328,9 @@ def test_sample_mismatch_raises(tmp_path):
 
 
 def test_sample_partial_mismatch_warns(tmp_path):
-    modules, feature_scores, feature_table, feature_meta, sample_ids = _make_synthetic_explain_inputs()
+    modules, feature_scores, feature_table, feature_meta, sample_ids = (
+        _make_synthetic_explain_inputs()
+    )
     artifact_dir = _write_artifact(tmp_path, modules, feature_scores)
     # Drop a few samples — should warn, not raise
     partial_table = feature_table.iloc[:-5].copy()
@@ -342,7 +378,9 @@ def test_duplicate_feature_id_raises(tmp_path):
 
 
 def test_pairwise_missing_handled(tmp_path):
-    modules, feature_scores, feature_table, feature_meta, sample_ids = _make_synthetic_explain_inputs()
+    modules, feature_scores, feature_table, feature_meta, sample_ids = (
+        _make_synthetic_explain_inputs()
+    )
     artifact_dir = _write_artifact(tmp_path, modules, feature_scores)
     # Introduce NaN in first 10 samples for every feature
     ft_with_nan = feature_table.copy().astype(float)
@@ -364,7 +402,9 @@ def test_deterministic(tmp_path):
     r1 = explain_module(artifact_dir, feature_table, feature_meta)
     r2 = explain_module(artifact_dir, feature_table, feature_meta)
     pd.testing.assert_frame_equal(r1["M000"].gene_driver_table, r2["M000"].gene_driver_table)
-    pd.testing.assert_frame_equal(r1["M000"].transcript_polarity_table, r2["M000"].transcript_polarity_table)
+    pd.testing.assert_frame_equal(
+        r1["M000"].transcript_polarity_table, r2["M000"].transcript_polarity_table
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -401,14 +441,21 @@ def test_explain_cli_roundtrip(tmp_path):
     feature_meta.to_parquet(fm_path, index=False)
 
     out_dir = str(tmp_path / "cli_out")
-    main([
-        "explain-module",
-        "--artifact-dir", str(artifact_dir),
-        "--feature-table", str(ft_path),
-        "--feature-meta", str(fm_path),
-        "--module-ids", "M000",
-        "--output-dir", out_dir,
-    ])
+    main(
+        [
+            "explain-module",
+            "--artifact-dir",
+            str(artifact_dir),
+            "--feature-table",
+            str(ft_path),
+            "--feature-meta",
+            str(fm_path),
+            "--module-ids",
+            "M000",
+            "--output-dir",
+            out_dir,
+        ]
+    )
 
     assert (Path(out_dir) / "module_explanation_manifest.json").exists()
     assert (Path(out_dir) / "M000" / "gene_driver_table.parquet").exists()

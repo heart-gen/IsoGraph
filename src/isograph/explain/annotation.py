@@ -7,8 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from isograph.explain.structure import STRUCTURAL_LABELS, _BOOLEAN_LABELS, _NUMERIC_LABELS
-
+from isograph.explain.structure import _BOOLEAN_LABELS, _NUMERIC_LABELS, STRUCTURAL_LABELS
 
 # Canonical annotation column names
 _BOOLEAN_ANNOTATION_COLUMNS: list[str] = _BOOLEAN_LABELS

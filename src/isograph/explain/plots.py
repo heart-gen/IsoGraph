@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 
-
 # ── existing plots (modified defaults / behaviour) ─────────────────────────
 
 
@@ -60,9 +59,7 @@ def plot_eigengene_heatmap(results, sample_meta=None, ax=None):
     mat = mat[:, np.argsort(sort_key)]
 
     if ax is None:
-        fig, ax = plt.subplots(
-            figsize=(max(6, n_samples * 0.15), max(2, n_modules * 0.5))
-        )
+        fig, ax = plt.subplots(figsize=(max(6, n_samples * 0.15), max(2, n_modules * 0.5)))
     else:
         fig = ax.figure
 
@@ -103,20 +100,53 @@ def plot_high_vs_low_violin(result, feature_ids=None, top_n: int = 10, ax=None):
         "gray",
         np.where(df["delta"] > 0, "tomato", "steelblue"),
     )
-    ax.vlines(x, df["mean_low"].to_numpy(), df["mean_high"].to_numpy(),
-              colors=line_colors, lw=1.5, zorder=1)
+    ax.vlines(
+        x,
+        df["mean_low"].to_numpy(),
+        df["mean_high"].to_numpy(),
+        colors=line_colors,
+        lw=1.5,
+        zorder=1,
+    )
     ax.scatter(x, df["mean_high"].to_numpy(), color="tomato", zorder=2, s=50)
-    ax.scatter(x, df["mean_low"].to_numpy(), color="steelblue", zorder=2, s=50,
-               marker="o", facecolors="none", edgecolors="steelblue", linewidths=1.5)
+    ax.scatter(
+        x,
+        df["mean_low"].to_numpy(),
+        color="steelblue",
+        zorder=2,
+        s=50,
+        marker="o",
+        facecolors="none",
+        edgecolors="steelblue",
+        linewidths=1.5,
+    )
 
     ax.set_xticks(x)
     ax.set_xticklabels(df["feature_id"], rotation=45, ha="right")
     ax.set_ylabel("Mean feature value")
-    ax.legend(handles=[
-        Line2D([0], [0], marker="o", color="w", markerfacecolor="tomato", markersize=8, label="High module"),
-        Line2D([0], [0], marker="o", color="w", markerfacecolor="none",
-               markeredgecolor="steelblue", markersize=8, label="Low module"),
-    ])
+    ax.legend(
+        handles=[
+            Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                markerfacecolor="tomato",
+                markersize=8,
+                label="High module",
+            ),
+            Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                markerfacecolor="none",
+                markeredgecolor="steelblue",
+                markersize=8,
+                label="Low module",
+            ),
+        ]
+    )
 
     return fig
 
@@ -167,7 +197,7 @@ def plot_isoform_gradient(result, feature_table, top_n: int = 5, axes=None):
     norm = plt.Normalize(-1, 1)
     cmap = plt.cm.RdBu_r
 
-    for ax, gene_id in zip(axes_list, top_genes):
+    for ax, gene_id in zip(axes_list, top_genes, strict=False):
         gene_txs = tx_table[tx_table["gene_id"] == gene_id].sort_values("r")
         for _, tx_row in gene_txs.iterrows():
             fid = tx_row["feature_id"]
@@ -207,7 +237,12 @@ def plot_transcript_polarity_heatmap(result, top_n: int = 15, ax=None):
     pivot = pivot.loc[gene_order]
     # Reorder columns to match row (driver-rank) order so blocks are block-diagonal
     col_gene = subset.set_index("feature_id")["gene_id"].to_dict()
-    col_order = sorted(pivot.columns, key=lambda c: gene_order.index(col_gene.get(c, c)) if col_gene.get(c, c) in gene_order else len(gene_order))
+    col_order = sorted(
+        pivot.columns,
+        key=lambda c: gene_order.index(col_gene.get(c, c))
+        if col_gene.get(c, c) in gene_order
+        else len(gene_order),
+    )
     pivot = pivot[col_order]
 
     mat = np.ma.masked_invalid(pivot.to_numpy(dtype=float))
@@ -282,15 +317,23 @@ def plot_switch_pair(result, top_n: int = 5, ax=None):
 
         ax.barh(i, neg_tx["r"], color="steelblue", height=0.5, align="center")
         ax.text(
-            min(float(neg_tx["r"]) - 0.03, -0.05), i,
-            f"↓ {neg_tx['feature_id']}", ha="right", va="center",
-            fontsize=8, color="steelblue",
+            min(float(neg_tx["r"]) - 0.03, -0.05),
+            i,
+            f"↓ {neg_tx['feature_id']}",
+            ha="right",
+            va="center",
+            fontsize=8,
+            color="steelblue",
         )
         ax.barh(i, pos_tx["r"], color="tomato", height=0.5, align="center")
         ax.text(
-            max(float(pos_tx["r"]) + 0.03, 0.05), i,
-            f"↑ {pos_tx['feature_id']}", ha="left", va="center",
-            fontsize=8, color="tomato",
+            max(float(pos_tx["r"]) + 0.03, 0.05),
+            i,
+            f"↑ {pos_tx['feature_id']}",
+            ha="left",
+            va="center",
+            fontsize=8,
+            color="tomato",
         )
 
     ax.set_yticks(range(len(top_genes)))
@@ -319,7 +362,8 @@ def summarize_module(result) -> dict:
         top_txs = tpt[tpt["gene_id"] == top_switch_gene].sort_values("r")
         top_switch_pair = (
             [top_txs.iloc[0]["feature_id"], top_txs.iloc[-1]["feature_id"]]
-            if len(top_txs) >= 2 else []
+            if len(top_txs) >= 2
+            else []
         )
         top_switch_strength = float(gene_ss.max())
     else:
@@ -373,15 +417,17 @@ def plot_summary_panel(
 
     fig = plt.figure(figsize=(16, 14))
     gs = gridspec.GridSpec(
-        4, 2, figure=fig,
+        4,
+        2,
+        figure=fig,
         height_ratios=[0.8, 2.5, 1.8, 1.5],
         width_ratios=[1, 1.5],
-        hspace=0.55, wspace=0.35,
+        hspace=0.55,
+        wspace=0.35,
     )
 
     def _panel_label(ax, letter, x=-0.02, y=1.05):
-        ax.text(x, y, letter, transform=ax.transAxes,
-                fontsize=13, fontweight="bold", va="top")
+        ax.text(x, y, letter, transform=ax.transAxes, fontsize=13, fontweight="bold", va="top")
 
     # A — eigengene heatmap
     ax_a = fig.add_subplot(gs[0, :])
@@ -398,8 +444,15 @@ def plot_summary_panel(
     if has_tx:
         plot_transcript_polarity_heatmap(result, top_n=top_n_drivers, ax=ax_c)
     else:
-        ax_c.text(0.5, 0.5, "No transcript usage features",
-                  ha="center", va="center", transform=ax_c.transAxes, color="gray")
+        ax_c.text(
+            0.5,
+            0.5,
+            "No transcript usage features",
+            ha="center",
+            va="center",
+            transform=ax_c.transAxes,
+            color="gray",
+        )
         ax_c.set_axis_off()
     _panel_label(ax_c, "C", x=-0.08)
 
@@ -412,16 +465,34 @@ def plot_summary_panel(
             plot_isoform_gradient(result, feature_table, top_n=n_grad, axes=axes_d)
         except ValueError:
             for axi in axes_d:
-                axi.text(0.5, 0.5, "No data", ha="center", va="center",
-                         transform=axi.transAxes, color="gray")
+                axi.text(
+                    0.5,
+                    0.5,
+                    "No data",
+                    ha="center",
+                    va="center",
+                    transform=axi.transAxes,
+                    color="gray",
+                )
                 axi.set_axis_off()
         _panel_label(axes_d[0], "D", x=-0.15, y=1.1)
     else:
         ax_d = fig.add_subplot(gs[2, :])
-        msg = ("Pass feature_table for isoform gradient"
-               if not has_ft else "No transcript usage features")
-        ax_d.text(0.5, 0.5, msg, ha="center", va="center",
-                  transform=ax_d.transAxes, color="gray", fontstyle="italic")
+        msg = (
+            "Pass feature_table for isoform gradient"
+            if not has_ft
+            else "No transcript usage features"
+        )
+        ax_d.text(
+            0.5,
+            0.5,
+            msg,
+            ha="center",
+            va="center",
+            transform=ax_d.transAxes,
+            color="gray",
+            fontstyle="italic",
+        )
         ax_d.set_axis_off()
         _panel_label(ax_d, "D")
 

@@ -26,9 +26,7 @@ from scipy.stats import ConstantInputWarning
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from isograph.explain import explain_module
-from isograph.features.channels import FEATURE_SCORE_METADATA_COLUMNS
 from isograph.io.artifacts import load_dataset_bundle
-
 
 DEFAULT_STAGES = {
     "vae": "stress_multiplex_vae",

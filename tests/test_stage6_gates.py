@@ -25,7 +25,6 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -42,21 +41,39 @@ from isograph.workflow.config import BenchmarkCommandConfig, VaeModelConfig
 # Set to None until the first calibration benchmark run completes.
 # After calibration: set to observed_recovery - 0.10.
 # ---------------------------------------------------------------------------
-_GATE_XLARGE: float | None = 0.90    # observed=1.0 − 0.10; seed=7; 2026-04-23
-_GATE_XXLARGE: float | None = 0.90   # observed=1.0 − 0.10; seed=7; 2026-04-23
-_GATE_STRESS: float | None = 0.90    # observed=1.0 − 0.10; seed=7; 2026-04-25
+_GATE_XLARGE: float | None = 0.90  # observed=1.0 − 0.10; seed=7; 2026-04-23
+_GATE_XXLARGE: float | None = 0.90  # observed=1.0 − 0.10; seed=7; 2026-04-23
+_GATE_STRESS: float | None = 0.90  # observed=1.0 − 0.10; seed=7; 2026-04-25
 
 _XLARGE_CONFIG = VaeModelConfig(
-    hidden_dim=512, n_hidden_layers=3, batch_size=64,
-    n_epochs=800, beta=0.5, alpha=0.75, min_module_size=2, random_state=7,
+    hidden_dim=512,
+    n_hidden_layers=3,
+    batch_size=64,
+    n_epochs=800,
+    beta=0.5,
+    alpha=0.75,
+    min_module_size=2,
+    random_state=7,
 )
 _XXLARGE_CONFIG = VaeModelConfig(
-    hidden_dim=512, n_hidden_layers=3, batch_size=64,
-    n_epochs=1000, beta=0.5, alpha=0.75, min_module_size=2, random_state=7,
+    hidden_dim=512,
+    n_hidden_layers=3,
+    batch_size=64,
+    n_epochs=1000,
+    beta=0.5,
+    alpha=0.75,
+    min_module_size=2,
+    random_state=7,
 )
 _STRESS_CONFIG = VaeModelConfig(
-    hidden_dim=512, n_hidden_layers=3, batch_size=64,
-    n_epochs=1600, beta=0.5, alpha=0.75, min_module_size=2, random_state=7,
+    hidden_dim=512,
+    n_hidden_layers=3,
+    batch_size=64,
+    n_epochs=1600,
+    beta=0.5,
+    alpha=0.75,
+    min_module_size=2,
+    random_state=7,
 )
 
 
@@ -114,8 +131,13 @@ def test_xxlarge_v1_vae_module_table_schema(scale_suite):
 def test_vae_auto_batch_size_large_input(scale_suite):
     """When n_genes > 2000 and batch_size=None, VAE auto-sets an effective batch size."""
     cfg_no_batch = VaeModelConfig(
-        hidden_dim=512, n_hidden_layers=3, batch_size=None,
-        n_epochs=5, beta=0.5, alpha=0.75, random_state=7,
+        hidden_dim=512,
+        n_hidden_layers=3,
+        batch_size=None,
+        n_epochs=5,
+        beta=0.5,
+        alpha=0.75,
+        random_state=7,
     )
     bundle = load_dataset_bundle(scale_suite["xlarge_v1"])
     model = VaeNetworkModel(cfg_no_batch)
@@ -128,18 +150,24 @@ def test_vae_auto_batch_size_large_input(scale_suite):
 
 
 def test_vae_xlarge_calibration_fields(scale_suite):
-    arts, _ = _fit_vae(scale_suite["xlarge_v1"],
-                       VaeModelConfig(hidden_dim=512, n_hidden_layers=3, batch_size=64,
-                                      n_epochs=5, alpha=0.75, random_state=7))
+    arts, _ = _fit_vae(
+        scale_suite["xlarge_v1"],
+        VaeModelConfig(
+            hidden_dim=512, n_hidden_layers=3, batch_size=64, n_epochs=5, alpha=0.75, random_state=7
+        ),
+    )
     assert arts.calibration is not None
     assert "reconstruction_rmse" in arts.calibration
     assert "vae_latent_dim" in arts.calibration
 
 
 def test_vae_xxlarge_calibration_fields(scale_suite):
-    arts, _ = _fit_vae(scale_suite["xxlarge_v1"],
-                       VaeModelConfig(hidden_dim=512, n_hidden_layers=3, batch_size=64,
-                                      n_epochs=5, alpha=0.75, random_state=7))
+    arts, _ = _fit_vae(
+        scale_suite["xxlarge_v1"],
+        VaeModelConfig(
+            hidden_dim=512, n_hidden_layers=3, batch_size=64, n_epochs=5, alpha=0.75, random_state=7
+        ),
+    )
     assert arts.calibration is not None
     assert "reconstruction_rmse" in arts.calibration
 
@@ -163,9 +191,12 @@ def test_xxlarge_stress_v1_vae_module_table_schema(scale_suite):
 
 
 def test_vae_xxlarge_stress_calibration_fields(scale_suite):
-    arts, _ = _fit_vae(scale_suite["xxlarge_stress_v1"],
-                       VaeModelConfig(hidden_dim=512, n_hidden_layers=3, batch_size=64,
-                                      n_epochs=5, alpha=0.75, random_state=7))
+    arts, _ = _fit_vae(
+        scale_suite["xxlarge_stress_v1"],
+        VaeModelConfig(
+            hidden_dim=512, n_hidden_layers=3, batch_size=64, n_epochs=5, alpha=0.75, random_state=7
+        ),
+    )
     assert arts.calibration is not None
     assert "reconstruction_rmse" in arts.calibration
 
@@ -185,9 +216,7 @@ def test_xlarge_v1_vae_recovery(scale_suite):
     arts, bundle = _fit_vae(scale_suite["xlarge_v1"], _XLARGE_CONFIG)
     truth = bundle.truth_tables.get("truth_modules.parquet", pd.DataFrame())
     recovery = module_recovery_score(arts.module_table, truth)
-    assert recovery >= _GATE_XLARGE, (
-        f"xlarge_v1 recovery={recovery:.4f} < gate={_GATE_XLARGE:.4f}"
-    )
+    assert recovery >= _GATE_XLARGE, f"xlarge_v1 recovery={recovery:.4f} < gate={_GATE_XLARGE:.4f}"
 
 
 @pytest.mark.slow
@@ -200,9 +229,9 @@ def test_xxlarge_v1_vae_recovery(scale_suite):
     arts, bundle = _fit_vae(scale_suite["xxlarge_v1"], _XXLARGE_CONFIG)
     truth = bundle.truth_tables.get("truth_modules.parquet", pd.DataFrame())
     recovery = module_recovery_score(arts.module_table, truth)
-    assert recovery >= _GATE_XXLARGE, (
-        f"xxlarge_v1 recovery={recovery:.4f} < gate={_GATE_XXLARGE:.4f}"
-    )
+    assert (
+        recovery >= _GATE_XXLARGE
+    ), f"xxlarge_v1 recovery={recovery:.4f} < gate={_GATE_XXLARGE:.4f}"
 
 
 @pytest.mark.slow
@@ -231,9 +260,9 @@ def test_xxlarge_stress_v1_vae_recovery(scale_suite):
     arts, bundle = _fit_vae(scale_suite["xxlarge_stress_v1"], _STRESS_CONFIG)
     truth = bundle.truth_tables.get("truth_modules.parquet", pd.DataFrame())
     recovery = module_recovery_score(arts.module_table, truth)
-    assert recovery >= _GATE_STRESS, (
-        f"xxlarge_stress_v1 recovery={recovery:.4f} < gate={_GATE_STRESS:.4f}"
-    )
+    assert (
+        recovery >= _GATE_STRESS
+    ), f"xxlarge_stress_v1 recovery={recovery:.4f} < gate={_GATE_STRESS:.4f}"
 
 
 @pytest.mark.slow
