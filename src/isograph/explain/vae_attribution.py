@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -10,10 +11,13 @@ import pandas as pd
 from isograph.explain.config import ExplainConfig
 from isograph.features.channels import feature_sample_columns
 
+if TYPE_CHECKING:  # torch is an optional runtime dependency, imported lazily inside functions
+    import torch
+
 
 def _select_module_latent_dim(
-    encoder: "torch.nn.Module",
-    X: "torch.Tensor",
+    encoder: torch.nn.Module,
+    X: torch.Tensor,
     eigengene: np.ndarray,
 ) -> tuple[int, np.ndarray]:
     """Return (j_star, latent_r) where j_star is the latent dim most correlated with eigengene."""
@@ -172,7 +176,14 @@ def filter_vae_drivers(
     )
     keep_cols = [
         column
-        for column in ["gene_id", "feature_id", "feature_type", "decoded_delta", "latent_dim_idx", "latent_r"]
+        for column in [
+            "gene_id",
+            "feature_id",
+            "feature_type",
+            "decoded_delta",
+            "latent_dim_idx",
+            "latent_r",
+        ]
         if column in jacobian_gene.columns
     ]
     merged = gene_driver_table[["gene_id", "r", "qvalue"]].merge(
@@ -192,12 +203,14 @@ def filter_vae_drivers(
     # genes. Multiply by sign(latent_r) to get a direction-corrected delta before
     # the sign comparison.
     latent_direction = np.sign(merged["latent_r"]).replace(0, 1.0)
-    merged["sign_agreement"] = (
-        np.sign(merged["decoded_delta"] * latent_direction) == np.sign(merged["r"])
+    merged["sign_agreement"] = np.sign(merged["decoded_delta"] * latent_direction) == np.sign(
+        merged["r"]
     )
 
     passes_fdr = merged["qvalue"] <= config.vae_fdr_threshold
     passes_percentile = merged["decoded_delta_percentile"] >= config.vae_percentile_threshold
     merged["passes_filter"] = passes_fdr & passes_percentile & merged["sign_agreement"]
 
-    return merged.sort_values("decoded_delta", key=lambda s: s.abs(), ascending=False).reset_index(drop=True)
+    return merged.sort_values("decoded_delta", key=lambda s: s.abs(), ascending=False).reset_index(
+        drop=True
+    )

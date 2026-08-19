@@ -7,11 +7,11 @@ from pathlib import Path
 
 from isograph.evaluation.runner import benchmark, compare_reports, export_dataset_summary
 from isograph.evaluation.snapshots import compare_snapshot_dirs
+from isograph.io.artifacts import load_dataset_bundle
 from isograph.io.real_data import freeze_real_dataset
 from isograph.models.baseline import BaselineNetworkModel
-from isograph.io.artifacts import load_dataset_bundle
 from isograph.utils import dataclass_to_jsonable, ensure_dir, write_json
-from isograph.workflow.config import BenchmarkCommandConfig, CompareCommandConfig, FitCommandConfig
+from isograph.workflow.config import BenchmarkCommandConfig, FitCommandConfig
 from isograph.workflow.hydra import instantiate_dataclass, load_config
 
 
@@ -27,7 +27,9 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     bench = subparsers.add_parser("benchmark")
-    bench.add_argument("--config-name", default="benchmark", help="Hydra config name (without .yaml)")
+    bench.add_argument(
+        "--config-name", default="benchmark", help="Hydra config name (without .yaml)"
+    )
     freeze = subparsers.add_parser("freeze-real")
     freeze.add_argument("--suite-name", default="core_v1")
 
@@ -42,8 +44,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     compare = subparsers.add_parser("compare")
-    compare.add_argument("--reference", required=True, help="Reference snapshot directory or benchmark JSON report")
-    compare.add_argument("--candidate", required=True, help="Candidate snapshot directory or benchmark JSON report")
+    compare.add_argument(
+        "--reference", required=True, help="Reference snapshot directory or benchmark JSON report"
+    )
+    compare.add_argument(
+        "--candidate", required=True, help="Candidate snapshot directory or benchmark JSON report"
+    )
     compare.add_argument("--output-path", default="artifacts/reports/comparison.json")
 
     export = subparsers.add_parser("export")
@@ -55,7 +61,10 @@ def build_parser() -> argparse.ArgumentParser:
     explain.add_argument("--feature-table", required=True, dest="feature_table")
     explain.add_argument("--feature-meta", required=True, dest="feature_meta")
     explain.add_argument(
-        "--module-ids", nargs="*", default=None, dest="module_ids",
+        "--module-ids",
+        nargs="*",
+        default=None,
+        dest="module_ids",
         help="Module IDs to explain (default: all). Example: --module-ids M000 M001",
     )
     explain.add_argument("--output-dir", default="artifacts/explain", dest="output_dir")
@@ -64,17 +73,23 @@ def build_parser() -> argparse.ArgumentParser:
     explain.add_argument("--min-complete-pairs", type=int, default=3)
     explain.add_argument("--fdr-method", default="bh")
     explain.add_argument(
-        "--plot", action="store_true", default=False,
+        "--plot",
+        action="store_true",
+        default=False,
         help="Write plot files alongside parquet outputs.",
     )
     explain.add_argument(
-        "--output-format", nargs="+", default=["png"],
+        "--output-format",
+        nargs="+",
+        default=["png"],
         choices=["png", "pdf"],
         dest="output_format",
         help="Plot output format(s): png, pdf, or both (default: png).",
     )
     explain.add_argument(
-        "--annotation-table", default=None, dest="annotation_table",
+        "--annotation-table",
+        default=None,
+        dest="annotation_table",
         help=(
             "Optional path to a structural annotation table (TSV, CSV, or Parquet). "
             "Output of 'isograph annotate-structure' or compatible format. "
@@ -82,7 +97,10 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     explain.add_argument(
-        "--vae-attribution", action="store_true", default=False, dest="vae_attribution",
+        "--vae-attribution",
+        action="store_true",
+        default=False,
+        dest="vae_attribution",
         help=(
             "Enable VAE decoder attribution (Stage 8D). Requires a vae_checkpoint.pt in "
             "artifact_dir. Perturbs the module-associated latent dimension and decodes back "
@@ -90,15 +108,24 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     explain.add_argument(
-        "--vae-fdr-threshold", type=float, default=0.05, dest="vae_fdr_threshold",
+        "--vae-fdr-threshold",
+        type=float,
+        default=0.05,
+        dest="vae_fdr_threshold",
         help="FDR threshold for VAE high-confidence driver filter (default: 0.05).",
     )
     explain.add_argument(
-        "--vae-percentile-threshold", type=float, default=90.0, dest="vae_percentile_threshold",
+        "--vae-percentile-threshold",
+        type=float,
+        default=90.0,
+        dest="vae_percentile_threshold",
         help="Percentile threshold for |decoded_delta| in VAE driver filter (default: 90.0).",
     )
     explain.add_argument(
-        "--integrated-gradients", action="store_true", default=False, dest="integrated_gradients",
+        "--integrated-gradients",
+        action="store_true",
+        default=False,
+        dest="integrated_gradients",
         help=(
             "Enable Captum Integrated Gradients encoder attribution (Stage 8E). "
             "Requires a vae_checkpoint.pt in artifact_dir and captum installed "
@@ -106,27 +133,40 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     explain.add_argument(
-        "--ig-n-steps", type=int, default=50, dest="ig_n_steps",
+        "--ig-n-steps",
+        type=int,
+        default=50,
+        dest="ig_n_steps",
         help="Number of IG interpolation steps (default: 50). Higher values reduce approximation error.",
     )
     explain.add_argument(
-        "--ig-baseline", default="zero", choices=["zero", "mean"], dest="ig_baseline",
+        "--ig-baseline",
+        default="zero",
+        choices=["zero", "mean"],
+        dest="ig_baseline",
         help="IG baseline: 'zero' (no isoform switching, default) or 'mean' (per-sample gene mean).",
     )
 
     ann = subparsers.add_parser("annotate-structure")
-    ann.add_argument("--gtf", required=True, dest="gtf",
-                     help="Path to GTF or GTF.gz annotation file.")
     ann.add_argument(
-        "--switch-pairs", required=True, dest="switch_pairs",
+        "--gtf", required=True, dest="gtf", help="Path to GTF or GTF.gz annotation file."
+    )
+    ann.add_argument(
+        "--switch-pairs",
+        required=True,
+        dest="switch_pairs",
         help="TSV file with columns gene_id, transcript_id_1, transcript_id_2.",
     )
     ann.add_argument(
-        "--output", default="transcript_structure_annotations.tsv", dest="output",
+        "--output",
+        default="transcript_structure_annotations.tsv",
+        dest="output",
         help="Output TSV path (default: transcript_structure_annotations.tsv).",
     )
     ann.add_argument(
-        "--gtf-cache", default=None, dest="gtf_cache",
+        "--gtf-cache",
+        default=None,
+        dest="gtf_cache",
         help=(
             "Optional path for a GTF parse cache (Parquet). Written on first run, "
             "reloaded on subsequent runs — much faster on network filesystems."
@@ -168,26 +208,30 @@ def main(argv: list[str] | None = None) -> None:
             payload["backend"] = args.backend
         config = instantiate_dataclass(FitCommandConfig, payload)
         bundle = load_dataset_bundle(Path(config.dataset_path))
-        fit_kwargs = dict(
-            transcript_counts=bundle.matrices["transcript_counts"],
-            transcript_table=bundle.feature_tables["transcript"],
-            sample_table=bundle.sample_table,
-            gene_counts=bundle.matrices.get("gene_counts"),
-            gene_table=bundle.feature_tables.get("gene"),
-        )
+        fit_kwargs = {
+            "transcript_counts": bundle.matrices["transcript_counts"],
+            "transcript_table": bundle.feature_tables["transcript"],
+            "sample_table": bundle.sample_table,
+            "gene_counts": bundle.matrices.get("gene_counts"),
+            "gene_table": bundle.feature_tables.get("gene"),
+        }
         if config.backend == "baseline":
             model = BaselineNetworkModel(config.model)
         elif config.backend == "latent":
             from isograph.models.latent import LatentNetworkModel
+
             model = LatentNetworkModel(config.latent)
         elif config.backend == "graph":
             from isograph.models.graph import GraphNetworkModel
+
             model = GraphNetworkModel(config.graph)
         elif config.backend == "vae":
             from isograph.models.vae import VaeNetworkModel
+
             model = VaeNetworkModel(config.vae)
         elif config.backend == "wgcna":
             from isograph.models.wgcna import WgcnaNetworkModel
+
             model = WgcnaNetworkModel(config.wgcna)
         else:
             raise ValueError(f"Unknown backend: {config.backend!r}")
@@ -198,7 +242,9 @@ def main(argv: list[str] | None = None) -> None:
         artifacts.trait_table.to_parquet(output_dir / "traits.parquet", index=False)
         artifacts.feature_scores.to_parquet(output_dir / "feature_scores.parquet", index=False)
         if artifacts.module_gene_roles is not None:
-            artifacts.module_gene_roles.to_parquet(output_dir / "module_gene_roles.parquet", index=False)
+            artifacts.module_gene_roles.to_parquet(
+                output_dir / "module_gene_roles.parquet", index=False
+            )
         write_json(output_dir / "fit_config.json", dataclass_to_jsonable(config))
         if artifacts.calibration:
             write_json(output_dir / "calibration.json", artifacts.calibration)
@@ -228,6 +274,7 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.command == "explain-module":
         import pandas as pd
+
         from isograph.explain.annotation import load_annotation_table
         from isograph.explain.config import ExplainConfig
         from isograph.explain.core import explain_module
@@ -244,7 +291,9 @@ def main(argv: list[str] | None = None) -> None:
             if args.annotation_table is not None
             else None
         )
-        output_format = args.output_format[0] if len(args.output_format) == 1 else args.output_format
+        output_format = (
+            args.output_format[0] if len(args.output_format) == 1 else args.output_format
+        )
         config = ExplainConfig(
             split_percentile=args.split_percentile,
             min_complete_pairs=args.min_complete_pairs,
@@ -273,6 +322,7 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.command == "annotate-structure":
         import pandas as pd
+
         from isograph.explain.structure import annotate_switch_pairs
 
         switch_pairs = pd.read_csv(args.switch_pairs, sep="\t")

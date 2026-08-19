@@ -23,7 +23,6 @@ import time
 from pathlib import Path
 from unittest import mock
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -38,16 +37,28 @@ from isograph.models.wgcna import WgcnaNetworkModel
 from isograph.workflow.config import BenchmarkCommandConfig, WgcnaModelConfig
 
 _TOY_CONFIG = WgcnaModelConfig(
-    min_module_size=2, sft_r2_threshold=0.85, merge_cut_height=0.25,
-    deep_split=2, network_type="signed", random_state=7,
+    min_module_size=2,
+    sft_r2_threshold=0.85,
+    merge_cut_height=0.25,
+    deep_split=2,
+    network_type="signed",
+    random_state=7,
 )
 _MEDIUM_CONFIG = WgcnaModelConfig(
-    min_module_size=2, sft_r2_threshold=0.85, merge_cut_height=0.25,
-    deep_split=2, network_type="signed", random_state=7,
+    min_module_size=2,
+    sft_r2_threshold=0.85,
+    merge_cut_height=0.25,
+    deep_split=2,
+    network_type="signed",
+    random_state=7,
 )
 _NONLINEAR_CONFIG = WgcnaModelConfig(
-    min_module_size=2, sft_r2_threshold=0.85, merge_cut_height=0.25,
-    deep_split=2, network_type="signed", random_state=7,
+    min_module_size=2,
+    sft_r2_threshold=0.85,
+    merge_cut_height=0.25,
+    deep_split=2,
+    network_type="signed",
+    random_state=7,
 )
 
 _REQUIRED_CALIBRATION_KEYS = {
@@ -143,9 +154,9 @@ def test_wgcna_grey_excluded(core_suite):
     if not arts.module_table.empty:
         ids = arts.module_table["module_id"].unique()
         for mid in ids:
-            assert "grey" not in str(mid).lower(), (
-                f"Grey (unassigned) genes appear in module_table as module_id={mid!r}"
-            )
+            assert (
+                "grey" not in str(mid).lower()
+            ), f"Grey (unassigned) genes appear in module_table as module_id={mid!r}"
             assert mid.startswith("M"), f"module_id={mid!r} does not follow M000 format"
 
 
@@ -196,6 +207,7 @@ def test_wgcna_benchmark_runner(core_suite, tmp_path):
     result = benchmark(cfg)
     assert "report" in result
     import json
+
     report = json.loads(result["report"].read_text())
     assert "results" in report
     rows = {r["dataset"]: r for r in report["results"]}
@@ -219,8 +231,15 @@ def test_wgcna_vae_beats_wgcna_nonlinear_v1(core_suite):
     )
     wgcna_recovery = module_recovery_score(wgcna_arts.module_table, truth)
 
-    vae_cfg = VaeModelConfig(latent_dim=4, hidden_dim=128, n_epochs=800, beta=0.5,
-                             alpha=0.80, min_module_size=2, random_state=7)
+    vae_cfg = VaeModelConfig(
+        latent_dim=4,
+        hidden_dim=128,
+        n_epochs=800,
+        beta=0.5,
+        alpha=0.80,
+        min_module_size=2,
+        random_state=7,
+    )
     vae_arts = VaeNetworkModel(vae_cfg).fit(
         transcript_counts=bundle.matrices["transcript_counts"],
         transcript_table=bundle.feature_tables["transcript"],

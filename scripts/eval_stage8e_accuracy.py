@@ -48,61 +48,145 @@ from isograph.features.channels import feature_sample_columns
 from isograph.models.vae import VaeNetworkModel
 from isograph.workflow.config import VaeModelConfig
 
-
 # ---------------------------------------------------------------------------
 # Fixture specs (identical to eval_stage8d_accuracy.py)
 # ---------------------------------------------------------------------------
 
 _FIXTURES = [
-    ("toy_v1",       "simple",   SyntheticDatasetSpec(name="toy_v1",    n_genes=24,  n_samples=48,  n_modules=2, seed=0)),
-    ("medium_v1",    "simple",   SyntheticDatasetSpec(name="medium_v1", n_genes=400, n_samples=240, n_modules=8, seed=1)),
-    ("realistic_v1", "realistic", RealisticDatasetSpec(
-        name="realistic_v1", n_genes=200, n_samples=160, n_modules=5,
-        module_sizes=None, switching_fraction=0.5, confounder_weight=0.3,
-        count_dispersion=5.0, mean_gene_total=300.0, seed=2,
-    )),
-    ("noisy_v1", "realistic", RealisticDatasetSpec(
-        name="noisy_v1", n_genes=300, n_samples=100, n_modules=8,
-        module_sizes=[22, 18, 14, 11, 9, 8, 7, 6], switching_fraction=95/300,
-        confounder_weight=0.6, count_dispersion=15.0, mean_gene_total=300.0,
-        dx_effect_range=(0.2, 0.6), age_effect_range=(0.1, 0.25),
-        switching_concentration=10.0, nonswitching_concentration=80.0, seed=4,
-    )),
-    ("nonlinear_v1", "nonlinear", NonlinearDatasetSpec(
-        name="nonlinear_v1", n_genes=200, n_samples=200, n_modules=4,
-        n_nonlinear_modules=4, module_sizes=[30, 25, 25, 20],
-        switching_fraction=0.5, count_dispersion=5.0, mean_gene_total=300.0,
-        state_effect_size=2.5, state_background=0.15, confounder_weight=0.2,
-        switching_concentration=20.0, nonswitching_concentration=100.0, seed=42,
-    )),
-    ("large_v1", "realistic", RealisticDatasetSpec(
-        name="large_v1", n_genes=800, n_samples=120, n_modules=10,
-        module_sizes=[70, 55, 42, 32, 25, 20, 15, 12, 10, 9],
-        switching_fraction=290/800, confounder_weight=0.4,
-        count_dispersion=7.0, mean_gene_total=300.0,
-        dx_effect_range=(0.3, 0.8), age_effect_range=(0.1, 0.35),
-        switching_concentration=15.0, nonswitching_concentration=80.0, seed=5,
-    )),
-    ("xlarge_mini", "realistic", RealisticDatasetSpec(
-        name="xlarge_mini", n_genes=600, n_samples=240, n_modules=12,
-        module_sizes=None, switching_fraction=84/600,
-        confounder_weight=0.4, count_dispersion=7.0, mean_gene_total=300.0,
-        dx_effect_range=(0.4, 0.9), age_effect_range=(0.15, 0.45),
-        switching_concentration=20.0, nonswitching_concentration=100.0, seed=42,
-    )),
-    ("xxlarge_mini", "realistic", RealisticDatasetSpec(
-        name="xxlarge_mini", n_genes=400, n_samples=240, n_modules=16,
-        module_sizes=None, switching_fraction=96/400,
-        confounder_weight=0.4, count_dispersion=7.0, mean_gene_total=300.0,
-        dx_effect_range=(0.4, 0.9), age_effect_range=(0.15, 0.45),
-        switching_concentration=20.0, nonswitching_concentration=100.0, seed=42,
-    )),
+    (
+        "toy_v1",
+        "simple",
+        SyntheticDatasetSpec(name="toy_v1", n_genes=24, n_samples=48, n_modules=2, seed=0),
+    ),
+    (
+        "medium_v1",
+        "simple",
+        SyntheticDatasetSpec(name="medium_v1", n_genes=400, n_samples=240, n_modules=8, seed=1),
+    ),
+    (
+        "realistic_v1",
+        "realistic",
+        RealisticDatasetSpec(
+            name="realistic_v1",
+            n_genes=200,
+            n_samples=160,
+            n_modules=5,
+            module_sizes=None,
+            switching_fraction=0.5,
+            confounder_weight=0.3,
+            count_dispersion=5.0,
+            mean_gene_total=300.0,
+            seed=2,
+        ),
+    ),
+    (
+        "noisy_v1",
+        "realistic",
+        RealisticDatasetSpec(
+            name="noisy_v1",
+            n_genes=300,
+            n_samples=100,
+            n_modules=8,
+            module_sizes=[22, 18, 14, 11, 9, 8, 7, 6],
+            switching_fraction=95 / 300,
+            confounder_weight=0.6,
+            count_dispersion=15.0,
+            mean_gene_total=300.0,
+            dx_effect_range=(0.2, 0.6),
+            age_effect_range=(0.1, 0.25),
+            switching_concentration=10.0,
+            nonswitching_concentration=80.0,
+            seed=4,
+        ),
+    ),
+    (
+        "nonlinear_v1",
+        "nonlinear",
+        NonlinearDatasetSpec(
+            name="nonlinear_v1",
+            n_genes=200,
+            n_samples=200,
+            n_modules=4,
+            n_nonlinear_modules=4,
+            module_sizes=[30, 25, 25, 20],
+            switching_fraction=0.5,
+            count_dispersion=5.0,
+            mean_gene_total=300.0,
+            state_effect_size=2.5,
+            state_background=0.15,
+            confounder_weight=0.2,
+            switching_concentration=20.0,
+            nonswitching_concentration=100.0,
+            seed=42,
+        ),
+    ),
+    (
+        "large_v1",
+        "realistic",
+        RealisticDatasetSpec(
+            name="large_v1",
+            n_genes=800,
+            n_samples=120,
+            n_modules=10,
+            module_sizes=[70, 55, 42, 32, 25, 20, 15, 12, 10, 9],
+            switching_fraction=290 / 800,
+            confounder_weight=0.4,
+            count_dispersion=7.0,
+            mean_gene_total=300.0,
+            dx_effect_range=(0.3, 0.8),
+            age_effect_range=(0.1, 0.35),
+            switching_concentration=15.0,
+            nonswitching_concentration=80.0,
+            seed=5,
+        ),
+    ),
+    (
+        "xlarge_mini",
+        "realistic",
+        RealisticDatasetSpec(
+            name="xlarge_mini",
+            n_genes=600,
+            n_samples=240,
+            n_modules=12,
+            module_sizes=None,
+            switching_fraction=84 / 600,
+            confounder_weight=0.4,
+            count_dispersion=7.0,
+            mean_gene_total=300.0,
+            dx_effect_range=(0.4, 0.9),
+            age_effect_range=(0.15, 0.45),
+            switching_concentration=20.0,
+            nonswitching_concentration=100.0,
+            seed=42,
+        ),
+    ),
+    (
+        "xxlarge_mini",
+        "realistic",
+        RealisticDatasetSpec(
+            name="xxlarge_mini",
+            n_genes=400,
+            n_samples=240,
+            n_modules=16,
+            module_sizes=None,
+            switching_fraction=96 / 400,
+            confounder_weight=0.4,
+            count_dispersion=7.0,
+            mean_gene_total=300.0,
+            dx_effect_range=(0.4, 0.9),
+            age_effect_range=(0.15, 0.45),
+            switching_concentration=20.0,
+            nonswitching_concentration=100.0,
+            seed=42,
+        ),
+    ),
 ]
 
 
 # ---------------------------------------------------------------------------
 # Helpers (shared with eval_stage8d_accuracy.py)
 # ---------------------------------------------------------------------------
+
 
 def _make_bundle(spec):
     if isinstance(spec, SyntheticDatasetSpec):
@@ -120,7 +204,9 @@ def _build_transcript_usage(transcript_counts, transcript_table, sample_ids):
         block = transcript_counts[idx]
         totals = block.sum(axis=0, keepdims=True)
         usage[idx] = block / np.maximum(totals, 1.0)
-    return pd.DataFrame(usage.T, index=sample_ids, columns=transcript_table["transcript_id"].tolist())
+    return pd.DataFrame(
+        usage.T, index=sample_ids, columns=transcript_table["transcript_id"].tolist()
+    )
 
 
 def _vae_config_for(n_genes: int, artifact_dir: Path) -> VaeModelConfig:
@@ -153,10 +239,10 @@ def _fit_vae_and_write(bundle, artifact_dir: Path):
             transcript_counts=bundle.matrices["transcript_counts"],
             transcript_table=bundle.feature_tables["transcript"],
             sample_table=bundle.sample_table,
-    )
+        )
     fs = artifacts.feature_scores.copy()
     sample_cols = feature_sample_columns(fs)
-    fs = fs.rename(columns={old: new for old, new in zip(sample_cols, sample_ids)})
+    fs = fs.rename(columns=dict(zip(sample_cols, sample_ids, strict=False)))
     artifacts.module_table.to_parquet(artifact_dir / "modules.parquet", index=False)
     fs.to_parquet(artifact_dir / "feature_scores.parquet", index=False)
     return artifacts.module_table, fs
@@ -191,17 +277,18 @@ _MIN_MODULE_GENES_LARGE = 10
 # Accuracy computation
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class AccuracyResult:
     fixture: str
     n_genes: int
     n_samples: int
     n_fitted_modules: int
-    switch_auc_ig: float    # AUC(|ig_score_abs_mean|, truth_switch) over module genes
-    switch_auc_r: float     # AUC(|r|, truth_switch) over module genes (8A baseline)
-    member_auc: float       # AUC(|ig_score_abs_mean|, module_membership) over ALL genes
-    member_auc_large: float # member_auc restricted to modules with ≥_MIN_MODULE_GENES_LARGE genes
-    sign_agree: float       # fraction sign(ig_score_corrected)==sign(r) over module genes
+    switch_auc_ig: float  # AUC(|ig_score_abs_mean|, truth_switch) over module genes
+    switch_auc_r: float  # AUC(|r|, truth_switch) over module genes (8A baseline)
+    member_auc: float  # AUC(|ig_score_abs_mean|, module_membership) over ALL genes
+    member_auc_large: float  # member_auc restricted to modules with ≥_MIN_MODULE_GENES_LARGE genes
+    sign_agree: float  # fraction sign(ig_score_corrected)==sign(r) over module genes
     precision_at_filter: float
     fit_seconds: float
     attr_seconds: float
@@ -292,12 +379,10 @@ def _compute_accuracy(
             tbl = result.gene_driver_table[result.gene_driver_table["r"].notna()].copy()
             if tbl.empty:
                 continue
-            tbl["ig_abs"] = tbl["gene_id"].map(
-                ig_df["ig_score_abs_mean"].to_dict()
-            ).fillna(0.0)
-            tbl["ig_corrected"] = tbl["gene_id"].map(
-                ig_df["ig_score_corrected"].to_dict()
-            ).fillna(0.0)
+            tbl["ig_abs"] = tbl["gene_id"].map(ig_df["ig_score_abs_mean"].to_dict()).fillna(0.0)
+            tbl["ig_corrected"] = (
+                tbl["gene_id"].map(ig_df["ig_score_corrected"].to_dict()).fillna(0.0)
+            )
             abs_vals = tbl["ig_abs"]
             if abs_vals.max() == 0:
                 continue
@@ -333,10 +418,11 @@ def _compute_accuracy(
 # Main
 # ---------------------------------------------------------------------------
 
+
 def run_all():
     results: list[AccuracyResult] = []
 
-    for fixture_name, fixture_type, spec in _FIXTURES:
+    for fixture_name, _fixture_type, spec in _FIXTURES:
         n_genes = spec.n_genes
         n_samples = spec.n_samples
         print(f"\n{'='*60}")
@@ -353,12 +439,14 @@ def run_all():
         feature_table = _build_transcript_usage(
             bundle.matrices["transcript_counts"], transcript_table, sample_ids
         )
-        feature_meta = pd.DataFrame({
-            "feature_id": transcript_table["transcript_id"].tolist(),
-            "gene_id": transcript_table["gene_id"].tolist(),
-            "transcript_id": transcript_table["transcript_id"].tolist(),
-            "feature_type": "transcript_usage",
-        })
+        feature_meta = pd.DataFrame(
+            {
+                "feature_id": transcript_table["transcript_id"].tolist(),
+                "gene_id": transcript_table["gene_id"].tolist(),
+                "transcript_id": transcript_table["transcript_id"].tolist(),
+                "feature_type": "transcript_usage",
+            }
+        )
 
         with tempfile.TemporaryDirectory() as tmpdir:
             artifact_dir = Path(tmpdir)
@@ -401,25 +489,35 @@ def _print_row(r: AccuracyResult):
     tag = " (all-switch)" if r.all_switch else ""
     print(f"\n  Results for {r.fixture}{tag}:")
     print(f"    Fitted modules:    {r.n_fitted_modules}")
-    print(f"    member_auc:        {r.member_auc:.3f}   (|ig_score_abs_mean| vs module membership, all genes)")
+    print(
+        f"    member_auc:        {r.member_auc:.3f}   (|ig_score_abs_mean| vs module membership, all genes)"
+    )
     if not np.isnan(r.member_auc_large):
-        print(f"    member_auc_large:  {r.member_auc_large:.3f}   (modules with ≥{_MIN_MODULE_GENES_LARGE} genes only)")
-    print(f"    switch_auc_ig:     {r.switch_auc_ig:.3f}   (|ig_score_abs_mean| vs truth_switch, module genes)")
+        print(
+            f"    member_auc_large:  {r.member_auc_large:.3f}   (modules with ≥{_MIN_MODULE_GENES_LARGE} genes only)"
+        )
+    print(
+        f"    switch_auc_ig:     {r.switch_auc_ig:.3f}   (|ig_score_abs_mean| vs truth_switch, module genes)"
+    )
     print(f"    switch_auc_r:      {r.switch_auc_r:.3f}   (|r| vs truth_switch — 8A baseline)")
-    print(f"    sign_agree:        {r.sign_agree:.3f}   (fraction sign(ig_score_corrected)==sign(r))")
+    print(
+        f"    sign_agree:        {r.sign_agree:.3f}   (fraction sign(ig_score_corrected)==sign(r))"
+    )
     if not np.isnan(r.precision_at_filter):
-        print(f"    precision@filter:  {r.precision_at_filter:.3f}   (true switching among passing genes)")
+        print(
+            f"    precision@filter:  {r.precision_at_filter:.3f}   (true switching among passing genes)"
+        )
     print(f"    fit_time:          {r.fit_seconds:.1f}s")
     print(f"    attr_time:         {r.attr_seconds:.2f}s")
 
 
 def _print_summary(results: list[AccuracyResult]):
-    print("\n\n" + "="*100)
+    print("\n\n" + "=" * 100)
     print("SUMMARY TABLE — Stage 8E Captum Integrated Gradients")
-    print("="*100)
+    print("=" * 100)
     hdr = f"{'Fixture':<16} {'Genes':>6} {'Mods':>5}  {'member_auc':>10}  {'mem_large':>9}  {'switch_ig':>10}  {'switch_r':>10}  {'sign_agree':>10}  {'prec@filt':>9}"
     print(hdr)
-    print("-"*100)
+    print("-" * 100)
     for r in results:
         tag = "*" if r.all_switch else " "
         ml = f"{r.member_auc_large:>9.3f}" if not np.isnan(r.member_auc_large) else f"{'—':>9}"
@@ -434,10 +532,12 @@ def _print_summary(results: list[AccuracyResult]):
             f"  {r.precision_at_filter:>9.3f}"
         )
         print(row)
-    print("-"*100)
+    print("-" * 100)
     print("  * = all genes are switching (toy/medium); switch_auc uninformative")
     print("  member_auc:   AUC of |ig_score_abs_mean| distinguishing module genes from all genes")
-    print(f"  mem_large:    member_auc restricted to modules with ≥{_MIN_MODULE_GENES_LARGE} genes (excludes over-segmentation noise)")
+    print(
+        f"  mem_large:    member_auc restricted to modules with ≥{_MIN_MODULE_GENES_LARGE} genes (excludes over-segmentation noise)"
+    )
     print("  switch_ig:    AUC of |ig_score_abs_mean| predicting truth_switch, within module genes")
     print("  switch_r:     AUC of |r| predicting truth_switch (Stage 8A baseline)")
     print("  sign_agree:   fraction of module genes where sign(ig_score_corrected) == sign(r)")

@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import math
 import warnings
-from pathlib import Path
 
 import pytest
 
@@ -80,8 +79,11 @@ def _metrics(artifacts, bundle) -> dict:
 def stress_bundles(tmp_path_factory):
     root = tmp_path_factory.mktemp("edge_topo")
     paths = generate_core_suite(root, seed=7)
-    return {p.name: load_dataset_bundle(p) for p in paths
-            if p.name in ("noisy_v1", "large_v1", "nonlinear_v1")}
+    return {
+        p.name: load_dataset_bundle(p)
+        for p in paths
+        if p.name in ("noisy_v1", "large_v1", "nonlinear_v1")
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -109,8 +111,8 @@ def test_edge_topology_comparison_table(stress_bundles):
     for name, bundle in sorted(stress_bundles.items()):
         s1_cfg, s2_cfg, s3_cfg = _CONFIGS[name]
         a1 = _fit(BaselineNetworkModel, s1_cfg, bundle)
-        a2 = _fit(LatentNetworkModel,   s2_cfg, bundle)
-        a3 = _fit(GraphNetworkModel,    s3_cfg, bundle)
+        a2 = _fit(LatentNetworkModel, s2_cfg, bundle)
+        a3 = _fit(GraphNetworkModel, s3_cfg, bundle)
         m1, m2, m3 = _metrics(a1, bundle), _metrics(a2, bundle), _metrics(a3, bundle)
         print(_row(name, 1, m1))
         print(_row(name, 2, m2))
@@ -135,9 +137,9 @@ def test_noisy_v1_stage2_precision_high(stress_bundles):
     bundle = stress_bundles["noisy_v1"]
     a2 = _fit(LatentNetworkModel, s2_cfg, bundle)
     p2 = edge_topology_report(a2.edge_table, bundle.truth_tables["truth_modules.parquet"])
-    assert p2["within_module_precision"] >= 0.85, (
-        f"Stage 2 within-module precision {p2['within_module_precision']:.3f} < 0.85 on noisy_v1"
-    )
+    assert (
+        p2["within_module_precision"] >= 0.85
+    ), f"Stage 2 within-module precision {p2['within_module_precision']:.3f} < 0.85 on noisy_v1"
 
 
 def test_large_v1_stage2_precision_high(stress_bundles):
@@ -146,9 +148,9 @@ def test_large_v1_stage2_precision_high(stress_bundles):
     bundle = stress_bundles["large_v1"]
     a2 = _fit(LatentNetworkModel, s2_cfg, bundle)
     p2 = edge_topology_report(a2.edge_table, bundle.truth_tables["truth_modules.parquet"])
-    assert p2["within_module_precision"] >= 0.85, (
-        f"Stage 2 within-module precision {p2['within_module_precision']:.3f} < 0.85 on large_v1"
-    )
+    assert (
+        p2["within_module_precision"] >= 0.85
+    ), f"Stage 2 within-module precision {p2['within_module_precision']:.3f} < 0.85 on large_v1"
 
 
 def _enrichment_ge(we: float, threshold: float) -> bool:
@@ -182,9 +184,7 @@ def test_stage3_weight_enrichment_above_1(stress_bundles):
         arts = _fit(GraphNetworkModel, s3_cfg, bundle)
         topo = edge_topology_report(arts.edge_table, bundle.truth_tables["truth_modules.parquet"])
         we = topo["weight_enrichment"]
-        assert _enrichment_ge(we, 1.0), (
-            f"Stage 3 {name}: weight_enrichment={we} <= 1.0"
-        )
+        assert _enrichment_ge(we, 1.0), f"Stage 3 {name}: weight_enrichment={we} <= 1.0"
 
 
 def test_stage3_weight_enrichment_ge_stage2(stress_bundles):
@@ -195,7 +195,7 @@ def test_stage3_weight_enrichment_ge_stage2(stress_bundles):
     for name, bundle in stress_bundles.items():
         _, s2_cfg, s3_cfg = _CONFIGS[name]
         a2 = _fit(LatentNetworkModel, s2_cfg, bundle)
-        a3 = _fit(GraphNetworkModel,  s3_cfg, bundle)
+        a3 = _fit(GraphNetworkModel, s3_cfg, bundle)
         truth = bundle.truth_tables["truth_modules.parquet"]
         t2 = edge_topology_report(a2.edge_table, truth)
         t3 = edge_topology_report(a3.edge_table, truth)

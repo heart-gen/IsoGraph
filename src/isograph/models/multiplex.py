@@ -37,32 +37,38 @@ def select_alpha_switch(
 
     for candidate in sorted(alpha_switch_grid):
         graph, _ = project_feature_similarity_to_gene_graph(
-            similarity, feature_info, _SUPPRESS,
+            similarity,
+            feature_info,
+            _SUPPRESS,
             allow_abundance_abundance=False,
             alpha_switch=candidate,
         )
         connected = [n for n in graph.nodes if graph.degree(n) > 0]
         n_connected = len(connected)
         if n_connected == 0:
-            sweep_stats.append({
-                "alpha_switch": candidate,
-                "n_switch_connected": 0,
-                "giant_size": 0,
-                "giant_fraction": 0.0,
-                "n_modules_ge30": 0,
-            })
+            sweep_stats.append(
+                {
+                    "alpha_switch": candidate,
+                    "n_switch_connected": 0,
+                    "giant_size": 0,
+                    "giant_fraction": 0.0,
+                    "n_modules_ge30": 0,
+                }
+            )
             continue
         comps = sorted(nx.connected_components(graph.subgraph(connected)), key=len, reverse=True)
         giant_size = len(comps[0])
         giant_frac = giant_size / n_connected
         n_modules = sum(1 for c in comps if len(c) >= 30)
-        sweep_stats.append({
-            "alpha_switch": candidate,
-            "n_switch_connected": n_connected,
-            "giant_size": giant_size,
-            "giant_fraction": round(giant_frac, 4),
-            "n_modules_ge30": n_modules,
-        })
+        sweep_stats.append(
+            {
+                "alpha_switch": candidate,
+                "n_switch_connected": n_connected,
+                "giant_size": giant_size,
+                "giant_fraction": round(giant_frac, 4),
+                "n_modules_ge30": n_modules,
+            }
+        )
         if giant_frac < giant_fraction_threshold:
             selected = candidate
             break
@@ -87,13 +93,13 @@ def select_alpha_abundance(
     no multi-gene components.
     """
     baseline_graph, _ = project_feature_similarity_to_gene_graph(
-        similarity, feature_info, alpha,
+        similarity,
+        feature_info,
+        alpha,
         allow_abundance_abundance=False,
         alpha_switch=alpha_switch,
     )
-    baseline_comps = [
-        frozenset(c) for c in nx.connected_components(baseline_graph) if len(c) >= 2
-    ]
+    baseline_comps = [frozenset(c) for c in nx.connected_components(baseline_graph) if len(c) >= 2]
     if not baseline_comps:
         return max(alpha_abundance_grid)
 
@@ -105,7 +111,9 @@ def select_alpha_abundance(
 
     for candidate in sorted(alpha_abundance_grid):
         graph, _ = project_feature_similarity_to_gene_graph(
-            similarity, feature_info, alpha,
+            similarity,
+            feature_info,
+            alpha,
             allow_abundance_abundance=True,
             alpha_abundance=candidate,
             alpha_switch=alpha_switch,
@@ -186,7 +194,9 @@ def project_feature_similarity_to_gene_graph(
     """
     gene_ids = sorted(feature_info["gene_id"].astype(str).unique())
     genes_with_switch = set(
-        feature_info.loc[feature_info["feature_type"].astype(str) == "switch", "gene_id"].astype(str)
+        feature_info.loc[feature_info["feature_type"].astype(str) == "switch", "gene_id"].astype(
+            str
+        )
     )
     graph = nx.Graph()
     graph.add_nodes_from(gene_ids)
@@ -228,7 +238,7 @@ def project_feature_similarity_to_gene_graph(
     _i_arr = np.concatenate(_i_parts) if _i_parts else np.empty(0, dtype=np.intp)
     _j_arr = np.concatenate(_j_parts) if _j_parts else np.empty(0, dtype=np.intp)
 
-    for i, j in zip(_i_arr, _j_arr):
+    for i, j in zip(_i_arr, _j_arr, strict=False):
         source_gene = _gene_ids[i]
         target_gene = _gene_ids[j]
         if source_gene == target_gene:
@@ -272,7 +282,11 @@ def project_feature_similarity_to_gene_graph(
         # Resolve per-channel threshold.
         if alpha_switch is not None and source_type == "switch" and target_type == "switch":
             effective_alpha = alpha_switch
-        elif alpha_abundance is not None and source_type == "abundance" and target_type == "abundance":
+        elif (
+            alpha_abundance is not None
+            and source_type == "abundance"
+            and target_type == "abundance"
+        ):
             effective_alpha = alpha_abundance
         else:
             effective_alpha = alpha

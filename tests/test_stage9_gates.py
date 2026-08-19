@@ -46,6 +46,7 @@ import pytest
 
 try:
     import torch as _torch
+
     _TORCH_AVAILABLE = True
 except ImportError:
     _TORCH_AVAILABLE = False
@@ -80,43 +81,71 @@ _ALPHA_ABUNDANCE_GRID_VAE = [0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90]
 _ALPHA_ABUNDANCE_GRID_GRAPH_LATENT = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
 
 _TOY_VAE_CONFIG = VaeModelConfig(
-    latent_dim=4, hidden_dim=64, n_hidden_layers=2,
-    n_epochs=500, beta=0.5, alpha=0.70, alpha_switch=0.70,
+    latent_dim=4,
+    hidden_dim=64,
+    n_hidden_layers=2,
+    n_epochs=500,
+    beta=0.5,
+    alpha=0.70,
+    alpha_switch=0.70,
     allow_abundance_abundance=True,
     alpha_abundance_grid=_ALPHA_ABUNDANCE_GRID_VAE,
-    min_module_size=2, random_state=7,
+    min_module_size=2,
+    random_state=7,
 )
 _MEDIUM_VAE_CONFIG = VaeModelConfig(
-    latent_dim=12, hidden_dim=128, n_hidden_layers=2,
-    n_epochs=500, beta=0.5, alpha=0.70, alpha_switch=0.70,
+    latent_dim=12,
+    hidden_dim=128,
+    n_hidden_layers=2,
+    n_epochs=500,
+    beta=0.5,
+    alpha=0.70,
+    alpha_switch=0.70,
     allow_abundance_abundance=True,
     alpha_abundance_grid=_ALPHA_ABUNDANCE_GRID_VAE,
-    min_module_size=2, random_state=7,
+    min_module_size=2,
+    random_state=7,
 )
 _NOISY_VAE_CONFIG = VaeModelConfig(
-    latent_dim=8, hidden_dim=128, n_hidden_layers=2,
-    n_epochs=500, beta=0.5, alpha=0.70, alpha_switch=0.70,
+    latent_dim=8,
+    hidden_dim=128,
+    n_hidden_layers=2,
+    n_epochs=500,
+    beta=0.5,
+    alpha=0.70,
+    alpha_switch=0.70,
     allow_abundance_abundance=True,
     alpha_abundance_grid=_ALPHA_ABUNDANCE_GRID_VAE,
-    min_module_size=2, random_state=7,
+    min_module_size=2,
+    random_state=7,
 )
 _LARGE_VAE_CONFIG = VaeModelConfig(
-    latent_dim=10, hidden_dim=128, n_hidden_layers=2,
-    n_epochs=500, beta=0.5, alpha=0.70, alpha_switch=0.70,
+    latent_dim=10,
+    hidden_dim=128,
+    n_hidden_layers=2,
+    n_epochs=500,
+    beta=0.5,
+    alpha=0.70,
+    alpha_switch=0.70,
     allow_abundance_abundance=True,
     alpha_abundance_grid=_ALPHA_ABUNDANCE_GRID_VAE,
-    min_module_size=2, random_state=7,
+    min_module_size=2,
+    random_state=7,
 )
 
 # Per-fixture configs (graph)
 _MEDIUM_GRAPH_CONFIG = GraphModelConfig(
-    n_components=12, alpha=0.02, alpha_switch=0.02,
+    n_components=12,
+    alpha=0.02,
+    alpha_switch=0.02,
     allow_abundance_abundance=True,
     alpha_abundance_grid=_ALPHA_ABUNDANCE_GRID_GRAPH_LATENT,
     min_module_size=2,
 )
 _NOISY_GRAPH_CONFIG = GraphModelConfig(
-    n_components=8, alpha=0.02, alpha_switch=0.02,
+    n_components=8,
+    alpha=0.02,
+    alpha_switch=0.02,
     allow_abundance_abundance=True,
     alpha_abundance_grid=_ALPHA_ABUNDANCE_GRID_GRAPH_LATENT,
     min_module_size=2,
@@ -150,6 +179,7 @@ def multiplex_suite(tmp_path_factory):
 
 def _fit_vae(dataset_dir: Path, config: VaeModelConfig):
     from isograph.models.vae import VaeNetworkModel
+
     bundle = load_dataset_bundle(dataset_dir)
     model = VaeNetworkModel(config)
     artifacts = model.fit(
@@ -164,6 +194,7 @@ def _fit_vae(dataset_dir: Path, config: VaeModelConfig):
 
 def _fit_graph(dataset_dir: Path, config: GraphModelConfig):
     from isograph.models.graph import GraphNetworkModel
+
     bundle = load_dataset_bundle(dataset_dir)
     model = GraphNetworkModel(config)
     artifacts = model.fit(
@@ -183,8 +214,10 @@ def _fit_graph(dataset_dir: Path, config: GraphModelConfig):
 
 def test_multiplex_suite_fixture_names(multiplex_suite):
     expected = {
-        "toy_multiplex_v1", "medium_multiplex_v1",
-        "noisy_multiplex_v1", "large_multiplex_v1",
+        "toy_multiplex_v1",
+        "medium_multiplex_v1",
+        "noisy_multiplex_v1",
+        "large_multiplex_v1",
     }
     assert expected == set(multiplex_suite.keys())
 
@@ -193,7 +226,9 @@ def test_multiplex_fixtures_have_truth_tables(multiplex_suite):
     for name, path in multiplex_suite.items():
         bundle = load_dataset_bundle(path)
         assert "truth_modules.parquet" in bundle.truth_tables, f"{name}: missing truth_modules"
-        assert "truth_channel_role.parquet" in bundle.truth_tables, f"{name}: missing truth_channel_role"
+        assert (
+            "truth_channel_role.parquet" in bundle.truth_tables
+        ), f"{name}: missing truth_channel_role"
 
 
 def test_multiplex_fixtures_have_gene_counts(multiplex_suite):
@@ -312,9 +347,9 @@ def test_medium_multiplex_vae_abundance_recall(multiplex_suite):
     arts, bundle = _fit_vae(multiplex_suite["medium_multiplex_v1"], _MEDIUM_VAE_CONFIG)
     truth_role = bundle.truth_tables["truth_channel_role.parquet"]
     recall = role_aware_recall(arts.module_table, truth_role)["abundance_only"]
-    assert recall >= _GATE_AB_RECALL_MEDIUM_VAE, (
-        f"abundance_only recall={recall:.4f} < gate={_GATE_AB_RECALL_MEDIUM_VAE}"
-    )
+    assert (
+        recall >= _GATE_AB_RECALL_MEDIUM_VAE
+    ), f"abundance_only recall={recall:.4f} < gate={_GATE_AB_RECALL_MEDIUM_VAE}"
 
 
 @_skip_no_torch
@@ -325,9 +360,9 @@ def test_noisy_multiplex_vae_abundance_recall(multiplex_suite):
     arts, bundle = _fit_vae(multiplex_suite["noisy_multiplex_v1"], _NOISY_VAE_CONFIG)
     truth_role = bundle.truth_tables["truth_channel_role.parquet"]
     recall = role_aware_recall(arts.module_table, truth_role)["abundance_only"]
-    assert recall >= _GATE_AB_RECALL_NOISY_VAE, (
-        f"abundance_only recall={recall:.4f} < gate={_GATE_AB_RECALL_NOISY_VAE}"
-    )
+    assert (
+        recall >= _GATE_AB_RECALL_NOISY_VAE
+    ), f"abundance_only recall={recall:.4f} < gate={_GATE_AB_RECALL_NOISY_VAE}"
 
 
 @_skip_no_torch
@@ -338,9 +373,9 @@ def test_large_multiplex_vae_abundance_recall(multiplex_suite):
     arts, bundle = _fit_vae(multiplex_suite["large_multiplex_v1"], _LARGE_VAE_CONFIG)
     truth_role = bundle.truth_tables["truth_channel_role.parquet"]
     recall = role_aware_recall(arts.module_table, truth_role)["abundance_only"]
-    assert recall >= _GATE_AB_RECALL_LARGE_VAE, (
-        f"abundance_only recall={recall:.4f} < gate={_GATE_AB_RECALL_LARGE_VAE}"
-    )
+    assert (
+        recall >= _GATE_AB_RECALL_LARGE_VAE
+    ), f"abundance_only recall={recall:.4f} < gate={_GATE_AB_RECALL_LARGE_VAE}"
 
 
 # ---------------------------------------------------------------------------
@@ -353,7 +388,9 @@ def test_medium_multiplex_graph_no_giant_component(multiplex_suite):
     arts, bundle = _fit_graph(multiplex_suite["medium_multiplex_v1"], _MEDIUM_GRAPH_CONFIG)
     n_genes = len(bundle.feature_tables.get("gene", pd.DataFrame()))
     frac = giant_component_fraction(arts.edge_table, n_genes)
-    assert frac < 0.50, f"Giant component fraction {frac:.3f} >= 0.50 on medium_multiplex_v1 (graph)"
+    assert (
+        frac < 0.50
+    ), f"Giant component fraction {frac:.3f} >= 0.50 on medium_multiplex_v1 (graph)"
 
 
 @pytest.mark.slow

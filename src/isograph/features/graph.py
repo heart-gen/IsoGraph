@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import numpy as np
 import networkx as nx
+import numpy as np
 import pandas as pd
 from scipy import linalg
 
@@ -59,7 +59,7 @@ def _add_corr_edges(
     R = np.corrcoef(switch_matrix)  # (n_genes, n_genes)
     np.fill_diagonal(R, 0.0)
     rows, cols = np.where(np.abs(R) >= threshold)
-    for i, j in zip(rows, cols):
+    for i, j in zip(rows, cols, strict=False):
         if i < j:
             w = float(abs(R[i, j]))
             if graph.has_edge(gene_ids[i], gene_ids[j]):
@@ -79,11 +79,7 @@ def _add_same_gene_edges(
     gene_id_set = set(gene_ids)
     # Find transcripts that map to multiple genes (read-through / multi-gene rows)
     # In current fixtures each transcript maps to exactly one gene, so this is a no-op.
-    multi = (
-        transcript_table.groupby("transcript_id")["gene_id"]
-        .apply(list)
-        .reset_index()
-    )
+    multi = transcript_table.groupby("transcript_id")["gene_id"].apply(list).reset_index()
     for _, row in multi.iterrows():
         genes = [g for g in row["gene_id"] if g in gene_id_set]
         for a_idx in range(len(genes)):

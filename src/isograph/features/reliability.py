@@ -59,9 +59,7 @@ def gene_switch_estimability(
     return reliability
 
 
-def degradation_direction(
-    sample_table: pd.DataFrame, covariate: str
-) -> np.ndarray | None:
+def degradation_direction(sample_table: pd.DataFrame, covariate: str) -> np.ndarray | None:
     """Unit-norm, mean-centered sample vector for a degradation covariate.
 
     Returns None when the covariate is absent, non-numeric, or constant (no

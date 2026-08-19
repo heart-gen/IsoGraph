@@ -45,7 +45,7 @@ class StabilityResult:
 
 
 def stability_selection(
-    model: "NetworkModel",
+    model: NetworkModel,
     transcript_counts: np.ndarray,
     transcript_table: pd.DataFrame,
     sample_table: pd.DataFrame,
@@ -149,13 +149,12 @@ def stability_selection(
         edge_stability[alpha] = stability
 
     stable_edge_counts = [
-        sum(1 for s in edge_stability[a].values() if s >= stability_threshold)
-        for a in alpha_grid
+        sum(1 for s in edge_stability[a].values() if s >= stability_threshold) for a in alpha_grid
     ]
 
     # Recommended alpha: largest alpha with at least 1 stable edge.
     recommended_alpha = alpha_grid[-1]
-    for a, count in zip(alpha_grid, stable_edge_counts):
+    for a, count in zip(alpha_grid, stable_edge_counts, strict=False):
         if count > 0:
             recommended_alpha = a
 

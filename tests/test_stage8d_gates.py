@@ -14,6 +14,7 @@ from isograph.explain.vae_attribution import filter_vae_drivers
 
 try:
     import torch as _torch
+
     _TORCH_AVAILABLE = True
 except ImportError:
     _TORCH_AVAILABLE = False
@@ -40,31 +41,39 @@ def _make_synthetic_explain_inputs(
     module_assignment = np.repeat(np.arange(n_modules), genes_per_module)[:n_genes]
     module_latent = rng.normal(size=(n_modules, n_samples))
 
-    switch_coords = np.vstack([
-        module_latent[module_assignment[i]] + rng.normal(0, 0.3, n_samples)
-        for i in range(n_genes)
-    ])
+    switch_coords = np.vstack(
+        [
+            module_latent[module_assignment[i]] + rng.normal(0, 0.3, n_samples)
+            for i in range(n_genes)
+        ]
+    )
     feature_scores = pd.DataFrame(switch_coords, columns=sample_ids)
     feature_scores.insert(0, "gene_id", gene_ids)
 
-    modules = pd.DataFrame({
-        "gene_id": gene_ids,
-        "module_id": [f"M{m:03d}" for m in module_assignment],
-    })
+    modules = pd.DataFrame(
+        {
+            "gene_id": gene_ids,
+            "module_id": [f"M{m:03d}" for m in module_assignment],
+        }
+    )
 
-    transcript_ids = [f"G{i:04d}_T{t}" for i in range(n_genes) for t in range(n_transcripts_per_gene)]
+    transcript_ids = [
+        f"G{i:04d}_T{t}" for i in range(n_genes) for t in range(n_transcripts_per_gene)
+    ]
     tx_data = rng.uniform(0.1, 0.9, (n_samples, len(transcript_ids)))
     feature_table = pd.DataFrame(tx_data, index=sample_ids, columns=transcript_ids)
-    feature_meta = pd.DataFrame([
-        {
-            "feature_id": f"G{i:04d}_T{t}",
-            "gene_id": f"G{i:04d}",
-            "transcript_id": f"G{i:04d}_T{t}",
-            "feature_type": "transcript_usage",
-        }
-        for i in range(n_genes)
-        for t in range(n_transcripts_per_gene)
-    ])
+    feature_meta = pd.DataFrame(
+        [
+            {
+                "feature_id": f"G{i:04d}_T{t}",
+                "gene_id": f"G{i:04d}",
+                "transcript_id": f"G{i:04d}_T{t}",
+                "feature_type": "transcript_usage",
+            }
+            for i in range(n_genes)
+            for t in range(n_transcripts_per_gene)
+        ]
+    )
     return modules, feature_scores, feature_table, feature_meta, sample_ids
 
 
@@ -76,10 +85,17 @@ def _write_artifact(tmp_path: Path, modules: pd.DataFrame, feature_scores: pd.Da
     return artifact_dir
 
 
-def _make_vae_checkpoint(artifact_dir: Path, n_genes: int, latent_dim: int = 3,
-                          hidden_dim: int = 8, n_hidden: int = 1, seed: int = 42) -> Path:
+def _make_vae_checkpoint(
+    artifact_dir: Path,
+    n_genes: int,
+    latent_dim: int = 3,
+    hidden_dim: int = 8,
+    n_hidden: int = 1,
+    seed: int = 42,
+) -> Path:
     """Write a randomly initialized VAE checkpoint to artifact_dir/vae_checkpoint.pt."""
     import torch
+
     from isograph.models.vae import _Decoder, _Encoder
 
     torch.manual_seed(seed)
@@ -179,12 +195,14 @@ def _make_jacobian_df(gene_ids, deltas=None, seed=0):
     rng = np.random.default_rng(seed)
     if deltas is None:
         deltas = rng.normal(0, 1, len(gene_ids))
-    return pd.DataFrame({
-        "gene_id": gene_ids,
-        "decoded_delta": deltas,
-        "latent_dim_idx": 0,
-        "latent_r": 0.5,
-    })
+    return pd.DataFrame(
+        {
+            "gene_id": gene_ids,
+            "decoded_delta": deltas,
+            "latent_dim_idx": 0,
+            "latent_r": 0.5,
+        }
+    )
 
 
 def _make_gene_driver_table(gene_ids, r=None, qvalue=None, seed=1):
@@ -194,14 +212,16 @@ def _make_gene_driver_table(gene_ids, r=None, qvalue=None, seed=1):
         r = rng.uniform(-1, 1, n)
     if qvalue is None:
         qvalue = rng.uniform(0, 1, n)
-    return pd.DataFrame({
-        "gene_id": gene_ids,
-        "r": r,
-        "qvalue": qvalue,
-        "pvalue": qvalue,
-        "n_samples": n,
-        "missing_fraction": 0.0,
-    })
+    return pd.DataFrame(
+        {
+            "gene_id": gene_ids,
+            "r": r,
+            "qvalue": qvalue,
+            "pvalue": qvalue,
+            "n_samples": n,
+            "missing_fraction": 0.0,
+        }
+    )
 
 
 def test_filter_vae_drivers_empty_gene_driver_table():
@@ -217,7 +237,13 @@ def test_filter_vae_drivers_returns_dataframe_with_required_columns():
     jacobian_df = _make_jacobian_df(gene_ids)
     gene_driver_table = _make_gene_driver_table(gene_ids)
     result = filter_vae_drivers(jacobian_df, gene_driver_table, ExplainConfig())
-    for col in ["gene_id", "decoded_delta", "decoded_delta_percentile", "sign_agreement", "passes_filter"]:
+    for col in [
+        "gene_id",
+        "decoded_delta",
+        "decoded_delta_percentile",
+        "sign_agreement",
+        "passes_filter",
+    ]:
         assert col in result.columns, f"Missing column: {col}"
 
 
@@ -262,12 +288,14 @@ def test_filter_vae_drivers_sign_agreement_negative_latent_r():
     # latent_r=-0.5 means the selected dim is anti-correlated with the eigengene.
     # G0: decoded_delta=-0.5, r=0.5 → corrected = -0.5 * -1 = +0.5 → agrees ✓
     # G1: decoded_delta=0.5,  r=0.5 → corrected =  0.5 * -1 = -0.5 → disagrees ✗
-    jacobian_df = pd.DataFrame({
-        "gene_id": ["G0", "G1"],
-        "decoded_delta": [-0.5, 0.5],
-        "latent_dim_idx": [0, 0],
-        "latent_r": [-0.5, -0.5],
-    })
+    jacobian_df = pd.DataFrame(
+        {
+            "gene_id": ["G0", "G1"],
+            "decoded_delta": [-0.5, 0.5],
+            "latent_dim_idx": [0, 0],
+            "latent_r": [-0.5, -0.5],
+        }
+    )
     gene_driver_table = _make_gene_driver_table(
         gene_ids,
         r=[0.5, 0.5],
@@ -468,7 +496,9 @@ def test_explain_module_vae_drivers_present_when_checkpoint_exists(tmp_path):
     from isograph.explain.core import explain_module
 
     n_genes = 12
-    modules, feature_scores, feature_table, feature_meta, _ = _make_synthetic_explain_inputs(n_genes=n_genes)
+    modules, feature_scores, feature_table, feature_meta, _ = _make_synthetic_explain_inputs(
+        n_genes=n_genes
+    )
     artifact_dir = _write_artifact(tmp_path, modules, feature_scores)
     _make_vae_checkpoint(artifact_dir, n_genes=n_genes, latent_dim=3)
 
@@ -489,7 +519,9 @@ def test_explain_module_vae_drivers_has_required_columns(tmp_path):
     from isograph.explain.core import explain_module
 
     n_genes = 12
-    modules, feature_scores, feature_table, feature_meta, _ = _make_synthetic_explain_inputs(n_genes=n_genes)
+    modules, feature_scores, feature_table, feature_meta, _ = _make_synthetic_explain_inputs(
+        n_genes=n_genes
+    )
     artifact_dir = _write_artifact(tmp_path, modules, feature_scores)
     _make_vae_checkpoint(artifact_dir, n_genes=n_genes, latent_dim=2)
 
@@ -510,7 +542,9 @@ def test_explain_module_vae_drivers_parquet_written(tmp_path):
     from isograph.explain.core import explain_module
 
     n_genes = 12
-    modules, feature_scores, feature_table, feature_meta, _ = _make_synthetic_explain_inputs(n_genes=n_genes)
+    modules, feature_scores, feature_table, feature_meta, _ = _make_synthetic_explain_inputs(
+        n_genes=n_genes
+    )
     artifact_dir = _write_artifact(tmp_path, modules, feature_scores)
     _make_vae_checkpoint(artifact_dir, n_genes=n_genes, latent_dim=2)
     output_dir = tmp_path / "out"
@@ -533,7 +567,9 @@ def test_explain_module_vae_drivers_parquet_not_written_when_disabled(tmp_path):
     from isograph.explain.core import explain_module
 
     n_genes = 12
-    modules, feature_scores, feature_table, feature_meta, _ = _make_synthetic_explain_inputs(n_genes=n_genes)
+    modules, feature_scores, feature_table, feature_meta, _ = _make_synthetic_explain_inputs(
+        n_genes=n_genes
+    )
     artifact_dir = _write_artifact(tmp_path, modules, feature_scores)
     _make_vae_checkpoint(artifact_dir, n_genes=n_genes, latent_dim=2)
     output_dir = tmp_path / "out"
@@ -556,7 +592,9 @@ def test_explain_module_manifest_vae_attribution_available_true(tmp_path):
     from isograph.explain.core import explain_module
 
     n_genes = 12
-    modules, feature_scores, feature_table, feature_meta, _ = _make_synthetic_explain_inputs(n_genes=n_genes)
+    modules, feature_scores, feature_table, feature_meta, _ = _make_synthetic_explain_inputs(
+        n_genes=n_genes
+    )
     artifact_dir = _write_artifact(tmp_path, modules, feature_scores)
     _make_vae_checkpoint(artifact_dir, n_genes=n_genes, latent_dim=2)
     output_dir = tmp_path / "out"
@@ -601,13 +639,18 @@ def test_cli_vae_attribution_flag_accepted():
     from isograph.workflow.cli import build_parser
 
     parser = build_parser()
-    args = parser.parse_args([
-        "explain-module",
-        "--artifact-dir", "/tmp/art",
-        "--feature-table", "/tmp/ft.parquet",
-        "--feature-meta", "/tmp/fm.parquet",
-        "--vae-attribution",
-    ])
+    args = parser.parse_args(
+        [
+            "explain-module",
+            "--artifact-dir",
+            "/tmp/art",
+            "--feature-table",
+            "/tmp/ft.parquet",
+            "--feature-meta",
+            "/tmp/fm.parquet",
+            "--vae-attribution",
+        ]
+    )
     assert args.vae_attribution is True
 
 
@@ -615,13 +658,19 @@ def test_cli_vae_fdr_threshold_flag():
     from isograph.workflow.cli import build_parser
 
     parser = build_parser()
-    args = parser.parse_args([
-        "explain-module",
-        "--artifact-dir", "/tmp/art",
-        "--feature-table", "/tmp/ft.parquet",
-        "--feature-meta", "/tmp/fm.parquet",
-        "--vae-fdr-threshold", "0.1",
-    ])
+    args = parser.parse_args(
+        [
+            "explain-module",
+            "--artifact-dir",
+            "/tmp/art",
+            "--feature-table",
+            "/tmp/ft.parquet",
+            "--feature-meta",
+            "/tmp/fm.parquet",
+            "--vae-fdr-threshold",
+            "0.1",
+        ]
+    )
     assert args.vae_fdr_threshold == 0.1
 
 
@@ -629,13 +678,19 @@ def test_cli_vae_percentile_threshold_flag():
     from isograph.workflow.cli import build_parser
 
     parser = build_parser()
-    args = parser.parse_args([
-        "explain-module",
-        "--artifact-dir", "/tmp/art",
-        "--feature-table", "/tmp/ft.parquet",
-        "--feature-meta", "/tmp/fm.parquet",
-        "--vae-percentile-threshold", "80.0",
-    ])
+    args = parser.parse_args(
+        [
+            "explain-module",
+            "--artifact-dir",
+            "/tmp/art",
+            "--feature-table",
+            "/tmp/ft.parquet",
+            "--feature-meta",
+            "/tmp/fm.parquet",
+            "--vae-percentile-threshold",
+            "80.0",
+        ]
+    )
     assert args.vae_percentile_threshold == 80.0
 
 
@@ -643,10 +698,15 @@ def test_cli_vae_attribution_default_false():
     from isograph.workflow.cli import build_parser
 
     parser = build_parser()
-    args = parser.parse_args([
-        "explain-module",
-        "--artifact-dir", "/tmp/art",
-        "--feature-table", "/tmp/ft.parquet",
-        "--feature-meta", "/tmp/fm.parquet",
-    ])
+    args = parser.parse_args(
+        [
+            "explain-module",
+            "--artifact-dir",
+            "/tmp/art",
+            "--feature-table",
+            "/tmp/ft.parquet",
+            "--feature-meta",
+            "/tmp/fm.parquet",
+        ]
+    )
     assert args.vae_attribution is False

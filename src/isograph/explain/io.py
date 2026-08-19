@@ -9,9 +9,14 @@ import pandas as pd
 
 from isograph.features.channels import FEATURE_SCORE_METADATA_COLUMNS, feature_sample_columns
 
-
 _REQUIRED_FEATURE_META_COLS = ["feature_id", "gene_id", "feature_type"]
-_OPTIONAL_FEATURE_META_COLS = ["gene_name", "transcript_id", "exon_id", "event_id", "source_coordinate"]
+_OPTIONAL_FEATURE_META_COLS = [
+    "gene_name",
+    "transcript_id",
+    "exon_id",
+    "event_id",
+    "source_coordinate",
+]
 _MIN_OVERLAP_SAMPLES = 10
 
 
@@ -58,8 +63,7 @@ def load_explain_inputs(
     for path in (modules_path, scores_path):
         if not path.exists():
             raise FileNotFoundError(
-                f"Required artifact file not found: {path}. "
-                f"Run 'isograph fit' to generate it."
+                f"Required artifact file not found: {path}. " f"Run 'isograph fit' to generate it."
             )
     modules = pd.read_parquet(modules_path)
     feature_scores = pd.read_parquet(scores_path)
@@ -113,7 +117,9 @@ def load_explain_inputs(
 
     sample_ids = overlap
     # Align feature_scores columns (keep gene_id + sample_ids in order)
-    metadata_columns = [column for column in FEATURE_SCORE_METADATA_COLUMNS if column in feature_scores.columns]
+    metadata_columns = [
+        column for column in FEATURE_SCORE_METADATA_COLUMNS if column in feature_scores.columns
+    ]
     feature_scores_aligned = feature_scores[metadata_columns + sample_ids].copy()
     feature_table_aligned = feature_table.loc[sample_ids].copy()
 
@@ -125,8 +131,7 @@ def load_explain_inputs(
         unknown = [m for m in module_ids if m not in all_module_ids]
         if unknown:
             raise ValueError(
-                f"Unknown module ID(s): {unknown}. "
-                f"Available modules: {all_module_ids}"
+                f"Unknown module ID(s): {unknown}. " f"Available modules: {all_module_ids}"
             )
         resolved_module_ids = list(module_ids)
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -56,7 +55,8 @@ def load_dataset_bundle(dataset_dir: Path) -> DatasetBundle:
         spec.kind: pd.read_parquet(dataset_dir / spec.filename) for spec in manifest.feature_tables
     }
     matrices = {
-        spec.assay_name: load_dense_matrix(dataset_dir / spec.filename) for spec in manifest.matrices
+        spec.assay_name: load_dense_matrix(dataset_dir / spec.filename)
+        for spec in manifest.matrices
     }
     truth_tables = {name: pd.read_parquet(dataset_dir / name) for name in manifest.truth_tables}
     return DatasetBundle(
@@ -122,14 +122,15 @@ def validate_bundle_inputs(
     for col in ("transcript_id", "gene_id"):
         if col not in transcript_table.columns:
             errors.append(f"transcript_table is missing required column '{col}'")
-    if "transcript_id" in transcript_table.columns and transcript_table["transcript_id"].duplicated().any():
+    if (
+        "transcript_id" in transcript_table.columns
+        and transcript_table["transcript_id"].duplicated().any()
+    ):
         errors.append("transcript_table has duplicate transcript_id values")
 
     # ── transcript_counts shape ───────────────────────────────────────────────
     if transcript_counts.ndim != 2:
-        errors.append(
-            f"transcript_counts must be 2-D, got shape {transcript_counts.shape}"
-        )
+        errors.append(f"transcript_counts must be 2-D, got shape {transcript_counts.shape}")
     else:
         n_tx, n_col = transcript_counts.shape
         if n_tx != len(transcript_table):
@@ -139,8 +140,7 @@ def validate_bundle_inputs(
             )
         if n_col != n_samples:
             errors.append(
-                f"transcript_counts columns ({n_col}) != sample_table rows "
-                f"({n_samples})"
+                f"transcript_counts columns ({n_col}) != sample_table rows " f"({n_samples})"
             )
 
     # ── transcript_counts values ──────────────────────────────────────────────
@@ -154,9 +154,7 @@ def validate_bundle_inputs(
 
     # ── gene_table / gene_counts consistency ──────────────────────────────────
     if (gene_table is None) != (gene_counts is None):
-        errors.append(
-            "gene_table and gene_counts must both be provided or both be None"
-        )
+        errors.append("gene_table and gene_counts must both be provided or both be None")
     if gene_table is not None and gene_counts is not None:
         if "gene_id" not in gene_table.columns:
             errors.append("gene_table is missing required column 'gene_id'")
@@ -168,13 +166,9 @@ def validate_bundle_inputs(
         else:
             n_g, n_col = gene_counts.shape
             if n_g != len(gene_table):
-                errors.append(
-                    f"gene_counts rows ({n_g}) != gene_table rows ({len(gene_table)})"
-                )
+                errors.append(f"gene_counts rows ({n_g}) != gene_table rows ({len(gene_table)})")
             if n_col != n_samples:
-                errors.append(
-                    f"gene_counts columns ({n_col}) != sample_table rows ({n_samples})"
-                )
+                errors.append(f"gene_counts columns ({n_col}) != sample_table rows ({n_samples})")
 
         if gene_counts.ndim == 2:
             if np.any(np.isnan(gene_counts)):

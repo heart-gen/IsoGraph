@@ -71,6 +71,7 @@ def gene_switch_loadings(
         scores = centered @ loadings
         _, loadings = stable_sign(scores, loadings)
         for t, load in zip(idx, loadings, strict=False):
-            rows.append({"gene_id": str(gene_id), "transcript_id": tx_ids[t],
-                         "loading": float(load)})
+            rows.append(
+                {"gene_id": str(gene_id), "transcript_id": tx_ids[t], "loading": float(load)}
+            )
     return pd.DataFrame(rows, columns=["gene_id", "transcript_id", "loading"])

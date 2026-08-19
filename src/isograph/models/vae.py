@@ -12,16 +12,19 @@ from pathlib import Path
 import networkx as nx
 import numpy as np
 import pandas as pd
+
 from isograph.features.channels import gene_feature_channels, make_feature_scores
-from isograph.features.residualize import (
-    build_design_matrix,
-    residualization_qc as residualization_qc_table,
-    residualize_rows,
-)
 from isograph.features.reliability import (
     degradation_direction,
     gene_switch_estimability,
     gene_switch_reliability,
+)
+from isograph.features.residualize import (
+    build_design_matrix,
+    residualize_rows,
+)
+from isograph.features.residualize import (
+    residualization_qc as residualization_qc_table,
 )
 from isograph.models.base import (
     FitArtifacts,
@@ -44,7 +47,7 @@ try:
     import torch.nn as nn
 
     def _hidden_dims(hidden_dim: int, n_hidden: int, shrink: bool) -> list[int]:
-        base = [hidden_dim // (2 ** i) for i in range(n_hidden)]
+        base = [hidden_dim // (2**i) for i in range(n_hidden)]
         return base if shrink else list(reversed(base))
 
     class _Encoder(nn.Module):
@@ -102,9 +105,7 @@ try:
         kl = -0.5 * torch.mean(1.0 + log_var - mu.pow(2) - log_var.exp())
         return recon + beta * kl, recon, kl
 
-    def _detect_collapse(
-        mu: torch.Tensor, log_var: torch.Tensor, threshold: float
-    ) -> dict:
+    def _detect_collapse(mu: torch.Tensor, log_var: torch.Tensor, threshold: float) -> dict:
         per_dim = (0.5 * (mu.pow(2) + log_var.exp() - 1.0 - log_var)).mean(0)
         collapsed = (per_dim < threshold).nonzero(as_tuple=False).squeeze(1).tolist()
         return {
@@ -115,9 +116,7 @@ try:
             "vae_posterior_collapse": len(collapsed) > 0,
         }
 
-    def _select_latent_dim_idx(
-        k_grid: list[int], rmses: list[float], abs_tol: float = 0.01
-    ) -> int:
+    def _select_latent_dim_idx(k_grid: list[int], rmses: list[float], abs_tol: float = 0.01) -> int:
         """Return index of selected k: smallest k where RMSE improvement < abs_tol."""
         for i in range(1, len(k_grid)):
             if rmses[i - 1] - rmses[i] < abs_tol:
@@ -143,9 +142,7 @@ try:
 
         params = list(encoder.parameters()) + list(decoder.parameters())
         optimizer = torch.optim.Adam(params, lr=cfg.lr, weight_decay=cfg.weight_decay)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, patience=20, factor=0.5
-        )
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=20, factor=0.5)
         generator = torch.Generator(device=device)
         generator.manual_seed(cfg.random_state)
 
@@ -213,7 +210,10 @@ try:
                 _log.warning(
                     "  latent_dim=%d  epoch %d: non-finite val_loss (%.3g) -- diverged; "
                     "stopping at best_epoch=%d. Set grad_clip_norm (e.g. 1.0) or lower lr.",
-                    latent_dim, epoch + 1, val_f, best_epoch,
+                    latent_dim,
+                    epoch + 1,
+                    val_f,
+                    best_epoch,
                 )
                 early_stopped = True
                 break
@@ -224,7 +224,12 @@ try:
                 eta = elapsed / frac - elapsed
                 _log.info(
                     "  latent_dim=%d  epoch %d/%d  val_loss=%.4f  elapsed=%.0fs  eta=%.0fs",
-                    latent_dim, epoch + 1, cfg.n_epochs, val_f, elapsed, eta,
+                    latent_dim,
+                    epoch + 1,
+                    cfg.n_epochs,
+                    val_f,
+                    elapsed,
+                    eta,
                 )
 
             if epoch >= warmup:
@@ -313,9 +318,12 @@ def _build_node_diagnostics(
     """
     gene_ids = sorted(feature_info["gene_id"].astype(str).unique())
     types_by_gene = (
-        feature_info.assign(gene_id=feature_info["gene_id"].astype(str),
-                            feature_type=feature_info["feature_type"].astype(str))
-        .groupby("gene_id")["feature_type"].agg(set)
+        feature_info.assign(
+            gene_id=feature_info["gene_id"].astype(str),
+            feature_type=feature_info["feature_type"].astype(str),
+        )
+        .groupby("gene_id")["feature_type"]
+        .agg(set)
     )
 
     # Per-gene surviving-edge degree by channel (a gene's endpoint feature_type).
@@ -331,9 +339,17 @@ def _build_node_diagnostics(
             else:
                 n_abundance_edges[gene_key] = n_abundance_edges.get(gene_key, 0) + 1
 
-    assigned = dict(
-        zip(module_table["gene_id"].astype(str), module_table["module_id"].astype(str))
-    ) if not module_table.empty else {}
+    assigned = (
+        dict(
+            zip(
+                module_table["gene_id"].astype(str),
+                module_table["module_id"].astype(str),
+                strict=False,
+            )
+        )
+        if not module_table.empty
+        else {}
+    )
 
     rows = []
     for gene_id in gene_ids:
@@ -360,7 +376,8 @@ def _build_node_diagnostics(
         elif (
             reliability_on
             and has_switch
-            and np.isfinite(rel) and rel < 1.0
+            and np.isfinite(rel)
+            and rel < 1.0
             and alpha_switch is not None
             and np.isfinite(max_switch_assoc)
             and max_switch_assoc >= alpha_switch
@@ -369,19 +386,21 @@ def _build_node_diagnostics(
         else:
             fate = "isolated_below_alpha"
 
-        rows.append({
-            "gene_id": gene_id,
-            "fate": fate,
-            "module_id": module_id,
-            "has_switch_feature": has_switch,
-            "has_abundance_feature": has_abundance,
-            "switch_reliability": rel,
-            "max_abs_assoc": max_abs_assoc,
-            "max_switch_assoc": max_switch_assoc,
-            "n_switch_edges": n_sw,
-            "n_abundance_edges": n_ab,
-            "degree": degree,
-        })
+        rows.append(
+            {
+                "gene_id": gene_id,
+                "fate": fate,
+                "module_id": module_id,
+                "has_switch_feature": has_switch,
+                "has_abundance_feature": has_abundance,
+                "switch_reliability": rel,
+                "max_abs_assoc": max_abs_assoc,
+                "max_switch_assoc": max_switch_assoc,
+                "n_switch_edges": n_sw,
+                "n_abundance_edges": n_ab,
+                "degree": degree,
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -410,7 +429,9 @@ class VaeNetworkModel(NetworkModel):
         feature_scores: pd.DataFrame,
         sample_table: pd.DataFrame,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        return compute_trait_associations(module_table, feature_scores, sample_table, self.config.trait_columns)
+        return compute_trait_associations(
+            module_table, feature_scores, sample_table, self.config.trait_columns
+        )
 
     def fit(
         self,
@@ -433,7 +454,10 @@ class VaeNetworkModel(NetworkModel):
         if self.config.residualize_composition:
             design = build_design_matrix(sample_table, self.config.residualize_covariates)
             switch_matrix, feature_info = gene_feature_channels(
-                transcript_counts, transcript_table, gene_counts, gene_table,
+                transcript_counts,
+                transcript_table,
+                gene_counts,
+                gene_table,
                 switch_design=design,
             )
             switch_matrix_raw = switch_matrix.copy()
@@ -445,8 +469,10 @@ class VaeNetworkModel(NetworkModel):
                     )
                     if design.shape[1] > 1:
                         residualization_qc = residualization_qc_table(
-                            switch_matrix_raw[is_abundance], switch_matrix[is_abundance],
-                            design, feature_info.loc[is_abundance],
+                            switch_matrix_raw[is_abundance],
+                            switch_matrix[is_abundance],
+                            design,
+                            feature_info.loc[is_abundance],
                         )
         else:
             switch_matrix, feature_info = gene_feature_channels(
@@ -458,7 +484,10 @@ class VaeNetworkModel(NetworkModel):
                 switch_matrix = residualize_rows(switch_matrix, design)
                 if design.shape[1] > 1:
                     residualization_qc = residualization_qc_table(
-                        switch_matrix_raw, switch_matrix, design, feature_info,
+                        switch_matrix_raw,
+                        switch_matrix,
+                        design,
+                        feature_info,
                     )
 
         # Per-gene switch reliability -> switch-switch edge downweighting. Two
@@ -469,9 +498,11 @@ class VaeNetworkModel(NetworkModel):
             source = getattr(self.config, "switch_reliability_source", "degradation")
             if source == "estimability":
                 gene_reliability = gene_switch_estimability(
-                    transcript_counts, transcript_table,
+                    transcript_counts,
+                    transcript_table,
                     min_minor_usage=getattr(
-                        self.config, "switch_estimability_min_minor_usage", 0.1),
+                        self.config, "switch_estimability_min_minor_usage", 0.1
+                    ),
                     floor=self.config.switch_reliability_floor,
                     power=self.config.switch_reliability_power,
                 )
@@ -487,16 +518,23 @@ class VaeNetworkModel(NetworkModel):
                 direction = degradation_direction(sample_table, self.config.degradation_covariate)
                 if direction is not None:
                     gene_reliability = gene_switch_reliability(
-                        transcript_counts, transcript_table, direction,
+                        transcript_counts,
+                        transcript_table,
+                        direction,
                         floor=self.config.switch_reliability_floor,
                         power=self.config.switch_reliability_power,
                     )
                     _log.info(
                         "switch reliability: source=degradation, covariate=%s, %d genes scored, "
                         "median r=%.3f, frac r<0.5 = %.3f",
-                        self.config.degradation_covariate, len(gene_reliability),
-                        float(np.median(list(gene_reliability.values()))) if gene_reliability else 1.0,
-                        float(np.mean([v < 0.5 for v in gene_reliability.values()])) if gene_reliability else 0.0,
+                        self.config.degradation_covariate,
+                        len(gene_reliability),
+                        float(np.median(list(gene_reliability.values())))
+                        if gene_reliability
+                        else 1.0,
+                        float(np.mean([v < 0.5 for v in gene_reliability.values()]))
+                        if gene_reliability
+                        else 0.0,
                     )
 
         n_features = switch_matrix.shape[0]
@@ -534,7 +572,8 @@ class VaeNetworkModel(NetworkModel):
                 _log.info(
                     "Large-scale input detected (n_features=%d > 2000): auto-setting "
                     "batch_size=%d. Set VaeModelConfig(batch_size=<value>) to override.",
-                    n_features, effective_bs,
+                    n_features,
+                    effective_bs,
                 )
                 cfg = dataclasses.replace(cfg, batch_size=effective_bs)
 
@@ -557,7 +596,10 @@ class VaeNetworkModel(NetworkModel):
             for k in k_grid:
                 _log.info(
                     "VAE grid sweep: training latent_dim=%d (n_features=%d, n_samples=%d, device=%s) ...",
-                    k, n_features, n_samples_total, device,
+                    k,
+                    n_features,
+                    n_samples_total,
+                    device,
                 )
                 _t_k = time.time()
                 x_recon_np, cal_partial, enc, dec = _train_single_vae(
@@ -565,8 +607,11 @@ class VaeNetworkModel(NetworkModel):
                 )
                 _log.info(
                     "  latent_dim=%d done in %.0fs  rmse=%.4f  best_epoch=%d  early_stopped=%s",
-                    k, time.time() - _t_k, cal_partial["reconstruction_rmse"],
-                    cal_partial["vae_best_epoch"], cal_partial["vae_early_stopped"],
+                    k,
+                    time.time() - _t_k,
+                    cal_partial["reconstruction_rmse"],
+                    cal_partial["vae_best_epoch"],
+                    cal_partial["vae_early_stopped"],
                 )
                 grid_rmses.append(cal_partial["reconstruction_rmse"])
                 grid_results.append((x_recon_np, cal_partial, enc, dec))
@@ -577,10 +622,11 @@ class VaeNetworkModel(NetworkModel):
 
             if len(k_grid) > 1:
                 cal_partial["latent_dim_selected"] = selected_k
-                cal_partial["latent_dim_grid_rmses"] = dict(zip(k_grid, grid_rmses))
+                cal_partial["latent_dim_grid_rmses"] = dict(zip(k_grid, grid_rmses, strict=False))
                 _log.info(
                     "latent_dim_grid sweep: selected k=%d from %s (rmses=%s)",
-                    selected_k, k_grid,
+                    selected_k,
+                    k_grid,
                     [f"{r:.4f}" for r in grid_rmses],
                 )
 
@@ -598,30 +644,41 @@ class VaeNetworkModel(NetworkModel):
             resolved_alpha_switch = cfg.alpha_switch
             if cfg.alpha_switch_grid is not None:
                 resolved_alpha_switch, switch_sweep = select_alpha_switch(
-                    partial, feature_info, cfg.alpha_switch_grid,
+                    partial,
+                    feature_info,
+                    cfg.alpha_switch_grid,
                 )
                 calibration["selected_alpha_switch"] = resolved_alpha_switch
                 calibration["alpha_switch_sweep"] = switch_sweep
                 _log.info(
                     "alpha_switch_grid sweep: selected %.2f from %s",
-                    resolved_alpha_switch, cfg.alpha_switch_grid,
+                    resolved_alpha_switch,
+                    cfg.alpha_switch_grid,
                 )
                 for s in switch_sweep:
                     _log.info(
                         "  alpha_switch=%.2f: n_connected=%d giant_size=%d "
                         "giant_frac=%.3f n_modules_ge30=%d",
-                        s["alpha_switch"], s["n_switch_connected"],
-                        s["giant_size"], s["giant_fraction"], s["n_modules_ge30"],
+                        s["alpha_switch"],
+                        s["n_switch_connected"],
+                        s["giant_size"],
+                        s["giant_fraction"],
+                        s["n_modules_ge30"],
                     )
             resolved_alpha_abundance = cfg.alpha_abundance
             if cfg.alpha_abundance_grid is not None:
                 resolved_alpha_abundance = select_alpha_abundance(
-                    partial, feature_info, cfg.alpha, cfg.alpha_abundance_grid,
+                    partial,
+                    feature_info,
+                    cfg.alpha,
+                    cfg.alpha_abundance_grid,
                     alpha_switch=resolved_alpha_switch,
                 )
                 calibration["selected_alpha_abundance"] = resolved_alpha_abundance
             net_graph, edge_rows = project_feature_similarity_to_gene_graph(
-                partial, feature_info, cfg.alpha,
+                partial,
+                feature_info,
+                cfg.alpha,
                 allow_abundance_abundance=cfg.allow_abundance_abundance,
                 alpha_switch=resolved_alpha_switch,
                 alpha_abundance=resolved_alpha_abundance,
@@ -665,7 +722,9 @@ class VaeNetworkModel(NetworkModel):
             if x_recon_np is not None
             else None
         )
-        trait_table, eigengene_table = self._trait_associations(module_table, feature_scores, sample_table)
+        trait_table, eigengene_table = self._trait_associations(
+            module_table, feature_scores, sample_table
+        )
         module_gene_roles = compute_module_gene_roles(module_table, feature_scores, sample_table)
         node_diagnostics = _build_node_diagnostics(
             feature_info=feature_info,

@@ -21,10 +21,13 @@ from isograph.benchmarks.synthetic import generate_core_suite
 from isograph.evaluation.metrics import module_recovery_score
 from isograph.evaluation.snapshots import compare_snapshot_dirs, save_snapshot
 from isograph.io.artifacts import load_dataset_bundle
-from isograph.models.baseline import BaselineNetworkModel
-from isograph.workflow.config import BaselineModelConfig, BenchmarkCommandConfig, RealDataFreezeConfig
 from isograph.io.real_data import freeze_real_dataset
+from isograph.models.baseline import BaselineNetworkModel
 from isograph.utils import ensure_dir
+from isograph.workflow.config import (
+    BaselineModelConfig,
+    BenchmarkCommandConfig,
+)
 
 # Real data is available when this file exists locally.
 _REAL_DATA_AVAILABLE = Path("data/counts/gene-counts.tsv.gz").exists()
@@ -115,11 +118,12 @@ def test_snapshot_deterministic(tmp_path: Path) -> None:
     for snap_dir in (snap_a, snap_b):
         artifacts, bundle, elapsed = _fit_bundle(toy_dir, _TOY_CONFIG)
         truth = bundle.truth_tables.get("truth_modules.parquet")
-        recovery = module_recovery_score(artifacts.module_table, truth) if truth is not None else None
+        recovery = (
+            module_recovery_score(artifacts.module_table, truth) if truth is not None else None
+        )
         metrics = {
             "n_modules": (
-                0 if artifacts.module_table.empty
-                else artifacts.module_table["module_id"].nunique()
+                0 if artifacts.module_table.empty else artifacts.module_table["module_id"].nunique()
             ),
             "n_edges": len(artifacts.edge_table),
             "recovery": recovery,
@@ -135,14 +139,13 @@ def test_snapshot_deterministic(tmp_path: Path) -> None:
         )
 
     report = compare_snapshot_dirs(snap_a, snap_b)
-    assert report["passed"], (
-        "Snapshots are not deterministic:\n" + "\n".join(report["differences"])
-    )
+    assert report["passed"], "Snapshots are not deterministic:\n" + "\n".join(report["differences"])
 
 
 # ---------------------------------------------------------------------------
 # Real-data smoke tests (skipped on CI; require data/counts/gene-counts.tsv.gz)
 # ---------------------------------------------------------------------------
+
 
 @requires_real_data
 def test_smoke_real_caudate_aa_v1_freeze(tmp_path: Path) -> None:
@@ -161,9 +164,9 @@ def test_smoke_real_caudate_aa_v1_freeze(tmp_path: Path) -> None:
 @requires_real_data
 def test_smoke_real_caudate_aa_v1_fit() -> None:
     """Baseline model fits on the frozen real_caudate_aa_v1 fixture."""
-    assert _REAL_FIXTURE_DIR.exists(), (
-        f"Run 'isograph freeze-real' first to build {_REAL_FIXTURE_DIR}"
-    )
+    assert (
+        _REAL_FIXTURE_DIR.exists()
+    ), f"Run 'isograph freeze-real' first to build {_REAL_FIXTURE_DIR}"
     bundle = load_dataset_bundle(_REAL_FIXTURE_DIR)
     config = BaselineModelConfig()
     artifacts = BaselineNetworkModel(config).fit(
@@ -183,12 +186,10 @@ def test_smoke_real_caudate_aa_v1_fit() -> None:
 @requires_real_data
 def test_snapshot_real_caudate_aa_v1_matches_reference(tmp_path: Path) -> None:
     """Re-fit on real_caudate_aa_v1 and compare against committed reference snapshot."""
-    assert _REAL_FIXTURE_DIR.exists(), (
-        f"Run 'isograph freeze-real' first to build {_REAL_FIXTURE_DIR}"
-    )
-    assert _REAL_SNAPSHOT_DIR.exists(), (
-        f"Reference snapshot missing: {_REAL_SNAPSHOT_DIR}"
-    )
+    assert (
+        _REAL_FIXTURE_DIR.exists()
+    ), f"Run 'isograph freeze-real' first to build {_REAL_FIXTURE_DIR}"
+    assert _REAL_SNAPSHOT_DIR.exists(), f"Reference snapshot missing: {_REAL_SNAPSHOT_DIR}"
     bundle = load_dataset_bundle(_REAL_FIXTURE_DIR)
     config = BaselineModelConfig()
     start = perf_counter()
@@ -200,8 +201,7 @@ def test_snapshot_real_caudate_aa_v1_matches_reference(tmp_path: Path) -> None:
     elapsed = perf_counter() - start
     metrics = {
         "n_modules": (
-            0 if artifacts.module_table.empty
-            else artifacts.module_table["module_id"].nunique()
+            0 if artifacts.module_table.empty else artifacts.module_table["module_id"].nunique()
         ),
         "n_edges": len(artifacts.edge_table),
         "recovery": None,
@@ -217,6 +217,6 @@ def test_snapshot_real_caudate_aa_v1_matches_reference(tmp_path: Path) -> None:
         dataset_name="real_caudate_aa_v1",
     )
     report = compare_snapshot_dirs(_REAL_SNAPSHOT_DIR, candidate_dir)
-    assert report["passed"], (
-        "Real-data snapshot does not match reference:\n" + "\n".join(report["differences"])
+    assert report["passed"], "Real-data snapshot does not match reference:\n" + "\n".join(
+        report["differences"]
     )

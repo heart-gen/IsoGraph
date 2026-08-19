@@ -27,8 +27,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
 import pytest
 
 from isograph.benchmarks.synthetic import (
@@ -61,7 +59,7 @@ def test_realistic_v1_structure(tmp_path: Path) -> None:
     assert bundle.matrices["transcript_counts"].shape[1] == 160, "n_samples must be 160"
 
     truth_sw = bundle.feature_tables["truth_switch"]
-    n_switching    = truth_sw["has_switch"].sum()
+    n_switching = truth_sw["has_switch"].sum()
     n_nonswitching = (~truth_sw["has_switch"]).sum()
     assert n_switching == 100, f"Expected 100 switching genes, got {n_switching}"
     assert n_nonswitching == 100, f"Expected 100 non-switching genes, got {n_nonswitching}"
@@ -81,9 +79,9 @@ def test_realistic_v1_structure(tmp_path: Path) -> None:
 
     # Equal module sizes
     module_sizes = truth_modules.groupby("module_id").size()
-    assert module_sizes.nunique() == 1, (
-        f"realistic_v1 must have equal module sizes, got {module_sizes.to_dict()}"
-    )
+    assert (
+        module_sizes.nunique() == 1
+    ), f"realistic_v1 must have equal module sizes, got {module_sizes.to_dict()}"
 
 
 def test_realistic_unequal_v1_structure(tmp_path: Path) -> None:
@@ -95,12 +93,8 @@ def test_realistic_unequal_v1_structure(tmp_path: Path) -> None:
     assert bundle.manifest.dataset_name == "realistic_unequal_v1"
 
     truth_modules = bundle.truth_tables["truth_modules.parquet"]
-    sizes = sorted(
-        truth_modules.groupby("module_id").size().tolist(), reverse=True
-    )
-    assert sizes == [38, 25, 17, 12, 8], (
-        f"Expected power-law sizes [38,25,17,12,8], got {sizes}"
-    )
+    sizes = sorted(truth_modules.groupby("module_id").size().tolist(), reverse=True)
+    assert sizes == [38, 25, 17, 12, 8], f"Expected power-law sizes [38,25,17,12,8], got {sizes}"
 
     # Non-switching genes still present at 50 %
     truth_sw = bundle.feature_tables["truth_switch"]
@@ -177,9 +171,7 @@ def test_latent_realistic_v1_recovery(tmp_path: Path) -> None:
         sample_table=bundle.sample_table,
     )
     recovery = module_recovery_score(arts.module_table, truth)
-    assert recovery >= 0.875, (
-        f"realistic_v1 latent recovery {recovery:.4f} < gate 0.875"
-    )
+    assert recovery >= 0.875, f"realistic_v1 latent recovery {recovery:.4f} < gate 0.875"
 
 
 def test_latent_realistic_unequal_v1_recovery(tmp_path: Path) -> None:
@@ -200,9 +192,7 @@ def test_latent_realistic_unequal_v1_recovery(tmp_path: Path) -> None:
         sample_table=bundle.sample_table,
     )
     recovery = module_recovery_score(arts.module_table, truth)
-    assert recovery >= 0.5, (
-        f"realistic_unequal_v1 latent recovery {recovery:.4f} < gate 0.5"
-    )
+    assert recovery >= 0.5, f"realistic_unequal_v1 latent recovery {recovery:.4f} < gate 0.5"
 
 
 def test_realistic_unequal_harder_than_equal(tmp_path: Path) -> None:
@@ -213,8 +203,11 @@ def test_realistic_unequal_harder_than_equal(tmp_path: Path) -> None:
     of module-size distribution as the sole variable between the two fixtures.
     """
     paths = generate_core_suite(tmp_path / "datasets", seed=7)
-    bundles = {p.name: load_dataset_bundle(p) for p in paths
-               if p.name in ("realistic_v1", "realistic_unequal_v1")}
+    bundles = {
+        p.name: load_dataset_bundle(p)
+        for p in paths
+        if p.name in ("realistic_v1", "realistic_unequal_v1")
+    }
 
     recoveries = {}
     for name, bundle in bundles.items():
@@ -278,9 +271,9 @@ def test_nonswitching_genes_absent_from_feature_scores(tmp_path: Path) -> None:
     # Each gene contributes an abundance channel plus a switch channel, so the
     # table has two rows per gene; assert on the gene coverage, not row count.
     assert "gene_id" in arts.feature_scores.columns
-    assert arts.feature_scores["gene_id"].nunique() == 200, (
-        f"Expected 200 genes in feature_scores, got {arts.feature_scores['gene_id'].nunique()}"
-    )
+    assert (
+        arts.feature_scores["gene_id"].nunique() == 200
+    ), f"Expected 200 genes in feature_scores, got {arts.feature_scores['gene_id'].nunique()}"
 
 
 # ---------------------------------------------------------------------------

@@ -25,7 +25,10 @@ from isograph.models.base import (
     compute_trait_associations,
 )
 from isograph.models.denoise import denoise_features_per_channel
-from isograph.models.multiplex import project_feature_similarity_to_gene_graph, select_alpha_abundance
+from isograph.models.multiplex import (
+    project_feature_similarity_to_gene_graph,
+    select_alpha_abundance,
+)
 from isograph.workflow.config import LatentModelConfig
 
 
@@ -50,7 +53,9 @@ class LatentNetworkModel(NetworkModel):
         feature_scores: pd.DataFrame,
         sample_table: pd.DataFrame,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        return compute_trait_associations(module_table, feature_scores, sample_table, self.config.trait_columns)
+        return compute_trait_associations(
+            module_table, feature_scores, sample_table, self.config.trait_columns
+        )
 
     def fit(
         self,
@@ -99,12 +104,17 @@ class LatentNetworkModel(NetworkModel):
             resolved_alpha_abundance = self.config.alpha_abundance
             if self.config.alpha_abundance_grid is not None:
                 resolved_alpha_abundance = select_alpha_abundance(
-                    partial, feature_info, self.config.alpha, self.config.alpha_abundance_grid,
+                    partial,
+                    feature_info,
+                    self.config.alpha,
+                    self.config.alpha_abundance_grid,
                     alpha_switch=self.config.alpha_switch,
                 )
                 calibration["selected_alpha_abundance"] = resolved_alpha_abundance
             graph, edge_rows = project_feature_similarity_to_gene_graph(
-                partial, feature_info, self.config.alpha,
+                partial,
+                feature_info,
+                self.config.alpha,
                 allow_abundance_abundance=self.config.allow_abundance_abundance,
                 alpha_switch=self.config.alpha_switch,
                 alpha_abundance=resolved_alpha_abundance,
@@ -112,7 +122,9 @@ class LatentNetworkModel(NetworkModel):
 
         module_table = self._module_table(graph)
         feature_scores = make_feature_scores(switch_matrix, feature_info, sample_table)
-        trait_table, eigengene_table = self._trait_associations(module_table, feature_scores, sample_table)
+        trait_table, eigengene_table = self._trait_associations(
+            module_table, feature_scores, sample_table
+        )
         module_gene_roles = compute_module_gene_roles(module_table, feature_scores, sample_table)
 
         return FitArtifacts(

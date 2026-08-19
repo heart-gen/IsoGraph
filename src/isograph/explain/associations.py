@@ -129,20 +129,28 @@ def compute_gene_driver_table(
         return _empty
     gene_ids = subset["gene_id"].tolist()
     feature_ids = subset["feature_id"].tolist() if "feature_id" in subset.columns else gene_ids
-    feature_types = subset["feature_type"].tolist() if "feature_type" in subset.columns else ["switch"] * len(subset)
+    feature_types = (
+        subset["feature_type"].tolist()
+        if "feature_type" in subset.columns
+        else ["switch"] * len(subset)
+    )
     matrix = subset[sample_ids].to_numpy(dtype=float)
-    r, pvalue, n_complete, missing_frac = pearson_r_with_missing(matrix, eigengene, config.min_complete_pairs)
+    r, pvalue, n_complete, missing_frac = pearson_r_with_missing(
+        matrix, eigengene, config.min_complete_pairs
+    )
     qvalue = apply_fdr(pvalue, method=config.fdr_method)
-    channel_df = pd.DataFrame({
-        "gene_id": gene_ids,
-        "feature_id": feature_ids,
-        "feature_type": feature_types,
-        "r": r,
-        "pvalue": pvalue,
-        "qvalue": qvalue,
-        "n_samples": n_complete,
-        "missing_fraction": missing_frac,
-    })
+    channel_df = pd.DataFrame(
+        {
+            "gene_id": gene_ids,
+            "feature_id": feature_ids,
+            "feature_type": feature_types,
+            "r": r,
+            "pvalue": pvalue,
+            "qvalue": qvalue,
+            "n_samples": n_complete,
+            "missing_fraction": missing_frac,
+        }
+    )
     channel_df["_sort_key"] = np.where(np.isfinite(r), np.abs(r), 0.0)
     df = (
         channel_df.sort_values(["gene_id", "_sort_key"], ascending=[True, False])
@@ -175,11 +183,17 @@ def compute_transcript_polarity_table(
     base_cols = ["feature_id", "gene_id"]
     if has_transcript_id:
         base_cols.append("transcript_id")
-    empty_cols = base_cols + ["r", "pvalue", "qvalue", "n_samples", "missing_fraction", "switch_strength"]
+    empty_cols = base_cols + [
+        "r",
+        "pvalue",
+        "qvalue",
+        "n_samples",
+        "missing_fraction",
+        "switch_strength",
+    ]
 
-    rel_mask = (
-        feature_meta["gene_id"].isin(module_genes)
-        & (feature_meta["feature_type"] == config.transcript_usage_feature_type)
+    rel_mask = feature_meta["gene_id"].isin(module_genes) & (
+        feature_meta["feature_type"] == config.transcript_usage_feature_type
     )
     rel_meta = feature_meta[rel_mask].copy()
     available = [f for f in rel_meta["feature_id"] if f in feature_table.columns]
@@ -191,7 +205,9 @@ def compute_transcript_polarity_table(
 
     # shape: (n_features, n_samples)
     matrix = feature_table.loc[sample_ids, feature_ids].to_numpy(dtype=float).T
-    r, pvalue, n_complete, missing_frac = pearson_r_with_missing(matrix, eigengene, config.min_complete_pairs)
+    r, pvalue, n_complete, missing_frac = pearson_r_with_missing(
+        matrix, eigengene, config.min_complete_pairs
+    )
     qvalue = apply_fdr(pvalue, method=config.fdr_method)
 
     # switch_strength = max(r) - min(r) per gene
@@ -228,8 +244,17 @@ def compute_high_vs_low_table(
              tstat, pvalue, n_high, n_low, missing_fraction.
     """
     empty_cols = [
-        "feature_id", "gene_id", "mean_high", "mean_low", "delta",
-        "se", "tstat", "pvalue", "n_high", "n_low", "missing_fraction",
+        "feature_id",
+        "gene_id",
+        "mean_high",
+        "mean_low",
+        "delta",
+        "se",
+        "tstat",
+        "pvalue",
+        "n_high",
+        "n_low",
+        "missing_fraction",
     ]
     meta_features = set(feature_meta["feature_id"].tolist())
     available = [f for f in feature_table.columns if f in meta_features]
@@ -259,17 +284,34 @@ def compute_high_vs_low_table(
             "n_low": len(low_vals),
         }
         if len(high_vals) < 2 or len(low_vals) < 2:
-            row.update({"mean_high": np.nan, "mean_low": np.nan, "delta": np.nan,
-                        "se": np.nan, "tstat": np.nan, "pvalue": np.nan})
+            row.update(
+                {
+                    "mean_high": np.nan,
+                    "mean_low": np.nan,
+                    "delta": np.nan,
+                    "se": np.nan,
+                    "tstat": np.nan,
+                    "pvalue": np.nan,
+                }
+            )
         else:
             mean_h, mean_l = float(high_vals.mean()), float(low_vals.mean())
-            se = float(np.sqrt(high_vals.var(ddof=1) / len(high_vals) + low_vals.var(ddof=1) / len(low_vals)))
+            se = float(
+                np.sqrt(
+                    high_vals.var(ddof=1) / len(high_vals) + low_vals.var(ddof=1) / len(low_vals)
+                )
+            )
             res = stats.ttest_ind(high_vals, low_vals, equal_var=False)
-            row.update({
-                "mean_high": mean_h, "mean_low": mean_l,
-                "delta": mean_h - mean_l, "se": se,
-                "tstat": float(res.statistic), "pvalue": float(res.pvalue),
-            })
+            row.update(
+                {
+                    "mean_high": mean_h,
+                    "mean_low": mean_l,
+                    "delta": mean_h - mean_l,
+                    "se": se,
+                    "tstat": float(res.statistic),
+                    "pvalue": float(res.pvalue),
+                }
+            )
         rows.append(row)
 
     return pd.DataFrame(rows, columns=empty_cols)

@@ -34,8 +34,8 @@ _SPEC = RealisticDatasetSpec(
     n_genes=200,
     n_samples=160,
     n_modules=5,
-    module_sizes=None,          # equal: 20 genes per module
-    switching_fraction=0.5,     # 100 switching, 100 non-switching
+    module_sizes=None,  # equal: 20 genes per module
+    switching_fraction=0.5,  # 100 switching, 100 non-switching
     confounder_weight=0.3,
     count_dispersion=5.0,
     mean_gene_total=300.0,
@@ -62,10 +62,12 @@ def _build_transcript_usage(
     usage = np.zeros((n_tx, len(sample_ids)), dtype=float)
     for _, grp in transcript_table.groupby("gene_id", sort=False):
         idx = grp.index.to_numpy()
-        block = transcript_counts[idx]                  # (k, n_samples)
+        block = transcript_counts[idx]  # (k, n_samples)
         totals = block.sum(axis=0, keepdims=True)
         usage[idx] = block / np.maximum(totals, 1.0)
-    return pd.DataFrame(usage.T, index=sample_ids, columns=transcript_table["transcript_id"].tolist())
+    return pd.DataFrame(
+        usage.T, index=sample_ids, columns=transcript_table["transcript_id"].tolist()
+    )
 
 
 def _fit_and_write_artifacts(
@@ -98,10 +100,10 @@ def _fit_and_write_artifacts(
     fs = artifacts.feature_scores.copy()
     meta = set(FEATURE_SCORE_METADATA_COLUMNS)
     int_cols = [c for c in fs.columns if c not in meta]
-    assert len(int_cols) == len(sample_ids), (
-        f"feature_scores has {len(int_cols)} sample cols; expected {len(sample_ids)}"
-    )
-    rename_map = {old: new for old, new in zip(int_cols, sample_ids)}
+    assert len(int_cols) == len(
+        sample_ids
+    ), f"feature_scores has {len(int_cols)} sample cols; expected {len(sample_ids)}"
+    rename_map = dict(zip(int_cols, sample_ids, strict=False))
     fs = fs.rename(columns=rename_map)
 
     artifacts.module_table.to_parquet(artifact_dir / "modules.parquet", index=False)
@@ -113,12 +115,14 @@ def _build_feature_meta(
     transcript_table: pd.DataFrame,
     feature_type: str = "transcript_usage",
 ) -> pd.DataFrame:
-    return pd.DataFrame({
-        "feature_id": transcript_table["transcript_id"].tolist(),
-        "gene_id": transcript_table["gene_id"].tolist(),
-        "transcript_id": transcript_table["transcript_id"].tolist(),
-        "feature_type": feature_type,
-    })
+    return pd.DataFrame(
+        {
+            "feature_id": transcript_table["transcript_id"].tolist(),
+            "gene_id": transcript_table["gene_id"].tolist(),
+            "transcript_id": transcript_table["transcript_id"].tolist(),
+            "feature_type": feature_type,
+        }
+    )
 
 
 def _auc(scores: np.ndarray, labels: np.ndarray) -> float:
@@ -137,12 +141,13 @@ def _auc(scores: np.ndarray, labels: np.ndarray) -> float:
 # Shared fixture (session-scoped so the heavy fit runs once)
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(scope="module")
 def explain_results():
     """Generate bundle, fit baseline, run explain_module; return results and ground truth."""
     bundle = _build_bundle()
     sample_ids: list[str] = bundle.sample_table["sample_id"].tolist()
-    truth_switch = bundle.feature_tables["truth_switch"]   # gene_id, has_switch
+    truth_switch = bundle.feature_tables["truth_switch"]  # gene_id, has_switch
     truth_modules = bundle.feature_tables["truth_module"]  # gene_id, module_id (int)
 
     transcript_table = bundle.feature_tables["transcript"]
@@ -159,6 +164,7 @@ def explain_results():
             pytest.skip("Baseline model found no modules on this fixture (check alpha setting).")
 
         import warnings
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
             results = explain_module(
@@ -173,6 +179,7 @@ def explain_results():
 # ---------------------------------------------------------------------------
 # Accuracy gate tests
 # ---------------------------------------------------------------------------
+
 
 class TestGenDriverDiscrimination:
     """Gene driver |r| should correctly identify true switching genes as module drivers."""
@@ -190,16 +197,12 @@ class TestGenDriverDiscrimination:
         for res in results.values():
             tbl = res.gene_driver_table
             finite = tbl["r"].notna()
-            sw_r.extend(
-                tbl.loc[finite & tbl["gene_id"].isin(switch_set), "r"].abs().tolist()
-            )
+            sw_r.extend(tbl.loc[finite & tbl["gene_id"].isin(switch_set), "r"].abs().tolist())
 
         if not sw_r:
             pytest.skip("No switching genes appear in any fitted module.")
         mean_r = np.mean(sw_r)
-        assert mean_r >= 0.50, (
-            f"Mean |r| of switching genes in modules = {mean_r:.3f} < 0.50."
-        )
+        assert mean_r >= 0.50, f"Mean |r| of switching genes in modules = {mean_r:.3f} < 0.50."
 
     def test_gene_driver_auc_geq_threshold(self, explain_results):
         """When both switching and non-switching genes are in modules, AUC ≥ 0.65.
@@ -218,10 +221,7 @@ class TestGenDriverDiscrimination:
             tbl = res.gene_driver_table
             finite = tbl["r"].notna()
             abs_r_vals.extend(tbl.loc[finite, "r"].abs().tolist())
-            is_switch.extend([
-                1 if g in switch_set else 0
-                for g in tbl.loc[finite, "gene_id"]
-            ])
+            is_switch.extend([1 if g in switch_set else 0 for g in tbl.loc[finite, "gene_id"]])
 
         labels = np.array(is_switch)
         if labels.sum() == 0 or (labels == 0).sum() == 0:
@@ -255,9 +255,9 @@ class TestGenDriverDiscrimination:
                 "Non-switching genes absent from modules — comparison undefined. "
                 "Stage 9B will calibrate abundance-abundance edge policy."
             )
-        assert np.mean(sw_r) > np.mean(nsw_r), (
-            f"Mean |r| switching={np.mean(sw_r):.3f} not > non-switching={np.mean(nsw_r):.3f}."
-        )
+        assert np.mean(sw_r) > np.mean(
+            nsw_r
+        ), f"Mean |r| switching={np.mean(sw_r):.3f} not > non-switching={np.mean(nsw_r):.3f}."
 
 
 class TestTranscriptPolarityAccuracy:

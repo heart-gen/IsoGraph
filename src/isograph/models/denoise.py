@@ -105,7 +105,10 @@ def _denoise_channel(
                 "FactorAnalysis did not converge in %d iterations "
                 "(n_features=%d, n_samples=%d, n_components=%d). "
                 "Consider increasing max_iter or tol.",
-                max_iter, n_chan_features, X.shape[0], k,
+                max_iter,
+                n_chan_features,
+                X.shape[0],
+                k,
             )
 
     Z = fa.transform(X)
@@ -149,9 +152,7 @@ def denoise_features_per_channel(
 
     per_channel: dict[str, dict] = {}
     # Deterministic, switch-first ordering so n_components_used prefers the switch k.
-    channels = sorted(
-        pd.unique(feature_types), key=lambda c: (c != "switch", str(c))
-    )
+    channels = sorted(pd.unique(feature_types), key=lambda c: (c != "switch", str(c)))
     for channel in channels:
         mask = feature_types == channel
         sub_denoised, stats = _denoise_channel(
@@ -169,10 +170,16 @@ def denoise_features_per_channel(
     primary_stats = per_channel.get(str(primary), {}) if primary is not None else {}
 
     total_rmse = float(np.sqrt(np.mean((matrix - denoised) ** 2))) if matrix.size else 0.0
-    noise_vars = [s["mean_noise_variance"] for s in per_channel.values()
-                  if s["mean_noise_variance"] is not None]
-    log_lls = [s["mean_log_likelihood"] for s in per_channel.values()
-               if s["mean_log_likelihood"] is not None]
+    noise_vars = [
+        s["mean_noise_variance"]
+        for s in per_channel.values()
+        if s["mean_noise_variance"] is not None
+    ]
+    log_lls = [
+        s["mean_log_likelihood"]
+        for s in per_channel.values()
+        if s["mean_log_likelihood"] is not None
+    ]
     calibration = {
         "mean_log_likelihood": float(np.mean(log_lls)) if log_lls else None,
         "reconstruction_rmse": total_rmse,

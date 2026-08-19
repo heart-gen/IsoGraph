@@ -130,7 +130,9 @@ def test_freeze_real_dataset_builds_repo_local_transcript_cache(tmp_path: Path) 
     assert metadata["bucket_count"] == 128
     assert metadata["row_count"] == 3
     assert sorted(metadata["selected_samples"]) == ["R1", "R2"]
-    assert any(path.is_dir() for path in (source_cache_dir / "transcript_counts").glob("gene_bucket=*"))
+    assert any(
+        path.is_dir() for path in (source_cache_dir / "transcript_counts").glob("gene_bucket=*")
+    )
 
     cached_dataset_dir = freeze_real_dataset(config, suite_dir)
     assert cached_dataset_dir == dataset_dir

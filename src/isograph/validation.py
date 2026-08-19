@@ -49,7 +49,7 @@ class DatasetManifest(BaseModel):
     truth_tables: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def validate_tables(self) -> "DatasetManifest":
+    def validate_tables(self) -> DatasetManifest:
         if not self.feature_tables:
             raise ValueError("feature_tables must not be empty")
         if not self.matrices:
@@ -90,7 +90,7 @@ class LoadedDataset(BaseModel):
     available_assays: list[str]
 
     @model_validator(mode="after")
-    def assays_present(self) -> "LoadedDataset":
+    def assays_present(self) -> LoadedDataset:
         if not self.available_assays:
             raise ValueError("available_assays must not be empty")
         return self

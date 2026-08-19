@@ -40,12 +40,12 @@ def _ring_of_cliques(n_cliques: int = 4, clique_size: int = 10) -> nx.Graph:
 
 
 def _model(**cfg) -> NetworkModel:
-    defaults = dict(
-        leiden_resolution=None,
-        leiden_max_giant_frac=None,
-        leiden_resolution_grid=None,
-        random_state=13,
-    )
+    defaults = {
+        "leiden_resolution": None,
+        "leiden_max_giant_frac": None,
+        "leiden_resolution_grid": None,
+        "random_state": 13,
+    }
     defaults.update(cfg)
     m = NetworkModel()
     m.config = SimpleNamespace(**defaults)

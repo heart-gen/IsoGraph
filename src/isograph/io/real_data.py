@@ -4,18 +4,19 @@ from __future__ import annotations
 
 import gzip
 import hashlib
-from io import StringIO
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
-from time import perf_counter
 import zlib
+from io import StringIO
+from pathlib import Path
+from time import perf_counter
 
 import numpy as np
 import pandas as pd
+
 try:
     import pyarrow as pa
     import pyarrow.compute as pc
@@ -101,7 +102,9 @@ def _standardize_annotation_columns(table: pd.DataFrame) -> pd.DataFrame:
     return table.rename(columns=renamed)
 
 
-def _choose_gene_panel(gene_counts: pd.DataFrame, sample_cols: list[str], panel_size: int) -> pd.Index:
+def _choose_gene_panel(
+    gene_counts: pd.DataFrame, sample_cols: list[str], panel_size: int
+) -> pd.Index:
     totals = gene_counts[sample_cols].to_numpy(dtype=float)
     score = totals.mean(axis=1) * (1.0 + totals.var(axis=1))
     top_idx = np.argsort(score)[::-1][:panel_size]
@@ -165,7 +168,9 @@ def _standardized_numeric(series: pd.Series) -> np.ndarray:
     return (values - values.mean()) / scale if scale > 1e-12 else values - values.mean()
 
 
-def _build_filter_design(sample_df: pd.DataFrame, terms: list[RealDataFilterTerm]) -> np.ndarray | None:
+def _build_filter_design(
+    sample_df: pd.DataFrame, terms: list[RealDataFilterTerm]
+) -> np.ndarray | None:
     if not terms:
         return None
     parts = [np.ones((len(sample_df), 1), dtype=float)]
@@ -174,10 +179,14 @@ def _build_filter_design(sample_df: pd.DataFrame, terms: list[RealDataFilterTerm
             continue
         series = sample_df[term.column]
         if term.kind == "numeric":
-            values = _standardized_numeric(series) if term.standardize else series.to_numpy(dtype=float)
+            values = (
+                _standardized_numeric(series) if term.standardize else series.to_numpy(dtype=float)
+            )
             parts.append(values[:, None])
         elif term.kind == "categorical":
-            dummies = pd.get_dummies(series.fillna("missing"), prefix=term.column, drop_first=True, dtype=float)
+            dummies = pd.get_dummies(
+                series.fillna("missing"), prefix=term.column, drop_first=True, dtype=float
+            )
             if not dummies.empty:
                 parts.append(dummies.to_numpy(dtype=float))
         elif term.kind == "natural_spline":
@@ -185,7 +194,9 @@ def _build_filter_design(sample_df: pd.DataFrame, terms: list[RealDataFilterTerm
                 from patsy import dmatrix
             except ImportError as exc:  # pragma: no cover
                 raise ImportError("patsy is required for natural_spline real-data filters") from exc
-            values = _standardized_numeric(series) if term.standardize else series.to_numpy(dtype=float)
+            values = (
+                _standardized_numeric(series) if term.standardize else series.to_numpy(dtype=float)
+            )
             df = int(term.df or 3)
             basis = dmatrix(f"cr(x, df={df}) - 1", {"x": values}, return_type="dataframe")
             parts.append(basis.to_numpy(dtype=float))
@@ -261,7 +272,11 @@ def _load_or_cache_samples(config: RealDataFreezeConfig, source_cache_dir: Path)
     if sample_cache_path.exists():
         started_at = perf_counter()
         samples = pd.read_parquet(sample_cache_path)
-        _log_phase("sample-selection-cache-hit", started_at, f"path={sample_cache_path}, n_samples={len(samples)}")
+        _log_phase(
+            "sample-selection-cache-hit",
+            started_at,
+            f"path={sample_cache_path}, n_samples={len(samples)}",
+        )
         return samples
 
     started_at = perf_counter()
@@ -276,7 +291,11 @@ def _load_or_cache_samples(config: RealDataFreezeConfig, source_cache_dir: Path)
             "n_samples": int(len(samples)),
         },
     )
-    _log_phase("sample-selection-cache-build", started_at, f"path={sample_cache_path}, n_samples={len(samples)}")
+    _log_phase(
+        "sample-selection-cache-build",
+        started_at,
+        f"path={sample_cache_path}, n_samples={len(samples)}",
+    )
     return samples
 
 
@@ -302,7 +321,9 @@ def _load_or_cache_gene_projection(
     started_at = perf_counter()
     raw_gene_counts = _load_count_table(_find_tsv_path(counts_root, "gene-counts"))
     sample_cols = _sample_columns(samples, list(raw_gene_counts.columns))
-    projection_cols = [col for col in GENE_CACHE_METADATA_COLUMNS if col in raw_gene_counts.columns] + sample_cols
+    projection_cols = [
+        col for col in GENE_CACHE_METADATA_COLUMNS if col in raw_gene_counts.columns
+    ] + sample_cols
     gene_counts = raw_gene_counts[projection_cols].copy()
     gene_counts["panel_score"] = _panel_score(raw_gene_counts, sample_cols)
     for column in sample_cols:
@@ -328,7 +349,9 @@ def _load_or_cache_gene_projection(
 
 def _require_pyarrow_transcript_cache() -> None:
     if pa is None or pc is None or pacsv is None or pads is None:
-        raise RuntimeError("pyarrow with csv and dataset support is required for transcript caching")
+        raise RuntimeError(
+            "pyarrow with csv and dataset support is required for transcript caching"
+        )
 
 
 def _load_transcript_annotation_map(annot_root: Path) -> pd.DataFrame:
@@ -705,7 +728,9 @@ def freeze_real_dataset(config: RealDataFreezeConfig, suite_dir: Path) -> Path:
     samples = samples.loc[samples["RNum"].isin(sample_cols)].copy().reset_index(drop=True)
 
     started_at = perf_counter()
-    gene_counts, sample_cols = _load_or_cache_gene_projection(config, samples, counts_root, source_cache_dir)
+    gene_counts, sample_cols = _load_or_cache_gene_projection(
+        config, samples, counts_root, source_cache_dir
+    )
     samples = samples.loc[samples["RNum"].isin(sample_cols)].copy().reset_index(drop=True)
     design = _build_filter_design(samples, config.filter_design_terms)
     keep_expr = filter_by_expr(
@@ -718,7 +743,9 @@ def freeze_real_dataset(config: RealDataFreezeConfig, suite_dir: Path) -> Path:
         min_prop=config.filter_min_prop,
     )
     expressed_gene_counts = gene_counts.loc[keep_expr].copy()
-    ranked_genes = expressed_gene_counts.sort_values("panel_score", ascending=False, kind="mergesort")
+    ranked_genes = expressed_gene_counts.sort_values(
+        "panel_score", ascending=False, kind="mergesort"
+    )
     selected_gene_ids = (
         list(ranked_genes["Geneid"])
         if config.gene_panel_size is None
@@ -755,7 +782,9 @@ def freeze_real_dataset(config: RealDataFreezeConfig, suite_dir: Path) -> Path:
     )
     psi_annot = psi_annot.loc[psi_annot["gene_id"].isin(selected_genes)].copy()
     psi_key_cols = ["gene_id", "event_info", "event_type", "chr", "strand"]
-    available_key_cols = [col for col in psi_key_cols if col in psi_counts.columns and col in psi_annot.columns]
+    available_key_cols = [
+        col for col in psi_key_cols if col in psi_counts.columns and col in psi_annot.columns
+    ]
     psi_subset = psi_counts.merge(psi_annot, on=available_key_cols, how="inner")
     psi_matrix = psi_subset[sample_cols].to_numpy(dtype=float)
     if "psi_uid" not in psi_subset.columns:
@@ -767,13 +796,26 @@ def freeze_real_dataset(config: RealDataFreezeConfig, suite_dir: Path) -> Path:
     )
 
     gene_feature_table = gene_subset[["Geneid", "Chr", "Start", "End", "Strand", "Length"]].rename(
-        columns={"Geneid": "gene_id", "Chr": "chrom", "Start": "start", "End": "end", "Strand": "strand", "Length": "length"}
+        columns={
+            "Geneid": "gene_id",
+            "Chr": "chrom",
+            "Start": "start",
+            "End": "end",
+            "Strand": "strand",
+            "Length": "length",
+        }
     )
     tx_feature_cols = ["transcript_id", "gene_id", "length", "effective_length"]
     if "Length" in tx_subset.columns or "EffectiveLength" in tx_subset.columns:
-        tx_subset = tx_subset.rename(columns={"Length": "length", "EffectiveLength": "effective_length"})
+        tx_subset = tx_subset.rename(
+            columns={"Length": "length", "EffectiveLength": "effective_length"}
+        )
     tx_feature_table = tx_subset[tx_feature_cols].copy()
-    psi_feature_cols = [col for col in ["psi_uid", "gene_id", "event_type", "event_info", "chr", "strand"] if col in psi_subset.columns]
+    psi_feature_cols = [
+        col
+        for col in ["psi_uid", "gene_id", "event_type", "event_info", "chr", "strand"]
+        if col in psi_subset.columns
+    ]
     psi_feature_table = psi_subset[psi_feature_cols].drop_duplicates().reset_index(drop=True)
 
     manifest = DatasetManifest(
@@ -839,5 +881,7 @@ def freeze_real_dataset(config: RealDataFreezeConfig, suite_dir: Path) -> Path:
     if saved != output_dir:
         started_at = perf_counter()
         saved = _copy_tree(saved, output_dir)
-        _log_phase("fixture-cache-materialize", started_at, f"source={fixture_cache_dir}, path={saved}")
+        _log_phase(
+            "fixture-cache-materialize", started_at, f"source={fixture_cache_dir}, path={saved}"
+        )
     return saved

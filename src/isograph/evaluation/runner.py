@@ -33,6 +33,7 @@ from isograph.models.latent import LatentNetworkModel
 
 try:
     from isograph.models.vae import VaeNetworkModel
+
     _VAE_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _VAE_AVAILABLE = False
@@ -96,7 +97,9 @@ def _make_model(config: BenchmarkCommandConfig, dataset_name: str):
         return GraphNetworkModel(graph_config), graph_config
     elif config.backend == "latent":
         overrides = config.fixture_latent_overrides.get(dataset_name, {})
-        latent_config = dataclasses.replace(config.latent, **overrides) if overrides else config.latent
+        latent_config = (
+            dataclasses.replace(config.latent, **overrides) if overrides else config.latent
+        )
         return LatentNetworkModel(latent_config), latent_config
     elif config.backend == "vae":
         if not _VAE_AVAILABLE:
@@ -140,7 +143,9 @@ def benchmark(config: BenchmarkCommandConfig) -> dict[str, Path]:
             isograph_logger = logging.getLogger("isograph")
             file_handler = logging.FileHandler(log_path, mode="a", encoding="utf-8")
             file_handler.setLevel(logging.DEBUG)
-            file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
+            file_handler.setFormatter(
+                logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
+            )
             isograph_logger.addHandler(file_handler)
 
             tracemalloc.start()
@@ -163,8 +168,12 @@ def benchmark(config: BenchmarkCommandConfig) -> dict[str, Path]:
             artifacts_by_fixture[dataset_name] = artifacts
 
             truth = bundle.truth_tables.get("truth_modules.parquet", pd.DataFrame())
-            recovery = module_recovery_score(artifacts.module_table, truth) if not truth.empty else None
-            n_modules = 0 if artifacts.module_table.empty else artifacts.module_table["module_id"].nunique()
+            recovery = (
+                module_recovery_score(artifacts.module_table, truth) if not truth.empty else None
+            )
+            n_modules = (
+                0 if artifacts.module_table.empty else artifacts.module_table["module_id"].nunique()
+            )
             n_edges = len(artifacts.edge_table)
 
             role_recall: dict | None = None
@@ -194,7 +203,10 @@ def benchmark(config: BenchmarkCommandConfig) -> dict[str, Path]:
                     seed=sel_cfg.seed,
                 )
                 recommended_alpha = sel_result.recommended_alpha
-                sel_path = ensure_dir(config.report_root) / f"{config.stage_name}-{dataset_name}-stability.json"
+                sel_path = (
+                    ensure_dir(config.report_root)
+                    / f"{config.stage_name}-{dataset_name}-stability.json"
+                )
                 write_json(
                     sel_path,
                     {
@@ -212,7 +224,9 @@ def benchmark(config: BenchmarkCommandConfig) -> dict[str, Path]:
                 "recovery": recovery,
                 "runtime_seconds": elapsed,
             }
-            snap_name = f"{config.stage_name}_{dataset_name}_{config.backend}_v1_seed{config.seed:04d}"
+            snap_name = (
+                f"{config.stage_name}_{dataset_name}_{config.backend}_v1_seed{config.seed:04d}"
+            )
             save_snapshot(
                 fit_artifacts=artifacts,
                 model_config=model_config,

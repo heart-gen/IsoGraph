@@ -117,11 +117,11 @@ def test_feature_permutation_invariance(tmp_path: Path) -> None:
     )
 
     # Module membership must be identical
-    orig_modules = (
-        arts_orig.module_table.sort_values(["module_id", "gene_id"]).reset_index(drop=True)
+    orig_modules = arts_orig.module_table.sort_values(["module_id", "gene_id"]).reset_index(
+        drop=True
     )
-    perm_modules = (
-        arts_perm.module_table.sort_values(["module_id", "gene_id"]).reset_index(drop=True)
+    perm_modules = arts_perm.module_table.sort_values(["module_id", "gene_id"]).reset_index(
+        drop=True
     )
     assert orig_modules.equals(perm_modules), "Module table changed after sample permutation"
 
@@ -131,9 +131,9 @@ def test_feature_permutation_invariance(tmp_path: Path) -> None:
     def _edge_pairs(et: pd.DataFrame) -> set[frozenset]:
         return {frozenset([row.source, row.target]) for row in et.itertuples()}
 
-    assert _edge_pairs(arts_orig.edge_table) == _edge_pairs(arts_perm.edge_table), (
-        "Edge connectivity changed after sample permutation"
-    )
+    assert _edge_pairs(arts_orig.edge_table) == _edge_pairs(
+        arts_perm.edge_table
+    ), "Edge connectivity changed after sample permutation"
 
     # |weight| values must match within tolerance
     def _abs_weight_map(et: pd.DataFrame) -> dict[frozenset, float]:
@@ -142,9 +142,9 @@ def test_feature_permutation_invariance(tmp_path: Path) -> None:
     orig_w = _abs_weight_map(arts_orig.edge_table)
     perm_w = _abs_weight_map(arts_perm.edge_table)
     for pair, w in orig_w.items():
-        assert abs(w - perm_w[pair]) < 1e-9, (
-            f"Edge weight magnitude changed after permutation for {pair}: {w} vs {perm_w[pair]}"
-        )
+        assert (
+            abs(w - perm_w[pair]) < 1e-9
+        ), f"Edge weight magnitude changed after permutation for {pair}: {w} vs {perm_w[pair]}"
 
 
 # ---------------------------------------------------------------------------
@@ -177,7 +177,7 @@ def test_single_isoform_gene_handling(tmp_path: Path) -> None:
         transcript_table=transcript_table,
         gene_ids=["GeneA", "GeneB"],
     )
-    dataset_dir = save_dataset_bundle(bundle, tmp_path / "single_isoform")
+    save_dataset_bundle(bundle, tmp_path / "single_isoform")
 
     config = BaselineModelConfig(alpha=0.05, min_module_size=1)
     model = BaselineNetworkModel(config)
@@ -260,7 +260,6 @@ def test_medium_v1_recovery_threshold(tmp_path: Path) -> None:
 
 def test_core_v1_determinism_medium_v1(tmp_path: Path) -> None:
     """Two fits on medium_v1 with the same seed produce identical snapshots."""
-    from time import perf_counter
 
     paths = generate_core_suite(tmp_path / "datasets", seed=0)
     medium_dir = next(p for p in paths if "medium" in p.name)
@@ -271,9 +270,13 @@ def test_core_v1_determinism_medium_v1(tmp_path: Path) -> None:
     for snap_dir in (snap_a, snap_b):
         artifacts, bundle = _fit(medium_dir, _MEDIUM_CONFIG)
         truth = bundle.truth_tables.get("truth_modules.parquet")
-        recovery = module_recovery_score(artifacts.module_table, truth) if truth is not None else None
+        recovery = (
+            module_recovery_score(artifacts.module_table, truth) if truth is not None else None
+        )
         metrics = {
-            "n_modules": 0 if artifacts.module_table.empty else artifacts.module_table["module_id"].nunique(),
+            "n_modules": 0
+            if artifacts.module_table.empty
+            else artifacts.module_table["module_id"].nunique(),
             "n_edges": len(artifacts.edge_table),
             "recovery": recovery,
             "runtime_seconds": 0.0,
@@ -288,8 +291,8 @@ def test_core_v1_determinism_medium_v1(tmp_path: Path) -> None:
         )
 
     report = compare_snapshot_dirs(snap_a, snap_b)
-    assert report["passed"], (
-        "medium_v1 snapshots are not deterministic:\n" + "\n".join(report["differences"])
+    assert report["passed"], "medium_v1 snapshots are not deterministic:\n" + "\n".join(
+        report["differences"]
     )
 
 

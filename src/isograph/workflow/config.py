@@ -100,6 +100,7 @@ class VaeModelConfig:
     number of true modules. Leave ``latent_dim_grid=None`` to use a fixed
     ``latent_dim``.
     """
+
     name: str = "vae_network"
     latent_dim: int = 8
     hidden_dim: int = 128
@@ -222,6 +223,7 @@ class RealDataFreezeConfig:
 @dataclass
 class StabilitySelectionConfig:
     """Config for stability-selection alpha tuning (for real data without ground truth)."""
+
     alpha_grid: list[float] = field(
         default_factory=lambda: [0.005, 0.01, 0.02, 0.05, 0.10, 0.15, 0.20]
     )
@@ -237,7 +239,9 @@ class BenchmarkCommandConfig:
     dataset_suite: str = "core_v1"
     stage_name: str = "stage1_baseline"
     backend: str = "vae"  # "baseline" | "latent" | "graph" | "vae" | "wgcna"
-    fixture_filter: str | None = None  # None = run all; "toy_v1"|"medium_v1"|"real_caudate_aa_v1" = one fixture
+    fixture_filter: str | None = (
+        None  # None = run all; "toy_v1"|"medium_v1"|"real_caudate_aa_v1" = one fixture
+    )
     benchmark_root: Path = Path("benchmarks")
     artifacts_root: Path = Path("artifacts")
     dataset_root: Path = Path("benchmarks/datasets")

@@ -5,7 +5,6 @@ from __future__ import annotations
 import warnings
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from isograph import __version__
@@ -87,7 +86,9 @@ def explain_module(
         resolved_ids,
         sample_ids,
         module_score_table_aligned,
-    ) = load_explain_inputs(artifact_dir, feature_table, feature_meta, module_ids, module_score_table)
+    ) = load_explain_inputs(
+        artifact_dir, feature_table, feature_meta, module_ids, module_score_table
+    )
 
     results: dict[str, ExplainResult] = {}
     for module_id in resolved_ids:
@@ -102,7 +103,12 @@ def explain_module(
             feature_scores, eigengene, module_genes, sample_ids, config
         )
         transcript_polarity_table = compute_transcript_polarity_table(
-            feature_table_aligned, feature_meta_validated, eigengene, sample_ids, module_genes, config
+            feature_table_aligned,
+            feature_meta_validated,
+            eigengene,
+            sample_ids,
+            module_genes,
+            config,
         )
         high_vs_low_table = compute_high_vs_low_table(
             feature_table_aligned, feature_meta_validated, eigengene, sample_ids, config
@@ -121,6 +127,7 @@ def explain_module(
                 compute_decoder_jacobian,
                 filter_vae_drivers,
             )
+
             jacobian_df = compute_decoder_jacobian(
                 _checkpoint, eigengene, feature_scores, config.vae_perturbation_eps
             )
@@ -130,9 +137,13 @@ def explain_module(
         ig_attributions: pd.DataFrame | None = None
         if config.integrated_gradients and _checkpoint.exists():
             from isograph.explain.captum_attribution import compute_integrated_gradients
+
             ig_attributions = compute_integrated_gradients(
-                _checkpoint, eigengene, feature_scores,
-                config.ig_n_steps, config.ig_baseline,
+                _checkpoint,
+                eigengene,
+                feature_scores,
+                config.ig_n_steps,
+                config.ig_baseline,
             )
 
         results[module_id] = ExplainResult(
@@ -164,7 +175,9 @@ def _write_outputs(
     for module_id, result in results.items():
         module_dir = ensure_dir(output_dir / module_id)
         result.gene_driver_table.to_parquet(module_dir / "gene_driver_table.parquet", index=False)
-        result.transcript_polarity_table.to_parquet(module_dir / "transcript_polarity_table.parquet", index=False)
+        result.transcript_polarity_table.to_parquet(
+            module_dir / "transcript_polarity_table.parquet", index=False
+        )
         result.high_vs_low_table.to_parquet(module_dir / "high_vs_low_table.parquet", index=False)
         if result.vae_drivers is not None:
             result.vae_drivers.to_parquet(module_dir / "vae_drivers.parquet", index=False)
@@ -179,7 +192,8 @@ def _write_outputs(
     annotation_columns: list[str] = []
     if annotation_table is not None and _first is not None:
         annotation_columns = [
-            c for c in _ALL_ANNOTATION_COLUMNS
+            c
+            for c in _ALL_ANNOTATION_COLUMNS
             if c in _first.gene_driver_table.columns
             or c in _first.transcript_polarity_table.columns
         ]
@@ -209,6 +223,7 @@ def _write_plots(
     feature_table: pd.DataFrame | None = None,
 ) -> list[str]:
     import matplotlib
+
     if matplotlib.get_backend().lower() != "agg":
         matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -224,7 +239,11 @@ def _write_plots(
         summarize_module,
     )
 
-    formats = [config.output_format] if isinstance(config.output_format, str) else list(config.output_format)
+    formats = (
+        [config.output_format]
+        if isinstance(config.output_format, str)
+        else list(config.output_format)
+    )
 
     def _save(fig, rel_stem: str) -> list[str]:
         stems: list[str] = []
@@ -247,23 +266,28 @@ def _write_plots(
 
         has_tx = not result.transcript_polarity_table.empty
         if has_tx:
-            written.extend(_save(
-                plot_transcript_polarity_heatmap(result), f"{module_id}/transcript_polarity"
-            ))
+            written.extend(
+                _save(plot_transcript_polarity_heatmap(result), f"{module_id}/transcript_polarity")
+            )
             written.extend(_save(plot_switch_pair(result), f"{module_id}/switch_pair"))
 
         if has_tx and feature_table is not None and result.sample_ids:
             try:
-                written.extend(_save(
-                    plot_isoform_gradient(result, feature_table), f"{module_id}/isoform_gradient"
-                ))
+                written.extend(
+                    _save(
+                        plot_isoform_gradient(result, feature_table),
+                        f"{module_id}/isoform_gradient",
+                    )
+                )
             except ValueError:
                 pass
 
-        written.extend(_save(
-            plot_summary_panel(result, results=results, feature_table=feature_table),
-            f"{module_id}/summary_panel",
-        ))
+        written.extend(
+            _save(
+                plot_summary_panel(result, results=results, feature_table=feature_table),
+                f"{module_id}/summary_panel",
+            )
+        )
 
         summary = summarize_module(result)
         write_json(module_dir / "module_summary.json", summary)
